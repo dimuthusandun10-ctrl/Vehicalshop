@@ -401,3 +401,195 @@
   opacity: 0.45;
   cursor: not-allowed;
 }
+
+/* ═══════════════════════════════════════════════════════
+   MOBILE CHECKOUT MODAL STYLES (<= 820px)
+   ═══════════════════════════════════════════════════════ */
+@media (max-width: 820px) {
+  
+  /* 1. Modal full-screen layout */
+  .modal-bg {
+    padding: 0 !important;
+    display: flex !important;
+    align-items: flex-end !important;
+    justify-content: center !important;
+  }
+  .modal {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: auto;
+    max-height: 94vh !important;
+    border-radius: 20px 20px 0 0 !important;
+    margin: 0 !important;
+    overflow-x: hidden !important;  /* prevent horizontal scroll */
+  }
+  
+  /* 2. Modal body — proper padding + scroll */
+  .modal-b {
+    padding: 14px !important;
+    overflow-y: auto;
+    overflow-x: hidden;
+    max-height: calc(94vh - 130px);  /* leave room for header + footer */
+  }
+  
+  /* 3. Modal header */
+  .modal-h {
+    padding: 14px 16px !important;
+    border-radius: 20px 20px 0 0 !important;
+  }
+  .modal-h h3 {
+    font-size: 14px !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .modal-h h3 small {
+    font-size: 10px !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: block;
+  }
+  
+  /* 4. Total hero block — stack */
+  .total-hero {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 6px !important;
+    padding: 12px 14px !important;
+  }
+  .total-hero-amount {
+    width: 100% !important;
+    text-align: right !important;
+    font-size: 22px !important;
+    word-break: break-all;
+    white-space: normal !important;
+  }
+  
+  /* 5. Payment method grid — 3 columns, tighter */
+  .method-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 6px !important;
+  }
+  .method-btn {
+    padding: 10px 4px !important;
+    min-width: 0 !important;   /* allow shrinking */
+  }
+  .method-btn .method-icon {
+    font-size: 18px !important;
+  }
+  .method-btn .method-sin {
+    font-size: 12px !important;
+  }
+  .method-btn .method-en {
+    font-size: 9.5px !important;
+  }
+  
+  /* 6. Input with prefix — full width */
+  .input-with-prefix {
+    width: 100% !important;
+  }
+  .input-with-prefix input {
+    font-size: 18px !important;
+    min-width: 0 !important;
+    width: 100%;
+  }
+  .input-with-prefix .prefix {
+    padding: 10px 12px !important;
+    font-size: 14px !important;
+  }
+  
+  /* 7. Quick cash buttons — 4 columns, ALL visible */
+  .quick-add-grid {
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 5px !important;
+  }
+  .quick-add-btn {
+    padding: 9px 2px !important;
+    font-size: 12px !important;
+    min-width: 0;
+  }
+  
+  /* 8. Exact button — full width */
+  .quick-exact-btn {
+    font-size: 13px !important;
+    padding: 11px !important;
+  }
+  
+  /* 9. Change due box */
+  .change-due-box {
+    padding: 10px 12px !important;
+    font-size: 12px !important;
+  }
+  .change-due-box .change-amount {
+    font-size: 14px !important;
+  }
+  
+  /* 10. Notes input */
+  .notes-row input {
+    font-size: 14px !important;
+  }
+  
+  /* 11. Footer — stack buttons VERTICALLY (not side by side) */
+  .checkout-footer-wrap {
+    padding: 10px 14px !important;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important;
+    gap: 8px !important;
+  }
+  .print-toggle-row {
+    font-size: 12px !important;
+  }
+  .checkout-footer {
+    display: grid !important;
+    grid-template-columns: 1fr !important;   /* stack */
+    gap: 8px !important;
+  }
+  .checkout-footer .co-btn-cancel,
+  .checkout-footer .co-btn-complete {
+    width: 100% !important;
+    min-height: 46px !important;
+    padding: 12px !important;
+    font-size: 14px !important;
+  }
+  .checkout-footer .co-btn-complete {
+    grid-row: 1;   /* Complete on top, Cancel below */
+    font-size: 15px !important;
+  }
+  
+  /* 12. Sections spacing */
+  .checkout-modal {
+    gap: 10px !important;
+  }
+  .section-label {
+    font-size: 12px !important;
+  }
+  .customer-select-row select {
+    font-size: 13px !important;
+    padding: 9px 10px !important;
+  }
+  
+  /* 13. Prevent ALL horizontal overflow within modal */
+  .checkout-modal * {
+    max-width: 100% !important;
+    box-sizing: border-box;
+  }
+}
+
+/* For very small screens (< 400px) */
+@media (max-width: 400px) {
+  .method-btn {
+    padding: 8px 2px !important;
+  }
+  .method-btn .method-sin {
+    font-size: 11px !important;
+  }
+  .method-btn .method-en {
+    font-size: 9px !important;
+  }
+  .total-hero-amount {
+    font-size: 20px !important;
+  }
+  .quick-add-btn {
+    font-size: 11px !important;
+  }
+}
