@@ -67,8 +67,13 @@ input:focus,select:focus,textarea:focus{border-color:var(--primary)}
 .sidebar{background:#111c30;border-right:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden}
 .brand{padding:15px 16px;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:center}
 .brand .ico{font-size:24px}
-.brand b{display:block;font-size:14px;letter-spacing:.2px}
-.brand small{font-size:10px;color:var(--muted)}
+.brand b{display:block;font-size:14px;letter-spacing:.2px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.brand small{font-size:10px;color:var(--muted);display:block;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.topbar-shop-slot{margin-left:auto;margin-right:10px;display:inline-flex;align-items:center}
+.shop-switcher-select{background:#141f33;color:#38bdf8;border:1px solid rgba(56,189,248,0.35);padding:5px 10px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;max-width:220px;outline:none;font-family:inherit;transition:all .15s ease}
+.shop-switcher-select:hover{border-color:#38bdf8;background:#192742}
+.shop-switcher-select:focus{border-color:#0284c7;box-shadow:0 0 0 2px rgba(56,189,248,0.2)}
 .nav{flex:1;overflow-y:auto;padding:10px}
 .nav-item{
   width:100%;display:flex;gap:11px;align-items:center;

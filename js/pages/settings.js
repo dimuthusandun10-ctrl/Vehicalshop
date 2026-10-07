@@ -20,38 +20,41 @@ function pgSettings(){
     ${tab==='shop' ? (state.user?.role === 'cashier' ? `
     <div style="margin-top:14px;padding:20px;text-align:center;color:var(--muted)">
       🔒 සාප්පු තොරතුරු වෙනස් කිරීමට ඔබට අවසර නැත (Restricted)
-    </div>` : `
+    </div>` : (() => {
+      const curShop = state.activeShop || db.shop || {};
+      return `
     <div class="grid2" style="margin-top:14px">
       <div>
         <label style="font-size:12px;color:var(--muted);font-weight:600">
           සාප්පුවේ නම / Shop Name
           ${state.user?.role !== 'superadmin' ? '<span style="color:#fcd34d;font-size:10.5px;margin-left:4px">🔒 (Super Admin Only)</span>' : ''}
         </label>
-        <input id="setShopName" value="${esc(db.shop?.name || '')}"
+        <input id="setShopName" value="${esc(curShop.name || '')}"
                ${state.user?.role === 'superadmin' ? '' : 'readonly disabled title="Super Admin පමණක් වෙනස් කළ හැක" style="opacity:0.75;cursor:not-allowed;background:#141f33"'}>
       </div>
       <div>
         <label style="font-size:12px;color:var(--muted);font-weight:600">දුරකථන අංකය / Phone</label>
-        <input id="setShopPhone" value="${esc(db.shop?.phone || '')}">
+        <input id="setShopPhone" value="${esc(curShop.phone || '')}">
       </div>
     </div>
     <div style="margin-top:14px">
       <label style="font-size:12px;color:var(--muted);font-weight:600">ලිපිනය / Address</label>
-      <input id="setShopAddr" value="${esc(db.shop?.addr || '')}">
+      <input id="setShopAddr" value="${esc(curShop.address || curShop.addr || '')}">
     </div>
     <div class="grid2" style="margin-top:14px">
       <div>
         <label style="font-size:12px;color:var(--muted);font-weight:600">බදු ප්‍රතිශතය / Tax Rate (%)</label>
-        <input id="setShopTax" type="number" min="0" max="100" value="${db.shop?.tax||0}">
+        <input id="setShopTax" type="number" min="0" max="100" value="${curShop.tax||0}">
       </div>
       <div>
         <label style="font-size:12px;color:var(--muted);font-weight:600">බිල්පත් පතුලේ පාඨය / Footer Note</label>
-        <input id="setShopFooter" value="${esc(db.shop?.footer || '')}">
+        <input id="setShopFooter" value="${esc(curShop.footer || curShop.footerEn || '')}">
       </div>
     </div>
     <div style="margin-top:18px;display:flex;justify-content:flex-end">
       <button class="btn btn-primary" onclick="saveShopSettings()">💾 සැකසුම් සුරකින්න</button>
-    </div>`) : ''}
+    </div>`;
+    })()) : ''}
 
     ${tab==='users' ? `
     <div style="margin-top:14px">
@@ -107,20 +110,65 @@ async function saveShopSettings(){
   const db = window.DB || {};
   if(!db.shop) db.shop = {};
 
-  if(state.user?.role === 'superadmin'){
-    db.shop.name = $('#setShopName')?.value.trim() || db.shop.name;
+  const shopId = state.user?.shopId || state.activeShopId || (state.activeShop && state.activeShop.id);
+  if(!shopId){
+    toast('සාප්පුව හඳුනාගත නොහැක', 'err');
+    return;
   }
-  db.shop.phone  = $('#setShopPhone')?.value.trim() || '';
-  db.shop.addr   = $('#setShopAddr')?.value.trim() || '';
-  db.shop.tax    = Math.max(0, parseFloat($('#setShopTax')?.value) || 0);
-  db.shop.footer = $('#setShopFooter')?.value.trim() || '';
 
+  const nameInput = $('#setShopName')?.value.trim();
+  const phone = $('#setShopPhone')?.value.trim() || '';
+  const addr = $('#setShopAddr')?.value.trim() || '';
+  const tax = Math.max(0, parseFloat($('#setShopTax')?.value) || 0);
+  const footer = $('#setShopFooter')?.value.trim() || '';
+
+  // Prevent name edit by admin: only superadmin can edit name
+  const existingName = state.activeShop?.name || db.shop?.name || '';
+  const name = (state.user?.role === 'superadmin' && nameInput) ? nameInput : existingName;
+
+  const data = {
+    name,
+    phone,
+    address: addr,
+    addr: addr,
+    tax,
+    footer,
+    footerEn: footer
+  };
+
+  // Save to Firestore shops collection
   if(window.FB && window.FB.fbSet){
-    await window.FB.fbSet(window.FB.COL.settings, 'shop', db.shop);
+    const baseShop = (db.shops || []).find(s => s.id === shopId) || state.activeShop || {};
+    await window.FB.fbSet(window.FB.COL.shops, shopId, {
+      ...baseShop,
+      ...data,
+      id: shopId
+    });
   }
-  if(typeof saveDB === 'function') saveDB();
+  // Also save settings/shop doc for backward compatibility
+  if(window.FB && window.FB.fbSet){
+    await window.FB.fbSet(window.FB.COL.settings, 'shop', data);
+  }
 
-  toast('සාප්පු සැකසුම් සුරකින ලදී ✅');
+  // Update local state
+  if(state.activeShop){
+    Object.assign(state.activeShop, data);
+    db.shop = state.activeShop;
+  } else {
+    db.shop = { ...(db.shop || {}), ...data };
+    state.activeShop = db.shop;
+  }
+
+  if(db.shops){
+    const sObj = db.shops.find(s => s.id === shopId);
+    if(sObj) Object.assign(sObj, data);
+  }
+
+  if(typeof saveDB === 'function') saveDB();
+  if(typeof updateBrandName === 'function') updateBrandName();
+  if(typeof updateTopBarShopSwitcher === 'function') updateTopBarShopSwitcher();
+
+  toast('සැකසුම් සුරකින ලදී ✅');
   render();
 }
 
@@ -247,6 +295,7 @@ function resetToDemo(){
 
 window.pgSettings = pgSettings;
 window.saveShopSettings = saveShopSettings;
+window.saveShop = saveShopSettings;
 window.editUser = editUser;
 window.saveUser = saveUser;
 window.delUser = delUser;

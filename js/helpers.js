@@ -99,6 +99,117 @@ function canDeleteCustomers(){
 window.canEditCustomers = canEditCustomers;
 window.canDeleteCustomers = canDeleteCustomers;
 
+/* Dynamic Shop Branding & Super Admin Switcher */
+function updateBrandName(){
+  const shop = window.state && window.state.activeShop;
+  const brandName = document.getElementById('brandName');
+  const brandSub = document.getElementById('brandSub');
+
+  if(!shop){
+    if(window.state && window.state.user && window.state.user.role === 'superadmin'){
+      if(brandName){
+        brandName.textContent = 'AutoParts POS · System';
+        brandName.title = 'AutoParts POS · System';
+      }
+      if(brandSub){
+        brandSub.textContent = 'ප්‍රධාන පාලන මැදිරිය';
+        brandSub.title = 'ප්‍රධාන පාලන මැදිරිය';
+      }
+      document.title = 'AutoParts POS · System';
+    } else {
+      if(brandName){
+        brandName.textContent = 'AutoParts POS';
+        brandName.title = 'AutoParts POS';
+      }
+      if(brandSub){
+        brandSub.textContent = 'වාහන අමතර කොටස්';
+        brandSub.title = 'වාහන අමතර කොටස්';
+      }
+      document.title = 'AutoParts POS';
+    }
+    return;
+  }
+
+  const name = shop.name || 'POS';
+  const sub = shop.address || shop.addr || 'වාහන අමතර කොටස්';
+
+  if(brandName){
+    brandName.textContent = name;
+    brandName.title = name;
+  }
+  if(brandSub){
+    brandSub.textContent = sub;
+    brandSub.title = sub;
+  }
+
+  document.title = (shop.name || 'POS') + ' — POS';
+}
+
+function updateTopBarShopSwitcher(){
+  const slot = document.getElementById('topbarShopSwitcherSlot');
+  if(!slot) return;
+
+  if(!window.state || !window.state.user || window.state.user.role !== 'superadmin'){
+    slot.style.display = 'none';
+    slot.innerHTML = '';
+    return;
+  }
+
+  const db = window.DB || {};
+  const shops = db.shops || [];
+  if(!shops.length){
+    slot.style.display = 'none';
+    slot.innerHTML = '';
+    return;
+  }
+
+  const currentId = window.state.activeShopId || (window.state.activeShop && window.state.activeShop.id) || shops[0].id;
+
+  slot.style.display = 'inline-flex';
+  slot.innerHTML = `
+    <select id="superAdminShopSelect" class="shop-switcher-select" onchange="switchSuperAdminShop(this.value)" title="ශාඛාව / සාප්පුව තෝරන්න">
+      ${shops.map(s => `
+        <option value="${esc(s.id)}" ${s.id === currentId ? 'selected' : ''}>
+          🏪 ${esc(s.name)}
+        </option>
+      `).join('')}
+      <option value="__manage__">⚙️ Manage Shops →</option>
+    </select>
+  `;
+}
+
+function switchSuperAdminShop(shopId){
+  if(shopId === '__manage__'){
+    if(typeof go === 'function') go('shops');
+    updateTopBarShopSwitcher();
+    return;
+  }
+  const db = window.DB || {};
+  const shop = (db.shops || []).find(s => s.id === shopId);
+  if(!shop) return;
+
+  if(window.state){
+    window.state.activeShopId = shopId;
+    window.state.activeShop = shop;
+  }
+  db.shop = shop;
+  try {
+    localStorage.setItem('pos.activeShopId', shopId);
+  } catch(e){}
+
+  updateBrandName();
+  updateTopBarShopSwitcher();
+
+  if(typeof rerenderIfActive === 'function') rerenderIfActive();
+  else if(typeof render === 'function') render();
+
+  if(typeof toast === 'function') toast(`සාප්පුව මාරු කරන ලදී: ${shop.name} 🏪`);
+}
+
+window.updateBrandName = updateBrandName;
+window.updateTopBarShopSwitcher = updateTopBarShopSwitcher;
+window.switchSuperAdminShop = switchSuperAdminShop;
+
 /* =========================================================
    GRANULAR PERMISSION SYSTEM DEFINITIONS & HELPERS
    ========================================================= */

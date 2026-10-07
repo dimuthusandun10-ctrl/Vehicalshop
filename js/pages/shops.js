@@ -539,6 +539,12 @@ async function submitEditShop(shopId){
       });
     }
     if(typeof saveDB === 'function') saveDB();
+    if(state.activeShopId === s.id || state.user?.shopId === s.id){
+      state.activeShop = s;
+      if(window.DB) window.DB.shop = s;
+      if(typeof updateBrandName === 'function') updateBrandName();
+      if(typeof updateTopBarShopSwitcher === 'function') updateTopBarShopSwitcher();
+    }
   }
 
   closeModal();

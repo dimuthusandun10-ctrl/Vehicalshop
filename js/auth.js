@@ -91,6 +91,25 @@ function doLogin(){
 
   state.user = user;
 
+  // Set active shop
+  const db = window.DB || {};
+  if(user.role === 'superadmin'){
+    const savedShopId = localStorage.getItem('pos.activeShopId');
+    if(savedShopId && (db.shops || []).find(s => s.id === savedShopId)){
+      state.activeShopId = savedShopId;
+    } else if((db.shops || []).length > 0){
+      state.activeShopId = db.shops[0].id;
+    }
+    state.activeShop = (db.shops || []).find(s => s.id === state.activeShopId);
+  } else {
+    state.activeShop = (db.shops || []).find(s => s.id === user.shopId);
+    state.activeShopId = state.activeShop?.id;
+  }
+
+  db.shop = state.activeShop;
+  if(typeof updateBrandName === 'function') updateBrandName();
+  if(typeof updateTopBarShopSwitcher === 'function') updateTopBarShopSwitcher();
+
   const loginScreen = $('#loginScreen');
   if(loginScreen) loginScreen.classList.add('hidden');
   const loginSlot = $('#loginSlot');
@@ -159,6 +178,11 @@ function doLogout(){
 function performLogout(){
   state.user = null;
   state.cart = [];
+  state.activeShop = null;
+  state.activeShopId = null;
+  if(window.DB) window.DB.shop = null;
+  if(typeof updateBrandName === 'function') updateBrandName();
+  if(typeof updateTopBarShopSwitcher === 'function') updateTopBarShopSwitcher();
 
   const appSlot = $('#appSlot') || $('#app');
   if(appSlot) appSlot.classList.add('hidden');

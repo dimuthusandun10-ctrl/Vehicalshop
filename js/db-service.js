@@ -158,6 +158,20 @@ Object.assign(DB, {
         this.recalculateCounters();
         this.isFirebaseConnected = true;
         this.persistLocal();
+
+        if(window.state && window.state.user){
+          const targetShopId = window.state.user.role === 'superadmin'
+            ? (window.state.activeShopId || (window.state.activeShop && window.state.activeShop.id))
+            : window.state.user.shopId;
+          const myShop = (this.shops || []).find(s => s.id === targetShopId) || (window.state.user.role === 'superadmin' ? (this.shops && this.shops[0]) : null);
+          if(myShop){
+            window.state.activeShop = myShop;
+            window.state.activeShopId = myShop.id;
+            this.shop = myShop;
+            if(typeof updateBrandName === 'function') updateBrandName();
+          }
+          if(typeof updateTopBarShopSwitcher === 'function') updateTopBarShopSwitcher();
+        }
       } catch(err) {
         this.isFirebaseConnected = false;
         console.warn('Operating in local offline storage mode.');
@@ -202,6 +216,22 @@ Object.assign(DB, {
         this.shops = list;
         this.recalculateCounters();
         this.persistLocal();
+
+        // If current user's shop was updated
+        if(window.state && window.state.user){
+          const targetShopId = window.state.user.role === 'superadmin'
+            ? (window.state.activeShopId || (window.state.activeShop && window.state.activeShop.id))
+            : window.state.user.shopId;
+          const myShop = list.find(s => s.id === targetShopId) || (window.state.user.role === 'superadmin' ? list[0] : null);
+          if(myShop){
+            window.state.activeShop = myShop;
+            window.state.activeShopId = myShop.id;
+            this.shop = myShop;
+            if(typeof updateBrandName === 'function') updateBrandName();
+          }
+          if(typeof updateTopBarShopSwitcher === 'function') updateTopBarShopSwitcher();
+        }
+
         rerenderIfActive();
       }
     });
