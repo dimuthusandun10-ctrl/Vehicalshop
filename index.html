@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="si">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AutoParts POS — වාහන අමතර කොටස් පද්ධතිය</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Sinhala:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/components.css">
+<link rel="stylesheet" href="css/checkout.css">
+<link rel="stylesheet" href="css/grn.css">
+<link rel="stylesheet" href="css/pos.css">
+<link rel="stylesheet" href="css/dashboard.css">
+<link rel="stylesheet" href="css/shift.css">
+<link rel="stylesheet" href="css/returns.css">
+<link rel="stylesheet" href="css/print-thermal.css">
+<link rel="stylesheet" href="css/profile.css">
+<link rel="stylesheet" href="css/shops.css">
+<link rel="stylesheet" href="css/lock.css">
+<link rel="stylesheet" href="css/permissions.css">
+<link rel="stylesheet" href="css/autoparts.css">
+</head>
+<body>
+
+<!-- ============ Direct Embedded Layout (No CORS fetch needed) ============ -->
+<div id="loginSlot">
+  <div class="login-wrap" id="loginScreen">
+    <div class="login-card">
+      <div class="login-logo">
+        <div class="ico">🔧</div>
+        <h1>AutoParts POS</h1>
+        <p>වාහන අමතර කොටස් විකුණුම් පද්ධතිය</p>
+      </div>
+      <div class="field">
+        <label>පරිශීලක නාමය / Username</label>
+        <input id="lUser" placeholder="username" autocomplete="username">
+      </div>
+      <div class="field">
+        <label>මුරපදය / Password</label>
+        <input id="lPass" type="password" placeholder="••••" autocomplete="current-password">
+      </div>
+      <button class="btn btn-primary" style="width:100%;padding:11px" onclick="doLogin()">
+        පිවිසෙන්න / Login
+      </button>
+      <div id="lErr" style="color:#fca5a5;font-size:12px;margin-top:10px;text-align:center"></div>
+      <div class="quick">
+        <button onclick="quick('superadmin')">👑 Super Admin</button>
+        <button onclick="quick('admin')">🛡️ Admin</button>
+        <button onclick="quick('cashier')">💵 Cashier</button>
+      </div>
+      <p style="text-align:center;color:var(--muted);font-size:10.5px;margin-top:12px">
+        Demo මුරපදය: 1234
+      </p>
+    </div>
+  </div>
+</div>
+
+<div id="appSlot" class="app hidden">
+  <aside id="sidebarSlot" class="sidebar">
+    <div class="brand">
+      <span class="ico">🔧</span>
+      <div>
+        <b>AutoParts POS</b>
+        <small>වාහන අමතර කොටස්</small>
+      </div>
+    </div>
+    <nav class="nav" id="navList"></nav>
+    <div class="side-foot">
+      <div class="avatar" id="uAvatar">A</div>
+      <div class="u">
+        <b id="uName">—</b>
+        <small id="uRole">—</small>
+      </div>
+      <button class="btn btn-sm" onclick="doLogout()" title="පිටවීම">⏻</button>
+    </div>
+  </aside>
+  <main class="main">
+    <div id="topbarSlot">
+      <header class="topbar">
+        <button class="menu-btn" onclick="document.getElementById('sidebarSlot').classList.toggle('open')">☰</button>
+        <h2 id="pgTitle">—<small id="pgSub">—</small></h2>
+        <span id="shiftIndicator" class="shift-badge" style="display:none" onclick="if(typeof openShiftMenu==='function')openShiftMenu();else go('shifts')"></span>
+        <span id="roleBadge" class="badge"></span>
+        <span id="clock" style="font-size:12px;color:var(--muted);font-family:'Inter',sans-serif"></span>
+      </header>
+    </div>
+    <div class="content" id="content"></div>
+  </main>
+</div>
+
+<div id="overlaysSlot">
+  <div id="modalRoot"></div>
+  <div id="toastRoot"></div>
+</div>
+
+<!-- ============ Bootstrap Loader ============ -->
+<script src="js/loader.js"></script>
+</body>
+</html>

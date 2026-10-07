@@ -1,0 +1,101 @@
+/* =====================================================
+   SHIFT — topbar indicator, reports, modals
+   ===================================================== */
+
+/* ---------- TOPBAR SHIFT INDICATOR ---------- */
+.shift-badge{
+  display:inline-flex;align-items:center;gap:7px;
+  background:rgba(16,185,129,.12);
+  border:1px solid rgba(16,185,129,.3);
+  color:#6ee7b7;
+  padding:5px 12px;border-radius:20px;
+  font-size:11.5px;font-weight:600;
+  font-family:'Inter',sans-serif;
+  white-space:nowrap;
+  cursor:pointer;
+  transition:.15s;
+}
+.shift-badge:hover{background:rgba(16,185,129,.2);border-color:rgba(16,185,129,.5)}
+.shift-dot{
+  width:7px;height:7px;border-radius:50%;
+  background:#10b981;
+  box-shadow:0 0 0 0 rgba(16,185,129,.6);
+  animation:shiftPulse 2s infinite;
+}
+@keyframes shiftPulse{
+  0%{box-shadow:0 0 0 0 rgba(16,185,129,.6)}
+  70%{box-shadow:0 0 0 8px rgba(16,185,129,0)}
+  100%{box-shadow:0 0 0 0 rgba(16,185,129,0)}
+}
+
+/* ---------- SHIFT REPORT MODAL ---------- */
+.shift-report{padding:4px 0}
+
+.shift-head{
+  display:flex;align-items:center;gap:14px;
+  padding:16px;background:#0b1220;
+  border-radius:12px;margin-bottom:16px;
+  border:1px solid #1e293b;
+}
+.shift-head-ico{
+  width:52px;height:52px;border-radius:13px;
+  background:linear-gradient(135deg,rgba(245,158,11,.2),rgba(139,92,246,.15));
+  display:grid;place-items:center;font-size:24px;
+}
+.shift-head-t{font-size:15px;font-weight:700}
+.shift-head-s{font-size:12px;color:var(--muted);margin-top:2px}
+
+.shift-grid{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:8px;
+  margin-bottom:16px;
+}
+.shift-grid > div{
+  background:#0b1220;padding:10px;border-radius:9px;text-align:center;
+  border:1px solid #1e293b;
+}
+.shift-grid span{display:block;font-size:10.5px;color:var(--muted);margin-bottom:3px}
+.shift-grid b{font-size:13.5px;font-family:'Inter',sans-serif}
+
+.shift-breakdown{
+  background:#0b1220;border-radius:12px;padding:14px;margin-bottom:14px;
+  border:1px solid #1e293b;
+}
+
+.shift-verdict{
+  text-align:center;font-size:16px;font-weight:700;
+  padding:14px;border-radius:11px;border:1px dashed;
+  background:rgba(255,255,255,.02);
+  margin-bottom:14px;
+}
+
+.shift-extra{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:8px;
+}
+.shift-extra > div{
+  background:#0b1220;padding:10px;border-radius:9px;text-align:center;
+  border:1px solid #1e293b;
+}
+.shift-extra span{display:block;font-size:10.5px;color:var(--muted);margin-bottom:3px}
+.shift-extra b{font-size:12.5px;font-family:'Inter',sans-serif}
+
+/* ---------- RANGE TABS & POS STYLES ---------- */
+.range-tabs{
+  display:inline-flex;background:#0b1220;border:1px solid var(--line);
+  border-radius:8px;padding:2px;gap:2px;
+}
+.range-tabs button{
+  padding:6px 11px;border-radius:6px;font-size:12px;color:var(--muted);
+  font-weight:500;transition:.15s;white-space:nowrap;
+}
+.range-tabs button:hover{color:var(--txt);background:rgba(255,255,255,.05)}
+.range-tabs button.active{
+  background:var(--panel2);color:var(--txt);font-weight:600;
+  box-shadow:0 1px 3px rgba(0,0,0,.2);
+}
+.invoice-row{cursor:pointer;transition:.15s}
+.invoice-row:hover td{background:#1e2a42}
+
+@media(max-width:640px){
+  .shift-grid{grid-template-columns:repeat(2,1fr)}
+  .shift-extra{grid-template-columns:1fr}
+}

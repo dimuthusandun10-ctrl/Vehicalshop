@@ -1,0 +1,445 @@
+/* =========================================================
+   css/autoparts.css - Auto Parts Industry Specific Styling
+   ========================================================= */
+
+/* ---------- 1.1 Vehicle & OEM Search Controls ---------- */
+.search-tabs {
+  display: flex;
+  gap: 4px;
+}
+.search-tabs button {
+  padding: 6px 12px;
+  font-size: 12px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--line);
+  background: var(--panel2);
+  color: var(--txt);
+  transition: all .15s ease;
+}
+.search-tabs button:hover {
+  background: #25334d;
+}
+.search-tabs button.active {
+  background: var(--primary);
+  color: #1a1206;
+  border-color: var(--primary);
+}
+
+.vehicle-filter-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-top: 2px;
+}
+
+.vehicle-filter-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.vehicle-filter-row select,
+.vehicle-filter-row input {
+  padding: 7px 10px;
+  font-size: 12.5px;
+  border-radius: 7px;
+  border: 1px solid var(--line);
+  background: var(--panel2);
+  color: var(--txt);
+}
+
+.vehicle-filter-row select:focus,
+.vehicle-filter-row input:focus {
+  border-color: var(--primary);
+  outline: none;
+}
+
+.vehicle-results-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+}
+
+.vehicle-match-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(245, 158, 11, 0.15);
+  color: #fcd34d;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 11.5px;
+}
+.vehicle-match-badge.empty {
+  background: rgba(239, 68, 68, 0.15);
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+/* ---------- 1.2 OEM Tags & Prominent Display ---------- */
+.prod-oem-tag {
+  font-family: 'Inter', monospace;
+  font-size: 10px;
+  color: var(--primary);
+  background: rgba(245, 158, 11, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+  display: inline-block;
+  margin-top: 3px;
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.cart-item-oem {
+  font-size: 10px;
+  color: var(--muted);
+  font-family: 'Inter', monospace;
+  margin-top: 1px;
+}
+
+/* ---------- 1.3 Rack / Bin / Shelf Display ---------- */
+.prod-rack-badge {
+  font-size: 10.5px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 2px 6px;
+  margin-top: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  width: fit-content;
+}
+
+.cart-rack-pill {
+  font-size: 9.5px;
+  color: var(--muted);
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 1px 7px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: 3px;
+  width: fit-content;
+}
+
+/* ---------- 1.4 Serial Numbers Tracking ---------- */
+.checkout-serials-card {
+  background: rgba(59, 130, 246, 0.07);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+
+.checkout-serials-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #93c5fd;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.serial-input-group {
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.08);
+}
+.serial-input-group:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.serial-input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 5px;
+}
+
+.serial-input-row input {
+  flex: 1;
+  font-family: 'Inter', monospace;
+  font-size: 12.5px;
+  padding: 6px 10px;
+  text-transform: uppercase;
+}
+
+/* ---------- 1.5 Core Deposit ---------- */
+.cart-core-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #34d399;
+  cursor: pointer;
+  margin-top: 5px;
+  background: rgba(16, 185, 129, 0.08);
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  width: fit-content;
+}
+.cart-core-row input[type="checkbox"] {
+  cursor: pointer;
+  width: 14px;
+  height: 14px;
+  accent-color: var(--green);
+}
+
+.co-summary-core {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  font-size: 12.5px;
+  color: #34d399;
+  font-weight: 600;
+}
+
+/* ---------- 1.6 Cross-Sell Suggestions Toast ---------- */
+.cross-sell-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 360px;
+  max-width: calc(100vw - 32px);
+  background: #1e293b;
+  border: 1px solid #f59e0b;
+  border-radius: 12px;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5);
+  z-index: 250;
+  animation: csSlideUp .3s ease-out;
+  overflow: hidden;
+}
+
+@keyframes csSlideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.cross-sell-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: rgba(245, 158, 11, 0.15);
+  border-bottom: 1px solid rgba(245, 158, 11, 0.2);
+  font-size: 13px;
+  font-weight: 700;
+  color: #fcd34d;
+}
+
+.cross-sell-items {
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cross-sell-item-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  padding: 4px 0;
+}
+
+.cross-sell-btn {
+  background: var(--primary);
+  color: #1a1206;
+  border: none;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: .15s;
+}
+.cross-sell-btn:hover {
+  background: var(--primary-d);
+  color: #fff;
+}
+
+.cross-sell-progress {
+  height: 3px;
+  background: rgba(245, 158, 11, 0.2);
+  width: 100%;
+}
+.cross-sell-bar {
+  height: 100%;
+  background: var(--primary);
+  width: 100%;
+  animation: csTimer 8s linear forwards;
+}
+
+@keyframes csTimer {
+  from { width: 100%; }
+  to { width: 0%; }
+}
+
+/* ---------- Serial Search Page Styling ---------- */
+.serial-search-hero {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.serial-search-input-wrap {
+  display: flex;
+  gap: 10px;
+  max-width: 600px;
+  margin-top: 10px;
+}
+
+.serial-search-input-wrap input {
+  flex: 1;
+  font-size: 15px;
+  font-family: 'Inter', monospace;
+  padding: 10px 14px;
+  text-transform: uppercase;
+  border-radius: 9px;
+}
+
+.serial-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 18px;
+  margin-bottom: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.serial-card-left b {
+  font-size: 15px;
+  display: block;
+  margin-bottom: 3px;
+}
+
+.serial-card-meta {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.serial-badge-valid {
+  background: rgba(16, 185, 129, 0.15);
+  color: #6ee7b7;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-weight: 700;
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.serial-badge-expired {
+  background: rgba(239, 68, 68, 0.15);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-weight: 700;
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* Warranty Card Certificate (Modal / Thermal Print) */
+.warranty-card {
+  background: #fff;
+  color: #111;
+  font-family: 'Inter', sans-serif;
+  border: 2px solid #222;
+  border-radius: 10px;
+  padding: 22px;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.warranty-card-h {
+  text-align: center;
+  border-bottom: 2px solid #111;
+  padding-bottom: 12px;
+  margin-bottom: 14px;
+}
+.warranty-card-h h2 {
+  font-size: 18px;
+  margin: 0 0 4px;
+  color: #000;
+}
+.warranty-card-h p {
+  margin: 0;
+  font-size: 11px;
+  color: #555;
+}
+
+.warranty-card-body table {
+  width: 100%;
+  font-size: 12.5px;
+  color: #111;
+}
+.warranty-card-body td {
+  padding: 6px 4px;
+  border-bottom: 1px dashed #ddd;
+}
+.warranty-card-body td:first-child {
+  color: #555;
+  width: 40%;
+}
+
+.warranty-card-footer {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #111;
+  font-size: 10px;
+  color: #666;
+  text-align: center;
+  line-height: 1.4;
+}
+
+/* Thermal receipt warranty block */
+.receipt-warranty-block {
+  border: 1px dashed #444;
+  border-radius: 6px;
+  padding: 6px 8px;
+  margin: 8px 0;
+  font-size: 10.5px;
+  background: rgba(0, 0, 0, 0.02);
+}
+.receipt-warranty-title {
+  font-weight: bold;
+  font-size: 11px;
+  border-bottom: 1px dotted #888;
+  padding-bottom: 2px;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}

@@ -1,0 +1,83 @@
+/* =========================================================
+   js/pages/shifts.js - Shift History & Reports Page (Admin)
+   ========================================================= */
+
+function pgShifts(){
+  const db = window.DB || {};
+  const shifts = (db.shifts || []).slice().reverse();
+  const todayStr = today();
+
+  const todaysShifts = shifts.filter(s => (s.openedAt || '').slice(0,10) === todayStr);
+  const openShifts = shifts.filter(s => s.status === 'open');
+
+  /* Total variance across all closed shifts */
+  const totalVar = shifts.filter(s => s.status === 'closed').reduce((a,s) => a + (s.variance||0), 0);
+
+  return `
+  <div class="stats">
+    <div class="stat">
+      <div class="ic ic-lg" style="background:rgba(16,185,129,.15);color:#6ee7b7">🔓</div>
+      <div><b class="big">${openShifts.length}</b><span>විවෘත Shifts</span></div>
+    </div>
+    <div class="stat">
+      <div class="ic ic-lg" style="background:rgba(59,130,246,.15);color:#93c5fd">📅</div>
+      <div><b class="big">${todaysShifts.length}</b><span>අද Shifts</span></div>
+    </div>
+    <div class="stat">
+      <div class="ic ic-lg" style="background:rgba(245,158,11,.15);color:#fcd34d">💰</div>
+      <div><b class="big">${money(totalVar)}</b><span>මුළු වෙනස්කම්</span></div>
+    </div>
+    <div class="stat">
+      <div class="ic ic-lg" style="background:rgba(139,92,246,.15);color:#c4b5fd">📜</div>
+      <div><b class="big">${shifts.length}</b><span>මුළු වාර්තා</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-h">
+      <h3>📜 Cashier Shift ඉතිහාසය<small>Shift History</small></h3>
+    </div>
+    <div class="tbl-wrap">
+    <table>
+      <thead><tr>
+        <th>ID</th><th>කැෂියර්</th><th>ආරම්භය</th><th>අවසානය</th>
+        <th style="text-align:center">බිල්පත්</th>
+        <th style="text-align:right">ආරම්භක</th>
+        <th style="text-align:right">අපේක්ෂිත</th>
+        <th style="text-align:right">ගණන් කළ</th>
+        <th style="text-align:right">වෙනස්කම</th>
+        <th>තත්ත්වය</th>
+      </tr></thead>
+      <tbody>
+      ${shifts.map(s => {
+        const v = s.variance || 0;
+        const vClass = Math.abs(v) < 0.01 ? 'ok' : v > 0 ? 'warn' : 'bad';
+        const expected = s.summary ? s.summary.expected : 0;
+        return `<tr>
+          <td><b>${s.id}</b></td>
+          <td>${esc(s.cashierName)}</td>
+          <td><small>${new Date(s.openedAt).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</small></td>
+          <td>${s.closedAt
+              ? `<small>${new Date(s.closedAt).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</small>`
+              : '<small style="color:var(--green)">සක්‍රීය</small>'}</td>
+          <td style="text-align:center">${s.summary ? s.summary.invoices : (s.status==='open' ? (db.sales||[]).filter(x=>x.shiftId===s.id).length : '—')}</td>
+          <td style="text-align:right">${money(s.openingFloat)}</td>
+          <td style="text-align:right;color:var(--primary)">${s.status === 'closed' ? money(expected) : '—'}</td>
+          <td style="text-align:right">${s.closingCount != null ? money(s.closingCount) : '—'}</td>
+          <td style="text-align:right">
+            ${s.status === 'closed'
+              ? `<span class="pill ${vClass}">${v > 0 ? '+' : ''}${money(v)}</span>`
+              : '—'}
+          </td>
+          <td>${s.status === 'open'
+                ? '<span class="pill warn">🔓 විවෘත</span>'
+                : '<span class="pill ok">🔒 අවසන්</span>'}</td>
+        </tr>`;
+      }).join('') || '<tr><td colspan="10" class="empty">Shift වාර්තා නැත</td></tr>'}
+      </tbody>
+    </table>
+    </div>
+  </div>`;
+}
+
+window.pgShifts = pgShifts;

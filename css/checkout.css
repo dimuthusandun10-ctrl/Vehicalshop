@@ -1,0 +1,403 @@
+/* =========================================================
+   css/checkout.css - Modern POS Checkout Modal Styling
+   ========================================================= */
+
+.checkout-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* 1. Total Due Hero Section */
+.total-hero {
+  background: rgba(245, 158, 11, 0.06);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--primary);
+  border-radius: 12px;
+  padding: 14px 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+}
+.total-hero-label-sin {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--txt);
+}
+.total-hero-label-en {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.total-hero-amount {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--primary);
+  font-family: 'Inter', monospace;
+  text-align: right;
+  white-space: nowrap;
+}
+.total-hero-amount .original-striked {
+  font-size: 13px;
+  color: var(--muted);
+  text-decoration: line-through;
+  display: block;
+  font-weight: 500;
+  margin-bottom: -2px;
+}
+
+/* 2. Customer Select Row */
+.customer-select-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.customer-select-row label,
+.section-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--txt);
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.section-label small,
+.customer-select-row label small {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--muted);
+}
+.co-cust-select {
+  background: #0b1220;
+  border: 1px solid var(--line);
+  color: var(--txt);
+  padding: 9px 12px;
+  border-radius: 9px;
+  width: 100%;
+}
+
+/* 3. Payment Method Buttons */
+.method-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 4px;
+}
+.method-btn {
+  background: #0b1220;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px 8px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+.method-btn:hover {
+  border-color: var(--muted);
+  background: rgba(255, 255, 255, 0.03);
+}
+.method-btn .method-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+.method-btn .method-sin {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--txt);
+}
+.method-btn .method-en {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--muted);
+}
+.method-btn.active {
+  border: 2px solid var(--primary);
+  background: rgba(245, 158, 11, 0.08);
+  color: var(--primary);
+}
+.method-btn.active .method-sin {
+  color: var(--primary);
+}
+.method-btn.active .method-en {
+  color: var(--primary);
+  opacity: 0.85;
+}
+
+/* 4. Notes Row */
+.notes-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* 5. Cash Received & Roundoff */
+.cash-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.roundoff-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.roundoff-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+}
+.roundoff-toggle input {
+  width: auto;
+  cursor: pointer;
+}
+.roundoff-toggle:hover {
+  color: var(--txt);
+}
+
+.input-with-prefix {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+  background: #0b1220;
+  transition: border-color 0.15s;
+}
+.input-with-prefix:focus-within {
+  border-color: var(--primary);
+  outline: 1px solid var(--primary);
+}
+.input-with-prefix .prefix {
+  padding: 12px 14px;
+  background: rgba(245, 158, 11, 0.08);
+  color: var(--primary);
+  font-weight: 700;
+  font-size: 16px;
+  border-right: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+}
+.input-with-prefix input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  text-align: right;
+  font-size: 20px;
+  font-weight: 700;
+  font-family: 'Inter', monospace;
+  padding: 12px 14px;
+  color: var(--txt);
+  outline: none;
+}
+
+/* 6. Quick Cash Buttons */
+.quick-exact-btn {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #0b1220;
+  border: 1px solid var(--line);
+  color: var(--txt);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: center;
+  display: block;
+}
+.quick-exact-btn:hover {
+  border-color: var(--primary);
+  background: rgba(245, 158, 11, 0.08);
+  color: var(--primary);
+}
+
+.quick-add-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-top: 2px;
+}
+.quick-add-btn {
+  padding: 9px 6px;
+  border-radius: 8px;
+  background: #0b1220;
+  border: 1px solid var(--line);
+  color: var(--txt);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: center;
+}
+.quick-add-btn:hover {
+  border-color: var(--primary);
+  background: rgba(245, 158, 11, 0.08);
+  color: var(--primary);
+}
+
+/* 7. Change Due Box */
+.change-due-box {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 4px;
+}
+.change-due-box.positive {
+  background: rgba(16, 185, 129, 0.08);
+  border-color: rgba(16, 185, 129, 0.35);
+  color: #6ee7b7;
+}
+.change-due-box.positive .change-amount {
+  color: #34d399;
+  font-size: 16px;
+  font-weight: 700;
+  font-family: 'Inter', monospace;
+}
+.change-due-box.negative {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #fca5a5;
+}
+.change-due-box.negative .change-amount {
+  color: #ef4444;
+  font-size: 15px;
+  font-weight: 700;
+  font-family: 'Inter', monospace;
+}
+
+/* 8. Credit Mode Blocks */
+.credit-warning {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #fca5a5;
+  padding: 14px 16px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+}
+.credit-info-block {
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.credit-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12.5px;
+}
+.credit-info-row b {
+  font-family: 'Inter', monospace;
+  font-size: 13.5px;
+}
+
+/* 9. Card Mode Block */
+.card-info-block {
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+
+/* 10. Print Toggle & Footer */
+.modal-f:has(.checkout-footer-wrap) {
+  flex-direction: column;
+  align-items: stretch;
+}
+.checkout-footer-wrap {
+  width: 100%;
+  flex: 1 1 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.print-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--txt);
+  user-select: none;
+}
+.print-toggle-row input {
+  width: auto;
+  cursor: pointer;
+}
+.checkout-footer {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+.checkout-footer .co-btn-cancel {
+  flex: 1;
+  min-height: 48px;
+  padding: 14px;
+  font-size: 13.5px;
+  font-weight: 600;
+  border-radius: 10px;
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  color: var(--txt);
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.checkout-footer .co-btn-cancel:hover {
+  background: #33415c;
+}
+.checkout-footer .co-btn-complete {
+  flex: 2;
+  min-height: 48px;
+  padding: 14px;
+  font-size: 14.5px;
+  font-weight: 700;
+  border-radius: 10px;
+  background: var(--green);
+  border: none;
+  color: #04231a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.checkout-footer .co-btn-complete:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+.checkout-footer .co-btn-complete:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}

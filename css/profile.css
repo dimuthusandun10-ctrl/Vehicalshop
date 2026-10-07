@@ -1,0 +1,272 @@
+/* =========================================================
+   css/profile.css - User Profile, Password & Staff Control Styles
+   ========================================================= */
+
+.profile-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+/* --- Profile Hero Card --- */
+.profile-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 22px;
+}
+
+.profile-hero-left {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.profile-avatar {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #1a1206;
+  font-size: 28px;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.3);
+  flex-shrink: 0;
+}
+
+.profile-meta h2 {
+  font-size: 19px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.profile-meta .profile-sub {
+  color: var(--muted);
+  font-size: 12.5px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.profile-meta .profile-sub span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.profile-hero-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* --- Work Summary Stats --- */
+.profile-section-title {
+  font-size: 15px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.profile-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.profile-stat-box {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 16px;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.15s ease;
+}
+
+.profile-stat-box:hover {
+  transform: translateY(-2px);
+  border-color: rgba(245, 158, 11, 0.4);
+}
+
+.profile-stat-box .ps-ico {
+  font-size: 22px;
+  margin-bottom: 8px;
+}
+
+.profile-stat-box .ps-val {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--txt);
+  line-height: 1.2;
+  font-family: 'Inter', sans-serif;
+}
+
+.profile-stat-box .ps-lbl-si {
+  font-size: 12px;
+  color: var(--txt);
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.profile-stat-box .ps-lbl-en {
+  font-size: 10.5px;
+  color: var(--muted);
+}
+
+/* --- Password Change Dialog & Strength Meter --- */
+.pwd-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.pwd-input-wrap input {
+  padding-right: 42px;
+}
+
+.pwd-toggle-btn {
+  position: absolute;
+  right: 10px;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 4px;
+}
+
+.pwd-toggle-btn:hover {
+  color: var(--txt);
+}
+
+.pwd-strength-container {
+  margin-top: 10px;
+  padding: 10px;
+  background: #0b1220;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+}
+
+.pwd-strength-bar {
+  height: 6px;
+  background: #25334a;
+  border-radius: 3px;
+  overflow: hidden;
+  margin: 6px 0;
+}
+
+.pwd-strength-fill {
+  height: 100%;
+  width: 0%;
+  transition: all 0.25s ease;
+  border-radius: 3px;
+}
+
+.pwd-strength-fill.weak { width: 33%; background: #ef4444; }
+.pwd-strength-fill.good { width: 66%; background: #f59e0b; }
+.pwd-strength-fill.strong { width: 100%; background: #10b981; }
+
+.pwd-rules {
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.6;
+  margin-top: 6px;
+}
+
+.pwd-rules li {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pwd-rules li.valid { color: #6ee7b7; }
+.pwd-rules li.invalid { color: #94a3b8; }
+
+/* --- Staff Control Center --- */
+.staff-ctrl-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 20px;
+}
+
+.staff-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.staff-filters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.staff-filters input {
+  max-width: 260px;
+}
+
+.staff-filters select {
+  width: auto;
+  min-width: 130px;
+}
+
+.staff-user-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.staff-avatar-sm {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #2b3952;
+  color: #fff;
+  font-weight: 700;
+  font-size: 13px;
+  display: grid;
+  place-items: center;
+}
+
+.staff-actions {
+  display: flex;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+/* Badge colors */
+.badge.superadmin { background: rgba(245, 158, 11, 0.18); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.4); }
+.badge.admin { background: rgba(59, 130, 246, 0.18); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.4); }
+.badge.cashier { background: rgba(16, 185, 129, 0.18); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.4); }
+
+@media (max-width: 768px) {
+  .profile-hero {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .profile-stats-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}

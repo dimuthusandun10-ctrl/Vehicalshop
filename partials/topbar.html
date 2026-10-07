@@ -1,0 +1,14 @@
+<header class="topbar">
+  <button class="menu-btn"
+          onclick="document.getElementById('sidebarSlot').classList.toggle('open')">☰</button>
+
+  <h2 id="pgTitle">—<small id="pgSub">—</small></h2>
+
+  <!-- ⭐ Shift indicator with quick action menu -->
+  <span id="shiftIndicator" class="shift-badge" style="display:none" onclick="if(typeof openShiftMenu==='function')openShiftMenu();else go('shifts')"></span>
+
+  <span id="roleBadge" class="badge"></span>
+
+  <span id="clock"
+        style="font-size:12px;color:var(--muted);font-family:'Inter',sans-serif"></span>
+</header>

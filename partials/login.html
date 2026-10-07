@@ -1,0 +1,35 @@
+<div class="login-wrap" id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="ico">🔧</div>
+      <h1>AutoParts POS</h1>
+      <p>වාහන අමතර කොටස් විකුණුම් පද්ධතිය</p>
+    </div>
+
+    <div class="field">
+      <label>පරිශීලක නාමය / Username</label>
+      <input id="lUser" placeholder="username" autocomplete="username">
+    </div>
+
+    <div class="field">
+      <label>මුරපදය / Password</label>
+      <input id="lPass" type="password" placeholder="••••" autocomplete="current-password">
+    </div>
+
+    <button class="btn btn-primary" style="width:100%;padding:11px" onclick="doLogin()">
+      පිවිසෙන්න / Login
+    </button>
+
+    <div id="lErr" style="color:#fca5a5;font-size:12px;margin-top:10px;text-align:center"></div>
+
+    <div class="quick">
+      <button onclick="quick('superadmin')">👑 Super Admin</button>
+      <button onclick="quick('admin')">🛡️ Admin</button>
+      <button onclick="quick('cashier')">💵 Cashier</button>
+    </div>
+
+    <p style="text-align:center;color:var(--muted);font-size:10.5px;margin-top:12px">
+      Demo මුරපදය: 1234
+    </p>
+  </div>
+</div>

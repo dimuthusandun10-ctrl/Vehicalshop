@@ -1,0 +1,166 @@
+/* =========================================================
+   css/shops.css - Super Admin Multi-Shop Management Styles
+   ========================================================= */
+
+.shops-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.shops-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 16px;
+}
+
+.shop-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 14px;
+  transition: all 0.15s ease;
+  position: relative;
+}
+
+.shop-card:hover {
+  border-color: rgba(245, 158, 11, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+}
+
+.shop-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.shop-title-area {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.shop-icon-box {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: rgba(245, 158, 11, 0.14);
+  color: #fcd34d;
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.shop-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--txt);
+  margin-bottom: 2px;
+}
+
+.shop-id-pill {
+  font-size: 10px;
+  font-family: 'Inter', monospace;
+  color: var(--muted);
+  background: #0b1220;
+  padding: 1px 6px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.shop-details {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--muted);
+  background: #141f33;
+  padding: 12px;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.shop-detail-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.shop-admin-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.shop-admin-box.assigned {
+  background: rgba(59, 130, 246, 0.12);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  color: #93c5fd;
+}
+
+.shop-admin-box.unassigned {
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  color: #fcd34d;
+}
+
+.shop-metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.shop-metric-pill {
+  background: #0b1220;
+  border: 1px solid var(--line);
+  padding: 8px 10px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.shop-metric-pill small {
+  display: block;
+  font-size: 10px;
+  color: var(--muted);
+  margin-bottom: 2px;
+}
+
+.shop-metric-pill b {
+  font-size: 13.5px;
+  font-family: 'Inter', sans-serif;
+  color: var(--txt);
+}
+
+.shop-actions-bar {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding-top: 8px;
+  border-top: 1px dashed var(--line);
+}
+
+.shop-actions-bar .btn {
+  flex: 1;
+  min-width: 90px;
+  font-size: 12px;
+  padding: 7px 10px;
+}
+
+@media (max-width: 768px) {
+  .shops-grid {
+    grid-template-columns: 1fr;
+  }
+}
