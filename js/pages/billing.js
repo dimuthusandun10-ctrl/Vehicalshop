@@ -74,15 +74,23 @@ function pgBilling(){
       <div class="prod-pagination" id="prodPagination"></div>
     </div>
 
-    <div class="pos-right">
+    <!-- Backdrop for mobile (only visible when cart is open) -->
+    <div class="pos-cart-backdrop" id="cartBackdrop" onclick="closeMobileCart()"></div>
+
+    <!-- Right: Cart (mobile = bottom sheet, desktop = side panel) -->
+    <div class="pos-right" id="cartPanel">
+      <!-- Drag handle (mobile only) -->
+      <div class="cart-drag-handle"></div>
+
       <div class="cart-header">
         <div style="display:flex;align-items:center;gap:8px">
-          <h3 style="font-size:14px;margin:0">🛒 වත්මන් බිල</h3>
+          <h3 style="font-size:14px;margin:0">🛒 වත්මන් බිල <span id="cartItemCount"></span></h3>
           <span style="font-size:10.5px;color:var(--muted)" id="cartCount">භාණ්ඩ 0</span>
         </div>
         <div class="cart-actions">
           <button class="btn btn-sm" onclick="holdBill()" title="ඉදිරියට තබන්න (Stock Lock)">⏸️ Hold</button>
           <button class="btn btn-sm btn-red" onclick="clearCart()" title="හිස් කරන්න (F8)">🗑️</button>
+          <button class="cart-close-btn" onclick="closeMobileCart()" title="වසන්න">✕</button>
         </div>
       </div>
       <div class="cart-customer">
@@ -94,7 +102,16 @@ function pgBilling(){
       <div class="cart-items" id="cartItems"></div>
       <div class="cart-sum" id="cartSum"></div>
     </div>
-  </div>`;
+  </div>
+
+  <!-- FAB (mobile only, hidden on desktop via CSS) -->
+  <button class="pos-fab empty" id="posFab" onclick="openMobileCart()">
+    <span class="fab-icon">🛒</span>
+    <span class="fab-info">
+      <span class="fab-count" id="fabCount">භාණ්ඩ 0</span>
+      <span class="fab-total" id="fabTotal">රු. 0.00</span>
+    </span>
+  </button>`;
 }
 
 function renderSearchControlsHtml(){
@@ -544,6 +561,20 @@ function addToCart(pid){
   }
   renderCart();
   checkCrossSell(p);
+
+  // FAB bounce animation + haptic feedback
+  updateFab();
+  const fab = document.getElementById('posFab');
+  if(fab){
+    fab.style.transform = 'scale(1.1)';
+    setTimeout(() => {
+      const f = document.getElementById('posFab');
+      if(f) f.style.transform = '';
+    }, 150);
+    if(navigator.vibrate){
+      try { navigator.vibrate(30); } catch(e){}
+    }
+  }
 }
 
 /* Feature 1.6: Cross-Sell Suggestions */
@@ -666,6 +697,7 @@ function clearCart(){
   const csToast = $('#crossSellToast');
   if(csToast) csToast.remove();
   renderCart();
+  closeMobileCart();
 }
 
 function calcTotals(){
@@ -696,8 +728,12 @@ function calcTotals(){
 
 function renderCart(){
   const box = $('#cartItems'); if(!box) return;
+  const itemCount = state.cart.reduce((a,c) => a + c.qty, 0);
+  const countText = 'භාණ්ඩ ' + itemCount;
   const cc = $('#cartCount');
-  if(cc) cc.textContent = 'භාණ්ඩ ' + state.cart.reduce((a,c) => a + c.qty, 0);
+  if(cc) cc.textContent = countText;
+  const cic = $('#cartItemCount');
+  if(cic) cic.textContent = `(${countText})`;
 
   box.innerHTML = state.cart.length ? state.cart.map(c => {
     const prod = (DB.getProd ? DB.getProd(c.pid) : null) || (DB.products || []).find(p => p.id === c.pid);
@@ -759,7 +795,92 @@ function renderCart(){
     <button class="btn btn-green" style="width:100%;margin-top:10px;padding:12px;font-size:15px;font-weight:700" ${state.cart.length?'':'disabled'} onclick="openCheckout()">
       💳 ගෙවීමට (F4) → ${money(total)}
     </button>
-    ${state.held.length?`<button class="btn btn-sm btn-blue" style="width:100%;margin-top:7px" onclick="showHeld()">⏸️ රඳවා ඇති බිල්පත් (${state.held.length})</button>`:''}`;
+    ${state.held.length?`<button class="btn btn-sm btn-blue" style="width:100%;margin-top:7px" onclick="showHeld()">⏸️ රඳවා ඇති බිල්පත් (${state.held.length})</button>`:''}
+  `;
+
+  // Update FAB badge and state
+  updateFab();
+  initCartSwipeGesture();
+}
+
+function openMobileCart(){
+  const panel = document.getElementById('cartPanel');
+  const backdrop = document.getElementById('cartBackdrop');
+  if(panel) panel.classList.add('open');
+  if(backdrop) backdrop.classList.add('open');
+  document.body.style.overflow = 'hidden';  // prevent background scroll
+
+  // Focus first input if any
+  setTimeout(() => {
+    const firstInput = panel?.querySelector('input[type="number"]');
+    if(firstInput) firstInput.focus();
+  }, 350);
+}
+
+function closeMobileCart(){
+  const panel = document.getElementById('cartPanel');
+  const backdrop = document.getElementById('cartBackdrop');
+  if(panel) panel.classList.remove('open');
+  if(backdrop) backdrop.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function updateFab(){
+  const fab = document.getElementById('posFab');
+  if(!fab) return;
+
+  const itemCount = (state.cart || []).reduce((a,c) => a + c.qty, 0);
+  const {total} = (typeof calcTotals === 'function') ? calcTotals() : {total: 0};
+
+  const countEl = document.getElementById('fabCount');
+  const totalEl = document.getElementById('fabTotal');
+
+  if(countEl) countEl.textContent = 'භාණ්ඩ ' + itemCount;
+  if(totalEl) totalEl.textContent = money(total);
+
+  if(itemCount > 0){
+    fab.classList.remove('empty');
+    fab.classList.add('has-items');
+  } else {
+    fab.classList.add('empty');
+    fab.classList.remove('has-items');
+  }
+}
+
+// Swipe-down to close on drag handle (mobile only)
+function initCartSwipeGesture(){
+  const handle = document.querySelector('.cart-drag-handle');
+  if(!handle || handle._hasSwipe) return;
+  handle._hasSwipe = true;
+  let startY = 0;
+  handle.addEventListener('touchstart', e => {
+    startY = e.touches[0].clientY;
+  }, {passive: true});
+  handle.addEventListener('touchmove', e => {
+    const diff = e.touches[0].clientY - startY;
+    if(diff > 0){
+      const panel = document.getElementById('cartPanel');
+      if(panel) panel.style.transform = `translateY(${diff}px)`;
+    }
+  }, {passive: true});
+  handle.addEventListener('touchend', e => {
+    const diff = e.changedTouches[0].clientY - startY;
+    const panel = document.getElementById('cartPanel');
+    if(diff > 100){
+      closeMobileCart();
+    }
+    if(panel) panel.style.transform = '';
+  });
+}
+
+// Auto-close mobile cart on window resize > 820px
+if(typeof window !== 'undefined' && !window._posResizeBound){
+  window._posResizeBound = true;
+  window.addEventListener('resize', () => {
+    if(window.innerWidth > 820){
+      closeMobileCart();
+    }
+  });
 }
 
 function overrideCartItemPrice(pid, val){
@@ -1485,8 +1606,9 @@ async function executeSaleRecord(total, method, paid, change, cardRef='', notes=
   checkoutState.notes = '';
   checkoutState.cardRef = '';
 
-  /* 8. Close modal */
+  /* 8. Close modal & mobile cart */
   closeModal();
+  closeMobileCart();
 
   /* 9. Re-render cart and product grid */
   renderCart();
@@ -1628,3 +1750,6 @@ window.goToPage = goToPage;
 window.setSortOrder = setSortOrder;
 window.applySorting = applySorting;
 window.renderPagination = renderPagination;
+window.openMobileCart = openMobileCart;
+window.closeMobileCart = closeMobileCart;
+window.updateFab = updateFab;
