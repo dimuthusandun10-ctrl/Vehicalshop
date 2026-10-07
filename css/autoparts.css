@@ -181,25 +181,33 @@
 }
 
 /* ---------- 1.5 Core Deposit ---------- */
-.cart-core-row {
-  display: flex;
+.core-deposit-row, .cart-core-row {
+  display: inline-flex;
   align-items: center;
   gap: 6px;
   font-size: 11px;
   color: #34d399;
   cursor: pointer;
   margin-top: 5px;
-  background: rgba(16, 185, 129, 0.08);
-  padding: 3px 8px;
+  padding: 6px 10px;
   border-radius: 6px;
-  border: 1px solid rgba(16, 185, 129, 0.2);
+  border: 1px dashed rgba(16, 185, 129, 0.3);
+  background: rgba(16, 185, 129, 0.05);
+  white-space: nowrap;
   width: fit-content;
 }
-.cart-core-row input[type="checkbox"] {
+.core-deposit-row input[type="checkbox"], .cart-core-row input[type="checkbox"] {
   cursor: pointer;
   width: 14px;
   height: 14px;
   accent-color: var(--green);
+  margin: 0;
+  flex-shrink: 0;
+}
+.core-deposit-row .core-amt, .cart-core-row .core-amt {
+  color: #f87171;
+  font-weight: 600;
+  margin-left: 2px;
 }
 
 .co-summary-core {

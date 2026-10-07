@@ -537,7 +537,7 @@ function addToCart(pid){
       oemNo: p.oemNo || '',
       warranty: p.warranty || 0,
       hasSerial: !!p.hasSerial,
-      coreDeposit: p.coreDeposit || 0,
+      coreDeposit: Number(p.coreDeposit) || 0,
       useCoreExchange: false,
       qty: 1
     });
@@ -673,7 +673,9 @@ function calcTotals(){
 
   // Core deposit exchanges (e.g. old dead battery trade-in deduction)
   const coreDeduction = state.cart.reduce((a,c) => {
-    return a + (c.useCoreExchange && c.coreDeposit ? c.coreDeposit * c.qty : 0);
+    const prod = (DB.getProd ? DB.getProd(c.pid) : null) || (DB.products || []).find(p => p.id === c.pid);
+    const coreDeposit = Number(prod ? prod.coreDeposit : c.coreDeposit) || 0;
+    return a + (c.useCoreExchange && coreDeposit > 0 ? coreDeposit * c.qty : 0);
   }, 0);
 
   let disc = 0;
@@ -697,7 +699,12 @@ function renderCart(){
   const cc = $('#cartCount');
   if(cc) cc.textContent = 'භාණ්ඩ ' + state.cart.reduce((a,c) => a + c.qty, 0);
 
-  box.innerHTML = state.cart.length ? state.cart.map(c => `
+  box.innerHTML = state.cart.length ? state.cart.map(c => {
+    const prod = (DB.getProd ? DB.getProd(c.pid) : null) || (DB.products || []).find(p => p.id === c.pid);
+    const coreDeposit = Number(prod ? prod.coreDeposit : c.coreDeposit) || 0;
+    const hasCore = coreDeposit > 0;
+
+    return `
     <div class="cart-row">
       <div class="ci">
         <b>${esc(c.name)}</b>
@@ -711,10 +718,10 @@ function renderCart(){
         </div>
         ${c.oemNo ? `<div class="cart-item-oem">OEM: ${esc(c.oemNo)}</div>` : ''}
         ${c.rack ? `<span class="cart-rack-pill">📍 ${esc(c.rack)}${c.bin?' / '+esc(c.bin):''}</span>` : ''}
-        ${c.coreDeposit > 0 ? `
-          <label class="cart-core-row">
+        ${hasCore ? `
+          <label class="core-deposit-row">
             <input type="checkbox" ${c.useCoreExchange?'checked':''} onchange="toggleCoreExchange('${c.pid}')">
-            <span>🔋 පරණ කොටස භාරගන්න: (රු. -${num(c.coreDeposit)})</span>
+            <span>🔋 පරණ කොටස භාරගත්තා <span class="core-amt">(−රු. ${num(coreDeposit)})</span></span>
           </label>` : ''}
       </div>
       <div class="qty-box">
@@ -726,7 +733,8 @@ function renderCart(){
         <b style="color:var(--primary);font-size:13px">${money(c.price*c.qty)}</b>
         <div><button class="btn btn-sm btn-red" style="padding:1px 6px;margin-top:3px" onclick="removeItem('${c.pid}')">✕</button></div>
       </div>
-    </div>`).join('')
+    </div>`;
+  }).join('')
     : (!((typeof Shift !== 'undefined' && state.user) ? Shift.getActive(state.user.id) : null)
       ? '<div class="empty"><div class="e">🔒</div>Shift එකක් ආරම්භ කර නැත<br><small>බිල්පත් නිකුත් කිරීමට පළමුව Shift එකක් අරඹන්න</small></div>'
       : '<div class="empty"><div class="e">🛒</div>භාණ්ඩ එකතු කර නැත<br><small>වම් පසින් භාණ්ඩයක් තෝරන්න</small></div>');

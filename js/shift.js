@@ -57,8 +57,9 @@ const Shift = {
     const discounts   = sales.reduce((a,s) => a + (s.disc || 0), 0);
 
     /* ⭐ Cash returns only (Card returns do not deduct from physical cash drawer) */
+    const returnCashOutMoves = (db.cashMoves || []).filter(m => m.shiftId === shiftId && m.type === 'out' && m.refId);
     const cashRefunds = (db.returns || [])
-      .filter(r => r.status === 'approved' && r.shiftId === shiftId && (r.refundMethod === 'cash' || !r.refundMethod))
+      .filter(r => r.status === 'approved' && r.shiftId === shiftId && (r.refundMethod === 'cash' || !r.refundMethod) && !returnCashOutMoves.some(m => m.refId === r.id))
       .reduce((a,r) => a + (r.amount || 0), 0);
 
     /* ⭐ Petty Cash Movements */
@@ -127,6 +128,35 @@ const Shift = {
 };
 
 window.Shift = Shift;
+
+function addCashOutToShift(shiftId, amount, reason, refId){
+  if(!shiftId || !amount) return null;
+  const db = (typeof DB !== 'undefined' && DB) ? DB : (window.DB || {});
+  if(!db.cashMoves) db.cashMoves = [];
+
+  const move = {
+    id: uid('CM'),
+    shiftId: shiftId,
+    type: 'out',
+    amount: Number(amount) || 0,
+    reason: reason || 'Return Refund',
+    refId: refId || null,
+    notes: `Return Cash-Out · Ref: ${refId || '-'}`,
+    date: today(),
+    timestamp: new Date().toISOString(),
+    processedBy: (state.user ? state.user.name : 'පරිපාලක'),
+    by: (state.user ? state.user.name : 'පරිපාලක')
+  };
+
+  db.cashMoves.push(move);
+  if(window.FB && window.FB.fbAdd){
+    window.FB.fbAdd(window.FB.COL.cashMoves, move);
+  }
+  if(typeof saveDB === 'function') saveDB();
+  return move;
+}
+Shift.addCashOutToShift = addCashOutToShift;
+window.addCashOutToShift = addCashOutToShift;
 
 function requireActiveShift(actionLabel) {
   const user = (typeof state !== 'undefined' && state) ? state.user : null;

@@ -85,6 +85,7 @@ Object.assign(DB, {
             warranty: p.warranty !== undefined ? p.warranty : (init?.warranty || 0)
           };
         });
+        this.sanitizeProductsCoreDeposit();
       }
       if(cached.customers?.length) this.customers = cached.customers;
       if(cached.suppliers?.length) this.suppliers = cached.suppliers;
@@ -140,7 +141,10 @@ Object.assign(DB, {
             return u;
           });
         }
-        if(products && products.length)   this.products = products;
+        if(products && products.length){
+          this.products = products;
+          this.sanitizeProductsCoreDeposit();
+        }
         if(customers && customers.length) this.customers = customers;
         if(suppliers && suppliers.length) this.suppliers = suppliers;
         if(sales && sales.length)         this.sales = sales;
@@ -245,9 +249,30 @@ Object.assign(DB, {
     });
 
     window.FB.fbWatch(window.FB.COL.returns, list => {
-      if(list && list.length){
+      if(list){
         this.returns = list;
         this.persistLocal();
+
+        // Check for newly approved returns belonging to the active cashier
+        list.forEach(ret => {
+          if(ret.status === 'approved'
+             && ret.notified === false
+             && (ret.cashierId === state.user?.id || ret.requestedById === state.user?.id)
+             && state.user?.role === 'cashier'){
+
+            // Trigger real-time cashier notification
+            if(typeof showReturnNotification === 'function'){
+              showReturnNotification(ret);
+            }
+
+            // Mark as notified in Firestore
+            ret.notified = true;
+            if(window.FB && window.FB.fbUpdate){
+              window.FB.fbUpdate(window.FB.COL.returns, ret.id, { notified: true });
+            }
+          }
+        });
+
         rerenderIfActive();
       }
     });
@@ -288,6 +313,36 @@ Object.assign(DB, {
         counters: this.counters
       }));
     } catch(e){}
+  },
+
+  sanitizeProductsCoreDeposit(){
+    if(!this.products || !this.products.length) return;
+    this.products.forEach(p => {
+      // Only Car Battery (BT-8009) should have coreDeposit = 2000; all other products should have 0
+      if(p.code !== 'BT-8009' && p.id !== 'P07'){
+        if(Number(p.coreDeposit) > 0){
+          p.coreDeposit = 0;
+          if(window.FB && window.FB.fbUpdate && p.id){
+            window.FB.fbUpdate(window.FB.COL.products, p.id, { coreDeposit: 0 });
+          }
+        }
+      }
+      // If HL-6007 mistakenly had battery OEM/rack data
+      if((p.code === 'HL-6007' || p.id === 'P08') && p.oemNo === '28800-YZZ01'){
+        p.oemNo = '90981-13058';
+        p.rack = 'D-02';
+        p.bin = 'B1';
+        p.coreDeposit = 0;
+        if(window.FB && window.FB.fbUpdate && p.id){
+          window.FB.fbUpdate(window.FB.COL.products, p.id, {
+            oemNo: '90981-13058',
+            rack: 'D-02',
+            bin: 'B1',
+            coreDeposit: 0
+          });
+        }
+      }
+    });
   },
 
   getShop(id){ return (this.shops || []).find(s => s.id === id); },

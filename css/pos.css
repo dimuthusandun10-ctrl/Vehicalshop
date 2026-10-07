@@ -215,6 +215,13 @@
   font-family: 'Inter', sans-serif;
 }
 
+/* --- Customer Detail Modal --- */
+.customer-detail-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
 
 /* --- Cart Header, Rows & Actions --- */
 .cart-header {

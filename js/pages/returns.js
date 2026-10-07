@@ -106,6 +106,9 @@ function pgReturnsCashier(){
                   ${r.status === 'pending' ? `
                     <button type="button" class="btn btn-sm btn-red" onclick="returnsCancelRequest('${r.id}')" title="අවලංගු කරන්න">✕ අවලංගු</button>
                   ` : ''}
+                  ${r.status === 'approved' && r.customerId ? `
+                    <button type="button" class="btn btn-sm btn-blue" onclick="createBillFromReturn('${r.id}')" title="නව බිලක් සාදන්න">🔄 නව බිලක්</button>
+                  ` : ''}
                 </td>
               </tr>
             `).join('') || `<tr><td colspan="7" class="empty" style="text-align:center;padding:26px">ආපසු ඉල්ලීම් නැත (No return requests yet)</td></tr>`}
@@ -212,7 +215,7 @@ function renderAdminPendingTab(pendingList){
         <div class="return-card-header">
           <span class="return-card-no">${esc(r.no)}</span>
           <span class="return-status-badge pending">⏳ අපේක්ෂිත</span>
-          <span class="return-card-time">${returnsTimeAgo(r.createdAt || r.date)}</span>
+          <span class="return-card-time">${formatRelativeTime(r.createdAt || r.date)}</span>
         </div>
         <div class="return-card-meta">
           <div>👤 කැෂියර්: <b>${esc(r.requestedBy || 'නොදනී')}</b></div>
@@ -340,6 +343,9 @@ function renderAdminAllTab(allReturns){
                 ${r.status === 'pending' ? `
                   <button type="button" class="btn btn-sm btn-green" onclick="returnsApproveModal('${r.id}')" title="අනුමත">✅</button>
                   <button type="button" class="btn btn-sm btn-red" onclick="returnsRejectModal('${r.id}')" title="ප්‍රතික්ෂේප">❌</button>
+                ` : ''}
+                ${r.status === 'approved' && r.customerId ? `
+                  <button type="button" class="btn btn-sm btn-blue" onclick="createBillFromReturn('${r.id}')" title="නව බිලක් සාදන්න">🔄 නව බිලක්</button>
                 ` : ''}
               </td>
             </tr>
@@ -771,12 +777,16 @@ async function returnsSubmitRequest(){
     status: 'pending',
     requestedBy: state.user ? state.user.name : 'කැෂියර්',
     requestedById: state.user ? state.user.id : null,
+    cashierId: state.user ? state.user.id : null,
+    cashierName: state.user ? state.user.name : 'කැෂියර්',
+    shiftId: activeShift ? activeShift.id : (s.shiftId || null),
+    notified: false,
     approvedBy: null,
+    approvedById: null,
     approvedAt: null,
     rejectedBy: null,
     rejectedAt: null,
-    rejectionReason: null,
-    shiftId: activeShift ? activeShift.id : (s.shiftId || null)
+    rejectionReason: null
   };
 
   if(!db.returns) db.returns = [];
@@ -800,7 +810,11 @@ async function returnsSubmitRequest(){
    ADMIN ACTIONS: Approve & Reject Flows
    ========================================================= */
 function returnsApproveModal(id){
-  if(typeof requireActiveShift === 'function' && !requireActiveShift('return approval')) return;
+  const user = state.user;
+  if(!user || (user.role !== 'admin' && user.role !== 'superadmin')){
+    toast('අනුමත කිරීමට අවසර නැත (Admin only)', 'err');
+    return;
+  }
 
   const db = window.DB || {};
   const r = (db.returns || []).find(x => x.id === id);
@@ -811,7 +825,7 @@ function returnsApproveModal(id){
     : (r.refundMethod === 'credit' ? '👥 පාරිභෝගික ණය ගිණුම (Store Credit)' : '💳 කාඩ්පත (Card)');
 
   const impactWarning = r.refundMethod === 'cash'
-    ? `<div class="pill warn" style="margin-top:6px">⚠️ මෙය ලාච්චුවෙන් ${money(r.amount)} ක් අඩු වනු ඇත. (Cash drawer will be reduced)</div>`
+    ? `<div class="pill warn" style="margin-top:6px">⚠️ මෙය කැෂියර්ගේ ලාච්චුවෙන් ${money(r.amount)} ක් අඩු වනු ඇත. (Cash drawer will be reduced)</div>`
     : (r.refundMethod === 'credit'
       ? `<div class="pill info" style="margin-top:6px">ℹ️ පාරිභෝගිකයාගේ ණය ශේෂයෙන් ${money(r.amount)} ක් අඩු වනු ඇත.</div>`
       : `<div class="pill mute" style="margin-top:6px">ℹ️ කාඩ්පත් ගනුදෙනුවක් බැවින් මුදල් ලාච්චුවට බලපෑමක් නැත.</div>`);
@@ -868,7 +882,11 @@ function returnsApproveModal(id){
 }
 
 async function returnsConfirmApprove(id){
-  if(typeof requireActiveShift === 'function' && !requireActiveShift('return approval')) return;
+  const user = state.user;
+  if(!user || (user.role !== 'admin' && user.role !== 'superadmin')){
+    toast('අනුමත කිරීමට අවසර නැත', 'err');
+    return;
+  }
 
   const db = window.DB || {};
   const r = (db.returns || []).find(x => x.id === id);
@@ -896,10 +914,11 @@ async function returnsConfirmApprove(id){
   // 2. Financial / Ledger impact
   if(doLedger){
     if(r.refundMethod === 'cash'){
-      // Set to current active shift drawer so it is accounted for in reconciliation
-      const activeShift = (typeof Shift !== 'undefined' && state.user) ? Shift.getActive(state.user.id) : null;
-      if(activeShift){
-        r.shiftId = activeShift.id;
+      // Update original cashier's shift drawer
+      if(r.shiftId){
+        if(typeof addCashOutToShift === 'function'){
+          addCashOutToShift(r.shiftId, r.amount, `Return ${r.no}`, r.id);
+        }
       }
     } else if(r.refundMethod === 'credit'){
       // Deduct from customer's credit balance
@@ -915,13 +934,17 @@ async function returnsConfirmApprove(id){
 
   // 3. Mark Approved
   r.status = 'approved';
-  r.approvedBy = state.user ? state.user.name : 'පරිපාලක';
+  r.notified = false;
+  r.approvedBy = user.name || 'පරිපාලක';
+  r.approvedById = user.id || null;
   r.approvedAt = new Date().toISOString();
 
   if(window.FB && window.FB.fbUpdate){
     await window.FB.fbUpdate(window.FB.COL.returns, r.id, {
       status: 'approved',
+      notified: false,
       approvedBy: r.approvedBy,
+      approvedById: r.approvedById,
       approvedAt: r.approvedAt,
       shiftId: r.shiftId
     });
@@ -1100,20 +1123,93 @@ function renderStatusBadge(status){
 }
 
 /* ---------- Human Time-Ago Helper ---------- */
+function formatRelativeTime(input){
+  if(!input) return '—';
+  let d;
+  if(input && typeof input.toDate === 'function') d = input.toDate();              // Firestore Timestamp instance
+  else if(input && input.seconds !== undefined) d = new Date(input.seconds * 1000); // Firestore timestamp plain object { seconds, nanoseconds }
+  else if(typeof input === 'string') d = new Date(input);
+  else if(input instanceof Date) d = input;
+  else if(typeof input === 'number') d = new Date(input);
+  else return '—';
+  
+  if(isNaN(d.getTime())) return '—';
+  
+  const now = new Date();
+  const diff = Math.floor((now - d) / 1000);  // seconds
+  
+  if(diff < 60) return 'දැන්';
+  if(diff < 3600) return Math.floor(diff/60) + ' මිනිත්තු කට පෙර';
+  if(diff < 86400) return Math.floor(diff/3600) + ' පැය කට පෙර';
+  if(diff < 604800) return Math.floor(diff/86400) + ' දින කට පෙර';
+  
+  return d.toLocaleDateString('en-GB', { day:'2-digit', month:'short' });
+}
+
 function returnsTimeAgo(dateStr){
-  if(!dateStr) return 'දැන්';
-  try {
-    const diff = Date.now() - new Date(dateStr).getTime();
-    const mins = Math.floor(diff / 60000);
-    if(mins < 1) return 'දැන් (Just now)';
-    if(mins < 60) return `${mins} මිනි. පෙර`;
-    const hours = Math.floor(mins / 60);
-    if(hours < 24) return `${hours} පැය පෙර`;
-    const days = Math.floor(hours / 24);
-    return `${days} දින පෙර`;
-  } catch(e){
-    return dateStr;
-  }
+  return formatRelativeTime(dateStr);
+}
+
+/* ---------- Cashier Notification & Create Bill Helpers ---------- */
+function showReturnNotification(ret){
+  if(!ret) return;
+
+  // 1. Toast banner
+  toast(`✅ ඔබේ ඉල්ලීම ${ret.no} අනුමත විය — භාණ්ඩය නැවත තොගයට එකතු විය`, 'ok');
+
+  // 2. Detailed Modal
+  const itemsHtml = (ret.items || []).map(it => `
+    <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;border-bottom:1px dashed var(--line)">
+      <span>• ${esc(it.name)} × ${it.qty}</span>
+      <b>${money(it.qty * (it.effectivePrice != null ? it.effectivePrice : it.price))}</b>
+    </div>
+  `).join('');
+
+  const modalBody = `
+  <div style="display:flex;flex-direction:column;gap:12px;padding:4px">
+    <div style="background:#141f33;padding:12px;border-radius:9px;border:1px solid var(--line)">
+      <div style="font-size:13px;margin-bottom:3px">ඉල්ලීම: <b style="color:var(--primary)">${esc(ret.no)}</b></div>
+      <div style="font-size:13px;margin-bottom:3px">බිල් අංකය: <b>${esc(ret.invoice)}</b></div>
+      <div style="font-size:13px">පාරිභෝගිකයා: <b>${esc(ret.customer || 'වෝක්-ඉන්')}</b></div>
+    </div>
+
+    <div>
+      <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px">භාණ්ඩ:</div>
+      ${itemsHtml}
+    </div>
+
+    <div style="background:#0b1220;padding:10px 12px;border-radius:8px;border:1px solid var(--line)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <span style="font-size:13px">💰 ආපසු මුදල:</span>
+        <b style="color:var(--primary);font-size:16px">${money(ret.amount)}</b>
+      </div>
+      <div style="font-size:12px;color:#6ee7b7">📦 භාණ්ඩ තොගය සාර්ථකව යාවත්කාලීන විය</div>
+    </div>
+
+    <div style="font-size:12px;color:var(--muted);line-height:1.6">
+      <div>👤 අනුමත කළේ: <b>${esc(ret.approvedBy || 'පරිපාලක')}</b></div>
+      <div>📅 දිනය: <b>${formatRelativeTime(ret.approvedAt || ret.createdAt || ret.date)}</b></div>
+    </div>
+  </div>`;
+
+  openModal('✅ ඉල්ලීම අනුමත විය', 'Return Approved', modalBody,
+    `<button class="btn btn-primary" style="width:100%" onclick="closeModal()">හරි (OK)</button>`);
+}
+
+function createBillFromReturn(returnId){
+  const db = window.DB || {};
+  const r = (db.returns || []).find(x => x.id === returnId);
+  if(!r) return;
+
+  // Pre-set customer for POS Billing
+  state.cartCustomer = r.customerId || '';
+  if(typeof go === 'function') go('billing');
+
+  // Pre-fill customer dropdown after render
+  setTimeout(() => {
+    const sel = document.getElementById('cartCustomer');
+    if(sel && r.customerId) sel.value = r.customerId;
+  }, 200);
 }
 
 /* ---------- Global Exports & Aliases ---------- */
@@ -1139,9 +1235,13 @@ window.returnsCancelRequest = returnsCancelRequest;
 window.returnsViewDetails = returnsViewDetails;
 window.returnsGetEffectivePrice = returnsGetEffectivePrice;
 window.returnsTimeAgo = returnsTimeAgo;
+window.formatRelativeTime = formatRelativeTime;
+window.showReturnNotification = showReturnNotification;
+window.createBillFromReturn = createBillFromReturn;
 
 // Aliases for backwards compatibility with legacy calls
 window.newReturn = returnsOpenNewRequest;
 window.approveReturn = returnsApproveModal;
 window.rejectReturn = returnsRejectModal;
 window.submitReturn = returnsSubmitRequest;
+

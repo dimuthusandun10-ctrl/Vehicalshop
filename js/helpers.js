@@ -63,6 +63,42 @@ function focusSearch(){
   }
 }
 
+function formatRelativeTime(input){
+  if(!input) return '—';
+  let d;
+  if(input && typeof input.toDate === 'function') d = input.toDate();              // Firestore Timestamp instance
+  else if(input && input.seconds !== undefined) d = new Date(input.seconds * 1000); // Firestore timestamp plain object { seconds, nanoseconds }
+  else if(typeof input === 'string') d = new Date(input);
+  else if(input instanceof Date) d = input;
+  else if(typeof input === 'number') d = new Date(input);
+  else return '—';
+  
+  if(isNaN(d.getTime())) return '—';
+  
+  const now = new Date();
+  const diff = Math.floor((now - d) / 1000);  // seconds
+  
+  if(diff < 60) return 'දැන්';
+  if(diff < 3600) return Math.floor(diff/60) + ' මිනිත්තු කට පෙර';
+  if(diff < 86400) return Math.floor(diff/3600) + ' පැය කට පෙර';
+  if(diff < 604800) return Math.floor(diff/86400) + ' දින කට පෙර';
+  
+  return d.toLocaleDateString('en-GB', { day:'2-digit', month:'short' });
+}
+window.formatRelativeTime = formatRelativeTime;
+
+function canEditCustomers(){
+  const role = state.user?.role;
+  return role === 'admin' || role === 'superadmin';
+}
+
+function canDeleteCustomers(){
+  const role = state.user?.role;
+  return role === 'superadmin' || role === 'admin';
+}
+window.canEditCustomers = canEditCustomers;
+window.canDeleteCustomers = canDeleteCustomers;
+
 /* =========================================================
    GRANULAR PERMISSION SYSTEM DEFINITIONS & HELPERS
    ========================================================= */
