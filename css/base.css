@@ -1,10 +1,14 @@
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
+  color-scheme: dark;
   --bg:#0f172a; --panel:#1e293b; --panel2:#26334a; --line:#334155;
   --txt:#e2e8f0; --muted:#94a3b8;
   --primary:#f59e0b; --primary-d:#b45309;
   --green:#10b981; --red:#ef4444; --blue:#3b82f6; --purple:#8b5cf6;
   --r:12px;
+}
+html, body{
+  color-scheme: dark;
 }
 body{
   font-family:'Noto Sans Sinhala','Inter',system-ui,sans-serif;
@@ -34,10 +38,47 @@ input,select,textarea{
   outline:none;
   transition:.15s;
 }
+select{
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3e%3cpolyline points='6 9 12 15 18 9'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 14px;
+  padding-right: 32px;
+  background-color: #0b1220;
+  color: #e2e8f0;
+  border: 1px solid #334155;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: border-color .15s;
+}
+select:hover{
+  border-color: #475569;
+}
 input:focus,select:focus,textarea:focus{border-color:var(--primary)}
-::-webkit-scrollbar{width:8px;height:8px}
-::-webkit-scrollbar-thumb{background:#334155;border-radius:4px}
-::-webkit-scrollbar-track{background:transparent}
+
+select option {
+  background-color: #1e293b !important;
+  color: #e2e8f0 !important;
+  padding: 8px;
+}
+select option:checked,
+select option:hover,
+select option:focus {
+  background-color: #f59e0b !important;
+  color: #1a1206 !important;
+}
+select optgroup {
+  background: #0b1220;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:#0b1220}
+::-webkit-scrollbar-thumb{background:#334155;border-radius:5px}
+::-webkit-scrollbar-thumb:hover{background:#475569}
 
 /* ---------- LOGIN ---------- */
 .login-wrap{

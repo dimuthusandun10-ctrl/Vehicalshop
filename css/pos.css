@@ -542,11 +542,119 @@
   .pos-tools {
     flex-direction: column !important;
   }
-  .pos-tools input {
-    min-width: auto;
-    width: 100%;
+
+  /* 1. Search tabs: horizontal scroll */
+  .search-tabs,
+  .range-tabs.search-tabs {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    gap: 6px !important;
+    padding: 2px 0 6px !important;
+    margin: 0 -10px !important;      /* edge bleed to align with .pos padding */
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+    scroll-behavior: smooth;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    width: calc(100% + 20px) !important;
+    max-width: none !important;
   }
+  
+  .search-tabs::-webkit-scrollbar,
+  .range-tabs.search-tabs::-webkit-scrollbar {
+    display: none !important;
+  }
+  
+  .search-tabs button,
+  .range-tabs.search-tabs button {
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+    font-size: 12px !important;
+    padding: 8px 12px !important;
+  }
+
+  /* 2. Search inputs: full width + proper padding */
+  .pos-tools input[type="text"],
+  .pos-tools input[type="search"],
+  #posSearch,
+  #posSearchOem {
+    width: 100% !important;
+    font-size: 14px !important;
+    padding: 10px 40px 10px 36px !important;  /* room for icon + barcode */
+    text-overflow: ellipsis;
+  }
+  
+  .pos-tools input::placeholder,
+  #posSearch::placeholder,
+  #posSearchOem::placeholder {
+    font-size: 12.5px !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* 3. Barcode icon on right */
+  .pos-tools input + .barcode-icon,
+  .pos-tools .barcode-btn {
+    right: 8px !important;
+    font-size: 16px !important;
+  }
+
+  /* 4. Vehicle search fields grid */
+  .vehicle-filter-row,
+  .vehicle-search-row,
+  .pos-tools .vehicle-search,
+  .search-controls .vehicle-fields {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+  
+  .vehicle-filter-row > select:first-child,
+  .vehicle-filter-row #vBrand,
+  .vehicle-filter-row .brand-select,
+  .vehicle-search-row > select:first-child,
+  .vehicle-search-row .brand-select {
+    grid-column: 1 / -1 !important;
+  }
+
+  .vehicle-filter-row button,
+  .vehicle-search-row button {
+    grid-column: 1 / -1 !important;
+  }
+  
+  .vehicle-filter-row > *,
+  .vehicle-search-row > * {
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+
+  /* For very narrow screens (< 400px) */
+  @media (max-width: 400px) {
+    .vehicle-filter-row,
+    .vehicle-search-row {
+      grid-template-columns: 1fr !important;
+    }
+  }
+
+  /* 5. Compact Category + Sort dropdowns */
   .pos-tools select {
+    width: 100% !important;
+    font-size: 13px !important;
+    padding: 9px 32px 9px 12px !important;
+  }
+
+  .pos-tools-filters {
+    width: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+
+  .pos-tools > div:first-child > div:last-child {
     width: 100% !important;
   }
 

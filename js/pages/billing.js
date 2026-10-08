@@ -46,7 +46,7 @@ function pgBilling(){
             <button class="${searchMode==='vehicle'?'active':''}" data-mode="vehicle" onclick="switchSearchMode('vehicle')">🚗 වාහනය (Vehicle)</button>
             <button class="${searchMode==='oem'?'active':''}" data-mode="oem" onclick="switchSearchMode('oem')">🔢 OEM අංකය (Code)</button>
           </div>
-          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <div class="pos-tools-filters" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             <select onchange="state.catFilter=this.value;state.posPage=1;renderGrid()" style="width:160px;">
               <option value="all">සියලු කාණ්ඩ</option>
               ${cats.map(c=>`<option value="${c}" ${state.catFilter===c?'selected':''}>${c}</option>`).join('')}
@@ -124,7 +124,7 @@ function renderSearchControlsHtml(){
                onkeydown="if(event.key==='Enter')handleBarcodeScan(this.value)"
                style="padding-left:35px;padding-right:38px;">
         <span style="position:absolute; left:12px; top:10px; color:var(--muted); font-size:16px; pointer-events:none;">🔍</span>
-        <span style="position:absolute; right:12px; top:10px; color:var(--muted); font-size:16px; cursor:pointer;" title="බාර්කෝඩ් ස්කෑනරය (F2)" onclick="focusSearch()">📷</span>
+        <span class="barcode-btn" style="position:absolute; right:12px; top:10px; color:var(--muted); font-size:16px; cursor:pointer;" title="බාර්කෝඩ් ස්කෑනරය (F2)" onclick="focusSearch()">📷</span>
       </div>`;
   } else if(searchMode === 'vehicle'){
     const vf = window._vehicleFilter;
@@ -135,8 +135,8 @@ function renderSearchControlsHtml(){
 
     return `
       <div class="vehicle-filter-container">
-        <div class="vehicle-filter-row">
-          <select id="vBrand" onchange="window._vehicleFilter.brand=this.value;state.posPage=1;renderVehicleSearch()" style="width:140px">
+        <div class="vehicle-filter-row vehicle-search-row">
+          <select id="vBrand" class="brand-select" onchange="window._vehicleFilter.brand=this.value;state.posPage=1;renderVehicleSearch()" style="width:140px">
             <option value="">වෙළඳ නාමය ▼</option>
             ${brands.map(b => `<option value="${esc(b)}" ${vf.brand===b?'selected':''}>${esc(b)}</option>`).join('')}
           </select>
@@ -159,8 +159,9 @@ function renderSearchControlsHtml(){
                value="${esc(state.search)}"
                oninput="state.search=this.value;state.posPage=1;renderGrid()"
                onkeydown="if(event.key==='Enter')handleOemScan(this.value)"
-               style="padding-left:35px">
+               style="padding-left:35px;padding-right:38px;">
         <span style="position:absolute; left:12px; top:10px; color:var(--muted); font-size:16px; pointer-events:none;">🔢</span>
+        <span class="barcode-btn" style="position:absolute; right:12px; top:10px; color:var(--muted); font-size:16px; cursor:pointer;" title="බාර්කෝඩ් ස්කෑනරය (Enter)" onclick="$('#posSearchOem')?.focus()">📷</span>
       </div>`;
   }
 }
