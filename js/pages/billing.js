@@ -40,12 +40,8 @@ function pgBilling(){
     <div class="pos-left">
       <div class="pos-tools" style="flex-direction:column;align-items:stretch;gap:8px">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
-          <!-- Search mode tabs -->
-          <div class="range-tabs search-tabs">
-            <button class="${searchMode==='text'?'active':''}" data-mode="text" onclick="switchSearchMode('text')">🔍 සාමාන්‍ය (Text)</button>
-            <button class="${searchMode==='vehicle'?'active':''}" data-mode="vehicle" onclick="switchSearchMode('vehicle')">🚗 වාහනය (Vehicle)</button>
-            <button class="${searchMode==='oem'?'active':''}" data-mode="oem" onclick="switchSearchMode('oem')">🔢 OEM අංකය (Code)</button>
-          </div>
+          <!-- Search mode tabs (Icon-only with active expand) -->
+          ${renderSearchTabsHtml()}
           <div class="pos-tools-filters" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             <select onchange="state.catFilter=this.value;state.posPage=1;renderGrid()" style="width:160px;">
               <option value="all">සියලු කාණ්ඩ</option>
@@ -112,6 +108,41 @@ function pgBilling(){
       <span class="fab-total" id="fabTotal">රු. 0.00</span>
     </span>
   </button>`;
+}
+
+function renderSearchTabsHtml(){
+  return `
+  <div class="search-tabs icon-tabs">
+    <button class="icon-tab ${searchMode==='text'?'active':''}" 
+            data-mode="text" onclick="switchSearchMode('text')"
+            title="සාමාන්ය සෙවීම · Text Search">
+      <span class="it-icon">🔍</span>
+      <span class="it-label">
+        <span class="it-label-si">සාමාන්ය</span>
+        <span class="it-label-en">Text</span>
+      </span>
+    </button>
+    
+    <button class="icon-tab ${searchMode==='vehicle'?'active':''}" 
+            data-mode="vehicle" onclick="switchSearchMode('vehicle')"
+            title="වාහනය අනුව · Search by Vehicle">
+      <span class="it-icon">🚗</span>
+      <span class="it-label">
+        <span class="it-label-si">වාහනය</span>
+        <span class="it-label-en">Vehicle</span>
+      </span>
+    </button>
+    
+    <button class="icon-tab ${searchMode==='oem'?'active':''}" 
+            data-mode="oem" onclick="switchSearchMode('oem')"
+            title="OEM අංකය · Search by Code">
+      <span class="it-icon">🔢</span>
+      <span class="it-label">
+        <span class="it-label-si">OEM අංකය</span>
+        <span class="it-label-en">Code</span>
+      </span>
+    </button>
+  </div>`;
 }
 
 function renderSearchControlsHtml(){
@@ -1709,6 +1740,8 @@ function showReceipt(s){
 }
 
 window.pgBilling = pgBilling;
+window.renderSearchTabsHtml = renderSearchTabsHtml;
+window.renderSearchControlsHtml = renderSearchControlsHtml;
 window.switchSearchMode = switchSearchMode;
 window.clearVehicleSearch = clearVehicleSearch;
 window.renderVehicleSearch = renderVehicleSearch;
