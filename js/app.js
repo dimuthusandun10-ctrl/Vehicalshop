@@ -35,6 +35,10 @@ setInterval(updateClock, 1000);
 /* Application Bootstrapper Entry Point */
 function initApp(){
   updateClock();
-  const uInp = $('#lUser');
-  if(uInp) uInp.focus();
+  if(typeof initLoginEnhancements === 'function'){
+    initLoginEnhancements();
+  } else {
+    const uInp = $('#lUser');
+    if(uInp) uInp.focus();
+  }
 }

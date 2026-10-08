@@ -306,20 +306,7 @@ function renderStaffControlSection(){
               </td>
               <td style="text-align:right">
                 <div class="staff-actions" style="justify-content:flex-end">
-                  <button class="btn btn-sm" onclick="openEditUserModal('${u.id}')" title="සංස්කරණය / Edit">✏️</button>
-                  <button class="btn btn-sm" onclick="openResetPasswordModal('${u.id}')" title="මුරපදය Reset">🔑</button>
-                  ${isLocked ? `
-                    <button class="btn btn-sm btn-green" onclick="unlockUser('${u.id}')" title="අගුළු හරින්න (Unlock)">
-                      🔓
-                    </button>
-                  ` : `
-                    <button class="btn btn-sm btn-red" onclick="openLockUserModal('${u.id}')" title="අගුළු දමන්න (Lock with message)">
-                      🔒
-                    </button>
-                  `}
-                  ${isSuper && !isSelf ? `
-                    <button class="btn btn-sm btn-red" onclick="deleteUser('${u.id}')" title="මකන්න / Delete">🗑️</button>
-                  ` : ''}
+                  <button class="btn btn-sm" onclick="openUserActionsMenu('${u.id}')" title="ක්‍රියා (Actions)" style="font-weight:700;font-size:16px;padding:3px 10px;line-height:1">⋯</button>
                 </div>
               </td>
             </tr>`;
@@ -997,50 +984,320 @@ async function saveEditedUser(userId){
 }
 
 /* =========================================================
-   RESET PASSWORD MODAL (STAFF CONTROL)
+   RESET PASSWORD & ACTIONS (STAFF CONTROL)
    ========================================================= */
-function openResetPasswordModal(userId){
-  const db = window.DB || {};
-  const u = (db.users || []).find(x => x.id === userId);
-  if(!u) return;
+function canResetPassword(targetUser){
+  const me = state.user;
+  if(!me || !targetUser) return false;
+  
+  // Super admin: anyone
+  if(me.role === 'superadmin') return true;
+  
+  // Admin: own shop only, and cannot reset superadmin
+  if(me.role === 'admin'){
+    if(targetUser.role === 'superadmin') return false;
+    if(targetUser.shopId && me.shopId && targetUser.shopId !== me.shopId) return false;
+    return true;
+  }
+  
+  // Cashier: only self
+  if(me.role === 'cashier'){
+    return targetUser.id === me.id;
+  }
+  
+  return false;
+}
 
-  openModal(`🔑 මුරපදය Reset කරන්න — ${esc(u.name)}`, 'Reset Password',
-  `<div style="display:flex;flex-direction:column;gap:12px">
-     <p style="color:var(--muted);font-size:12.5px">
-       ${esc(u.name)} (<code>${esc(u.username)}</code>) සඳහා නව මුරපදයක් ලබාදෙන්න හෝ පෙරනිමි මුරපදය (1234) තෝරන්න.
-     </p>
-     <div>
-       <label style="font-size:12px;color:var(--muted);font-weight:600">නව මුරපදය / New Password *</label>
-       <input id="rpNewPass" value="1234" style="font-size:16px;font-weight:700;margin-top:4px">
-     </div>
-     <div style="display:flex;gap:6px">
-       <button type="button" class="btn btn-sm" onclick="document.getElementById('rpNewPass').value='1234'">Default (1234)</button>
-       <button type="button" class="btn btn-sm" onclick="document.getElementById('rpNewPass').value='pass'+Math.floor(1000+Math.random()*9000)">Generate Random</button>
-     </div>
+function canEditUser(targetUser){
+  const me = state.user;
+  if(!me || !targetUser) return false;
+  if(me.role === 'superadmin') return true;
+  if(me.role === 'admin'){
+    if(targetUser.role === 'superadmin' && targetUser.id !== me.id) return false;
+    if(targetUser.shopId && me.shopId && targetUser.shopId !== me.shopId) return false;
+    return true;
+  }
+  return targetUser.id === me.id;
+}
+
+function canLockUser(targetUser){
+  const me = state.user;
+  if(!me || !targetUser) return false;
+  if(targetUser.id === me.id) return false;
+  if(me.role === 'superadmin') return true;
+  if(me.role === 'admin'){
+    if(targetUser.role === 'admin' || targetUser.role === 'superadmin') return false;
+    if(targetUser.shopId && me.shopId && targetUser.shopId !== me.shopId) return false;
+    return true;
+  }
+  return false;
+}
+
+function canDeleteUser(targetUser){
+  const me = state.user;
+  if(!me || !targetUser) return false;
+  if(me.role !== 'superadmin') return false;
+  if(targetUser.id === me.id) return false;
+  return true;
+}
+
+function openUserActionsMenu(userId){
+  const db = window.DB || {};
+  const target = (db.users || []).find(u => u.id === userId);
+  if(!target) return;
+  
+  const canEdit = canEditUser(target);
+  const canLock = canLockUser(target);
+  const canReset = canResetPassword(target);
+  const canDel = canDeleteUser(target);
+
+  const isLocked = !!(target.locked || target.active === false);
+
+  openModal(
+    '⚙️ ක්‍රියා — ' + esc(target.name),
+    'Actions',
+  `<div class="action-menu">
+     ${canEdit ? `
+       <button class="action-item" onclick="closeModal();openEditUserModal('${userId}')">
+         <span class="ai">✏️</span>
+         <div><b>සංස්කරණය කරන්න</b><small>Edit user details</small></div>
+       </button>` : ''}
+     
+     ${canReset ? `
+       <button class="action-item" onclick="closeModal();openResetPasswordModal('${userId}')">
+         <span class="ai">🔑</span>
+         <div><b>මුරපදය Reset කරන්න</b><small>Reset password</small></div>
+       </button>` : ''}
+     
+     ${canLock ? `
+       <button class="action-item" onclick="closeModal();${isLocked ? `unlockUser('${userId}')` : `openLockUserModal('${userId}')`}">
+         <span class="ai">${isLocked ? '🔓' : '🔒'}</span>
+         <div><b>${isLocked ? 'Unlock කරන්න' : 'Lock කරන්න'}</b>
+         <small>${isLocked ? 'Unlock user account' : 'Lock user account'}</small></div>
+       </button>` : ''}
+     
+     ${canDel ? `
+       <button class="action-item danger" onclick="closeModal();deleteUser('${userId}')">
+         <span class="ai">🗑️</span>
+         <div><b>මකා දමන්න</b><small>Delete user</small></div>
+       </button>` : ''}
+     ${!canEdit && !canReset && !canLock && !canDel ? `
+       <div style="text-align:center;color:var(--muted);padding:10px;font-size:12.5px">ක්‍රියා කිරීමට අවසර නැත</div>
+     ` : ''}
    </div>`,
-  `<button class="btn" onclick="closeModal()">අවලංගු</button>
-   <button class="btn btn-primary" onclick="submitResetPassword('${u.id}')">🔑 Reset කරන්න</button>`,
+  `<button class="btn" onclick="closeModal()">වසන්න</button>`,
   false);
 }
 
-async function submitResetPassword(userId){
-  const newPass = $('#rpNewPass')?.value.trim();
-  if(!newPass){ toast('කරුණාකර මුරපදයක් ඇතුළත් කරන්න', 'err'); return; }
-
-  const hashedPassword = window.Security ? await window.Security.hashPassword(newPass) : newPass;
-
+function openResetPasswordModal(userId){
   const db = window.DB || {};
-  const u = (db.users || []).find(x => x.id === userId);
-  if(u){
-    u.password = hashedPassword;
-    if(window.FB && window.FB.fbUpdate){
-      await window.FB.fbUpdate(window.FB.COL.users, u.id, { password: hashedPassword });
-    }
-    if(typeof saveDB === 'function') saveDB();
+  const targetUser = (db.users || []).find(u => u.id === userId);
+  if(!targetUser) return;
+  
+  // Permission check
+  if(!canResetPassword(targetUser)){
+    toast('මෙම පරිශීලකයාගේ මුරපදය Reset කිරීමට අවසර නැත','err');
+    return;
   }
 
+  const isSelf = (userId === state.user?.id);
+
+  openModal(
+    '🔑 මුරපදය Reset කරන්න',
+    'Reset Password — ' + esc(targetUser.name) + ' (' + esc(targetUser.username) + ')',
+  `<div style="text-align:center;padding:4px 0 14px">
+     <div style="font-size:44px;margin-bottom:10px">🔑</div>
+     <div style="font-size:13px;color:var(--muted);line-height:1.6">
+       ${esc(targetUser.name)} සඳහා නව මුරපදයක් සකසන්න.<br>
+       ${isSelf ? '<b style="color:#fcd34d">⚠️ ඔබේම ගිණුමයි — ලොග් වී සිටින අතරතුර වෙනස් වේ.</b>' : 'පරිශීලකයාට නව මුරපදය දැනුම් දෙන්න.'}
+     </div>
+   </div>
+
+   <div style="margin-top:12px">
+     <label style="font-size:12px;color:var(--muted);font-weight:600;display:block;margin-bottom:6px">
+       නව මුරපදය / New Password
+     </label>
+     <div style="position:relative">
+       <input id="resetNewPass" type="text" 
+              placeholder="අවම අක්ෂර 6"
+              style="padding-right:44px;font-size:15px;font-family:'Inter',monospace">
+       <button type="button" class="eye-btn" onclick="toggleResetPass()"
+               style="position:absolute;right:6px;top:50%;transform:translateY(-50%);
+                      width:34px;height:34px;border-radius:8px;background:transparent;
+                      border:none;color:var(--muted);font-size:16px;cursor:pointer">
+         <span id="resetEyeIcon">👁️</span>
+       </button>
+     </div>
+   </div>
+
+   <div style="margin-top:10px">
+     <label style="font-size:12px;color:var(--muted);font-weight:600;display:block;margin-bottom:6px">
+       නැවත තහවුරු කරන්න / Confirm Password
+     </label>
+     <input id="resetConfirmPass" type="text" 
+            placeholder="නැවත type කරන්න"
+            style="font-size:15px;font-family:'Inter',monospace">
+   </div>
+
+   <div id="resetPassStrength" style="margin-top:12px;display:none">
+     <div style="height:5px;background:#0b1220;border-radius:3px;overflow:hidden">
+       <div id="resetStrengthBar" style="height:100%;width:0%;transition:0.3s;background:#ef4444"></div>
+     </div>
+     <div id="resetStrengthText" style="font-size:11px;color:var(--muted);margin-top:5px"></div>
+   </div>
+
+   <div style="margin-top:14px;background:rgba(59,130,246,0.08);
+                border:1px solid rgba(59,130,246,0.25);border-radius:10px;
+                padding:10px 12px;font-size:11.5px;color:#93c5fd;
+                line-height:1.6">
+     💡 පරිශීලකයාට නව මුරපදය දෙන්න:
+     <b>WhatsApp / Phone / කෙලින්ම</b>
+   </div>`,
+  `<button class="btn" onclick="closeModal()">අවලංගු</button>
+   <button class="btn btn-primary" id="resetPassBtn" 
+           onclick="confirmResetPassword('${userId}')" disabled>
+     🔑 Reset කරන්න
+   </button>`,
+  false);
+
+  // Live validation
+  setTimeout(() => {
+    const n = $('#resetNewPass');
+    const c = $('#resetConfirmPass');
+    if(n) n.focus();
+    [n, c].forEach(el => {
+      if(!el) return;
+      el.addEventListener('input', () => validateResetInputs());
+    });
+  }, 100);
+}
+
+function validateResetInputs(){
+  const n = ($('#resetNewPass')?.value || '').trim();
+  const c = ($('#resetConfirmPass')?.value || '').trim();
+  const btn = $('#resetPassBtn');
+  const strength = $('#resetPassStrength');
+  const bar = $('#resetStrengthBar');
+  const txt = $('#resetStrengthText');
+
+  // Show strength meter when typing
+  if(n.length > 0 && strength && bar && txt){
+    strength.style.display = 'block';
+    const score = getPasswordStrength(n);
+    bar.style.width = score.pct + '%';
+    bar.style.background = score.color;
+    txt.textContent = score.label;
+  } else if(strength){
+    strength.style.display = 'none';
+  }
+
+  // Enable button when valid
+  const valid = n.length >= 6 && n === c;
+  if(btn) btn.disabled = !valid;
+}
+
+function getPasswordStrength(p){
+  if(p.length < 6)   return { pct: 20, color:'#ef4444', label:'දුර්වල (Weak)' };
+  if(p.length < 8)   return { pct: 50, color:'#f59e0b', label:'මධ්‍යම (Medium)' };
+  if(/[A-Z]/.test(p) && /[0-9]/.test(p)) 
+                     return { pct: 100, color:'#10b981', label:'ශක්තිමත් (Strong)' };
+  return               { pct: 75, color:'#3b82f6', label:'හොඳ (Good)' };
+}
+
+function toggleResetPass(){
+  const inp = $('#resetNewPass');
+  const icon = $('#resetEyeIcon');
+  if(!inp || !icon) return;
+  if(inp.type === 'text'){
+    inp.type = 'password';
+    icon.textContent = '👁️';
+  } else {
+    inp.type = 'text';
+    icon.textContent = '🙈';
+  }
+}
+
+async function confirmResetPassword(userId){
+  const n = ($('#resetNewPass')?.value || '').trim();
+  const c = ($('#resetConfirmPass')?.value || '').trim();
+
+  if(n.length < 6){ toast('අවම අක්ෂර 6ක් අවශ්‍යයි','err'); return; }
+  if(n !== c){ toast('මුරපද දෙක සමාන නැත','err'); return; }
+
+  const db = window.DB || {};
+  const targetUser = (db.users || []).find(u => u.id === userId);
+  if(!targetUser) return;
+
+  // Hash password (using Security helper)
+  let hashed = n;
+  if(typeof window.Security !== 'undefined' && window.Security.hashPassword){
+    hashed = await window.Security.hashPassword(n);
+  }
+
+  const nowIso = new Date().toISOString();
+  const currentUserId = state.user?.id || 'admin';
+
+  targetUser.password = hashed;
+  targetUser.passwordResetAt = nowIso;
+  targetUser.passwordResetBy = currentUserId;
+
+  // Update in Firestore
+  const updateFn = (typeof fbUpdate === 'function') ? fbUpdate : (window.FB && window.FB.fbUpdate ? window.FB.fbUpdate : null);
+  const usersCol = (window.FB && window.FB.COL && window.FB.COL.users) ? window.FB.COL.users : 'users';
+  if(updateFn){
+    try {
+      await updateFn(usersCol, userId, { 
+        password: hashed,
+        passwordResetAt: nowIso,
+        passwordResetBy: currentUserId
+      });
+    } catch(e){
+      console.warn('Firestore password reset failed:', e);
+    }
+  }
+
+  if(typeof saveDB === 'function') saveDB();
+
+  // Log activity
+  await logActivity('password_reset', {
+    targetUserId: userId,
+    targetUserName: targetUser.name,
+    by: state.user?.name || 'Admin'
+  });
+
   closeModal();
-  toast(`මුරපදය reset කරන ලදී (නව මුරපදය: ${newPass}) ✅`);
+  toast('🔑 ' + targetUser.name + ' ගේ මුරපදය Reset කරන ලදී', 'ok');
+
+  // If resetting SELF → force logout after 2 sec
+  if(userId === state.user?.id){
+    setTimeout(() => {
+      toast('නැවත පිවිසෙන්න — නව මුරපදය භාවිතා කරන්න','warn');
+      setTimeout(() => doLogout(), 1500);
+    }, 500);
+  } else if(typeof render === 'function'){
+    render();
+  }
+}
+
+const submitResetPassword = confirmResetPassword;
+
+async function logActivity(type, data){
+  const addFn = (typeof fbAdd === 'function') ? fbAdd : (window.FB && window.FB.fbAdd ? window.FB.fbAdd : null);
+  if(!addFn || typeof FB === 'undefined') {
+    return;  // skip in offline mode
+  }
+  try {
+    await addFn('activityLog', {
+      type,
+      ...data,
+      shopId: state.user?.shopId || null,
+      timestamp: new Date().toISOString(),
+      by: state.user?.id,
+      byName: state.user?.name
+    });
+  } catch(e){
+    console.warn('Activity log failed:', e);
+  }
 }
 
 /* =========================================================
@@ -1273,6 +1530,16 @@ window.openEditUserModal = openEditUserModal;
 window.saveEditedUser = saveEditedUser;
 window.openResetPasswordModal = openResetPasswordModal;
 window.submitResetPassword = submitResetPassword;
+window.confirmResetPassword = confirmResetPassword;
+window.openUserActionsMenu = openUserActionsMenu;
+window.validateResetInputs = validateResetInputs;
+window.getPasswordStrength = getPasswordStrength;
+window.toggleResetPass = toggleResetPass;
+window.canResetPassword = canResetPassword;
+window.canEditUser = canEditUser;
+window.canLockUser = canLockUser;
+window.canDeleteUser = canDeleteUser;
+window.logActivity = logActivity;
 window.openLockUserModal = openLockUserModal;
 window.setLockTemplate = setLockTemplate;
 window.submitLockUser = submitLockUser;

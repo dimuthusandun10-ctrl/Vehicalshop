@@ -41,10 +41,30 @@
       </div>
       <div class="field">
         <label>මුරපදය / Password</label>
-        <input id="lPass" type="password" placeholder="••••" autocomplete="current-password">
+        <div class="input-with-icon">
+          <input id="lPass" type="password" placeholder="••••" autocomplete="current-password">
+          <button type="button" class="eye-btn" onclick="togglePasswordVisibility()" tabindex="-1" aria-label="Show password">
+            <span id="eyeIcon">👁️</span>
+          </button>
+        </div>
+        <div id="capsWarn" class="caps-warning hidden">
+          ⚠️ Caps Lock ක්‍රියාත්මකයි (Caps Lock is ON)
+        </div>
       </div>
-      <button class="btn btn-primary" style="width:100%;padding:11px" onclick="doLogin()">
-        පිවිසෙන්න / Login
+      <label class="remember-row">
+        <input type="checkbox" id="rememberUser">
+        <span>මගේ නම මතක තබා ගන්න (Remember username)</span>
+      </label>
+      <div class="forgot-row">
+        <button type="button" class="link-btn" onclick="showForgotHelp()">
+          🔑 මුරපදය අමතක වුනාද?
+        </button>
+      </div>
+      <button id="loginBtn" class="btn btn-primary login-btn" style="width:100%;margin-top:6px" onclick="doLogin()">
+        <span id="loginBtnText">පිවිසෙන්න / Login</span>
+        <span id="loginBtnSpinner" class="btn-spinner hidden">
+          <span class="spinner"></span>
+        </span>
       </button>
       <div id="lErr" style="color:#fca5a5;font-size:12px;margin-top:10px;text-align:center"></div>
       <div class="quick">

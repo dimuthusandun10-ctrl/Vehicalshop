@@ -50,7 +50,108 @@ function showLockedAccountModal(user){
   openModal('🚫 ගිණුම අගුළු දමා ඇත', 'Account Locked', bodyHtml, footerHtml);
 }
 
+function togglePasswordVisibility(){
+  const inp = document.getElementById('lPass');
+  const icon = document.getElementById('eyeIcon');
+  if(!inp) return;
+  if(inp.type === 'password'){
+    inp.type = 'text';
+    if(icon) icon.textContent = '🙈';
+  } else {
+    inp.type = 'password';
+    if(icon) icon.textContent = '👁️';
+  }
+}
+
+function showForgotHelp(){
+  openModal(
+    '🔑 මුරපදය අමතක වුනාද?',
+    'Password Reset — Admin Contact Required',
+  `<div style="text-align:center;padding:8px 0 4px">
+     <div style="font-size:52px;margin-bottom:14px">🔑</div>
+     
+     <div style="font-size:14.5px;font-weight:600;margin-bottom:10px">
+       මුරපදය Reset කිරීමට පරිපාලක අමතන්න
+     </div>
+     
+     <p style="font-size:12.5px;color:var(--muted);line-height:1.7;
+               margin-bottom:18px;max-width:340px;margin-left:auto;
+               margin-right:auto">
+       ආරක්ෂාව සඳහා, මුරපද වෙනස් කිරීම පරිපාලක (Admin) හෝ 
+       සුපිරි පරිපාලක (Super Admin) විසින්ම සිදු කළ යුතුයි.
+     </p>
+
+     <div style="background:rgba(245,158,11,0.08);
+                  border:1px solid rgba(245,158,11,0.25);
+                  border-radius:12px;padding:14px;margin:0 auto;
+                  max-width:340px;text-align:left">
+       
+       <div style="font-size:11.5px;color:var(--muted);
+                   text-transform:uppercase;letter-spacing:0.5px;
+                   margin-bottom:10px;font-weight:600">
+         📋 කුමක් කළ යුතුද?
+       </div>
+       
+       <div style="font-size:12.5px;line-height:1.9;color:var(--txt)">
+         1️⃣ ඔබේ Admin වෙත පණිවිඩයක් යවන්න<br>
+         2️⃣ ඔබේ Username එක දෙන්න<br>
+         3️⃣ නව මුරපදයක් ලබා ගන්න<br>
+         4️⃣ නැවත පිවිසෙන්න
+       </div>
+     </div>
+
+     <div style="margin-top:16px;font-size:11.5px;color:var(--muted)">
+       📞 Admin ගේ දුරකථන අංකය දන්නේ නැත්නම්,<br>
+       ඔබේ සාප්පුවේ අයිතිකරු අමතන්න.
+     </div>
+
+     <div style="margin-top:14px;padding-top:14px;border-top:1px dashed var(--line);
+                font-size:11.5px;color:var(--muted);max-width:340px;
+                margin-left:auto;margin-right:auto">
+      👑 සුපිරි පරිපාලක (Super Admin) නම්:<br>
+      ඔබේ Firebase Console එකෙන් හෝ<br>
+      පද්ධතියේ අයිතිකරු අමතන්න.
+    </div>
+   </div>`,
+  `<button class="btn" onclick="closeModal()">හරි, තේරුණා</button>`,
+  false);
+}
+
+function initLoginEnhancements(){
+  const pass = document.getElementById('lPass');
+  if(pass){
+    pass.addEventListener('keyup', e => {
+      const caps = e.getModifierState && e.getModifierState('CapsLock');
+      const warn = document.getElementById('capsWarn');
+      if(!warn) return;
+      if(caps && document.activeElement === pass){
+        warn.classList.remove('hidden');
+      } else {
+        warn.classList.add('hidden');
+      }
+    });
+    pass.addEventListener('blur', () => {
+      document.getElementById('capsWarn')?.classList.add('hidden');
+    });
+  }
+
+  const lastUser = localStorage.getItem('pos.lastUser');
+  const userInp = document.getElementById('lUser');
+  const remBox = document.getElementById('rememberUser');
+  if(lastUser && userInp){
+    userInp.value = lastUser;
+    if(remBox) remBox.checked = true;
+    setTimeout(() => document.getElementById('lPass')?.focus(), 150);
+  } else {
+    setTimeout(() => userInp?.focus(), 150);
+  }
+}
+
 async function doLogin(){
+  const btn = document.getElementById('loginBtn');
+  const txt = document.getElementById('loginBtnText');
+  const spn = document.getElementById('loginBtnSpinner');
+
   const uInp = $('#lUser');
   const pInp = $('#lPass');
   const errEl = $('#lErr');
@@ -58,121 +159,135 @@ async function doLogin(){
   const u = uInp ? uInp.value.trim() : '';
   const p = pInp ? pInp.value : '';
 
-  if(!u || !p){
-    if(errEl) errEl.textContent = '❌ කරුණාකර පරිශීලක නාමය සහ මුරපදය ඇතුළත් කරන්න';
-    return;
-  }
+  if(btn) btn.disabled = true;
+  if(txt) txt.classList.add('hidden');
+  if(spn) spn.classList.remove('hidden');
+  if(errEl) errEl.textContent = '';
 
-  // 1. Rate Limiting Check
-  if(window.Security && typeof window.Security.checkLockout === 'function'){
-    if(window.Security.checkLockout(u)){
+  try {
+    if(!u || !p){
+      if(errEl) errEl.textContent = '❌ කරුණාකර පරිශීලක නාමය සහ මුරපදය ඇතුළත් කරන්න';
       return;
     }
-  }
 
-  // 2. Locate User
-  const user = (DB.users || []).find(x => x.username.toLowerCase() === u.toLowerCase() && !x.deleted);
-  if(!user){
-    if(window.Security && typeof window.Security.recordFailedAttempt === 'function'){
-      window.Security.recordFailedAttempt(u);
-    }
-    if(errEl) errEl.textContent = '❌ වැරදි පරිශීලක නාමය හෝ මුරපදය';
-    return;
-  }
-
-  // 3. Verify Password (bcrypt)
-  let ok = false;
-  if(window.Security && typeof window.Security.verifyPassword === 'function'){
-    ok = await window.Security.verifyPassword(p, user.password);
-  } else {
-    ok = (user.password === p);
-  }
-
-  if(!ok){
-    if(window.Security && typeof window.Security.recordFailedAttempt === 'function'){
-      window.Security.recordFailedAttempt(u);
-    }
-    if(errEl) errEl.textContent = '❌ වැරදි පරිශීලක නාමය හෝ මුරපදය';
-    return;
-  }
-
-  // 4. Clear Rate Limiting Failures on successful authentication
-  if(window.Security && typeof window.Security.clearAttempts === 'function'){
-    window.Security.clearAttempts(u);
-  }
-
-  // 5. Check Inactive / Locked status
-  if(user.locked === true){
-    showLockedAccountModal(user);
-    if(errEl) errEl.textContent = '🔒 ගිණුම අගුළු දමා ඇත (Account Locked)';
-    return;
-  }
-  if(user.active === false){
-    openModal(
-      '⚠️ ගිණුම අක්‍රීයයි',
-      'Account Inactive',
-      `<div style="text-align:center;padding:15px">
-        <div style="font-size:44px;margin-bottom:10px">⚠️</div>
-        <div style="font-size:15px;font-weight:600;margin-bottom:6px">මෙම ගිණුම අක්‍රීය කර ඇත</div>
-        <div style="color:var(--muted);font-size:13px">කරුණාකර ප්‍රධාන පරිපාලක (Super Admin) අමතන්න.</div>
-      </div>`,
-      `<button class="btn btn-primary" style="width:100%" onclick="closeModal()">හරි (OK)</button>`
-    );
-    if(errEl) errEl.textContent = '⚠️ මෙම ගිණුම අක්‍රීය කර ඇත';
-    return;
-  }
-
-  // 6. Transparently upgrade plain text password if still unhashed
-  if(user.password && (user.password.length < 20 || !user.password.startsWith('$2')) && window.Security){
-    try {
-      const hashed = await window.Security.hashPassword(p);
-      user.password = hashed;
-      if(window.FB && window.FB.fbUpdate){
-        await window.FB.fbUpdate(window.FB.COL.users, user.id, { password: hashed });
+    // 1. Rate Limiting Check
+    if(window.Security && typeof window.Security.checkLockout === 'function'){
+      if(window.Security.checkLockout(u)){
+        return;
       }
-      if(typeof saveDB === 'function') saveDB();
-    } catch(e){
-      console.warn('Auto password rehash notice:', e);
     }
-  }
 
-  // 7. Migration: run full password migration when superadmin logs in
-  if(user.role === 'superadmin' && window.Security && typeof window.Security.migratePasswords === 'function'){
-    window.Security.migratePasswords().catch(e => console.warn('Migration warning:', e));
-  }
-  if(!user.permissions || !Array.isArray(user.permissions)){
-    user.permissions = (typeof getDefaultPermissionsForRole === 'function')
-      ? getDefaultPermissionsForRole(user.role)
-      : ['billing','dashboard','customers','lowstock','profile'];
-  }
-
-  state.user = user;
-
-  // Set active shop
-  const db = window.DB || {};
-  if(user.role === 'superadmin'){
-    const savedShopId = localStorage.getItem('pos.activeShopId');
-    if(savedShopId && (db.shops || []).find(s => s.id === savedShopId)){
-      state.activeShopId = savedShopId;
-    } else if((db.shops || []).length > 0){
-      state.activeShopId = db.shops[0].id;
+    // 2. Locate User
+    const user = (DB.users || []).find(x => x.username.toLowerCase() === u.toLowerCase() && !x.deleted);
+    if(!user){
+      if(window.Security && typeof window.Security.recordFailedAttempt === 'function'){
+        window.Security.recordFailedAttempt(u);
+      }
+      if(errEl) errEl.textContent = '❌ වැරදි පරිශීලක නාමය හෝ මුරපදය';
+      return;
     }
-    state.activeShop = (db.shops || []).find(s => s.id === state.activeShopId);
-  } else {
-    state.activeShop = (db.shops || []).find(s => s.id === user.shopId);
-    state.activeShopId = state.activeShop?.id;
-  }
 
-  db.shop = state.activeShop;
-  if(typeof updateBrandName === 'function') updateBrandName();
-  if(typeof updateTopBarShopSwitcher === 'function') updateTopBarShopSwitcher();
+    // 3. Verify Password (bcrypt)
+    let ok = false;
+    if(window.Security && typeof window.Security.verifyPassword === 'function'){
+      ok = await window.Security.verifyPassword(p, user.password);
+    } else {
+      ok = (user.password === p);
+    }
 
-  const loginScreen = $('#loginScreen');
-  if(loginScreen) loginScreen.classList.add('hidden');
-  const loginSlot = $('#loginSlot');
-  if(loginSlot) loginSlot.classList.add('hidden');
+    if(!ok){
+      if(window.Security && typeof window.Security.recordFailedAttempt === 'function'){
+        window.Security.recordFailedAttempt(u);
+      }
+      if(errEl) errEl.textContent = '❌ වැරදි පරිශීලක නාමය හෝ මුරපදය';
+      return;
+    }
 
-  const appSlot = $('#appSlot') || $('#app');
+    // 4. Clear Rate Limiting Failures on successful authentication
+    if(window.Security && typeof window.Security.clearAttempts === 'function'){
+      window.Security.clearAttempts(u);
+    }
+
+    // Remember username logic
+    const remBox = document.getElementById('rememberUser');
+    if(remBox && remBox.checked){
+      localStorage.setItem('pos.lastUser', u);
+    } else {
+      localStorage.removeItem('pos.lastUser');
+    }
+
+    // 5. Check Inactive / Locked status
+    if(user.locked === true){
+      showLockedAccountModal(user);
+      if(errEl) errEl.textContent = '🔒 ගිණුම අගුළු දමා ඇත (Account Locked)';
+      return;
+    }
+    if(user.active === false){
+      openModal(
+        '⚠️ ගිණුම අක්‍රීයයි',
+        'Account Inactive',
+        `<div style="text-align:center;padding:15px">
+          <div style="font-size:44px;margin-bottom:10px">⚠️</div>
+          <div style="font-size:15px;font-weight:600;margin-bottom:6px">මෙම ගිණුම අක්‍රීය කර ඇත</div>
+          <div style="color:var(--muted);font-size:13px">කරුණාකර ප්‍රධාන පරිපාලක (Super Admin) අමතන්න.</div>
+        </div>`,
+        `<button class="btn btn-primary" style="width:100%" onclick="closeModal()">හරි (OK)</button>`
+      );
+      if(errEl) errEl.textContent = '⚠️ මෙම ගිණුම අක්‍රීය කර ඇත';
+      return;
+    }
+
+    // 6. Transparently upgrade plain text password if still unhashed
+    if(user.password && (user.password.length < 20 || !user.password.startsWith('$2')) && window.Security){
+      try {
+        const hashed = await window.Security.hashPassword(p);
+        user.password = hashed;
+        if(window.FB && window.FB.fbUpdate){
+          await window.FB.fbUpdate(window.FB.COL.users, user.id, { password: hashed });
+        }
+        if(typeof saveDB === 'function') saveDB();
+      } catch(e){
+        console.warn('Auto password rehash notice:', e);
+      }
+    }
+
+    // 7. Migration: run full password migration when superadmin logs in
+    if(user.role === 'superadmin' && window.Security && typeof window.Security.migratePasswords === 'function'){
+      window.Security.migratePasswords().catch(e => console.warn('Migration warning:', e));
+    }
+    if(!user.permissions || !Array.isArray(user.permissions)){
+      user.permissions = (typeof getDefaultPermissionsForRole === 'function')
+        ? getDefaultPermissionsForRole(user.role)
+        : ['billing','dashboard','customers','lowstock','profile'];
+    }
+
+    state.user = user;
+
+    // Set active shop
+    const db = window.DB || {};
+    if(user.role === 'superadmin'){
+      const savedShopId = localStorage.getItem('pos.activeShopId');
+      if(savedShopId && (db.shops || []).find(s => s.id === savedShopId)){
+        state.activeShopId = savedShopId;
+      } else if((db.shops || []).length > 0){
+        state.activeShopId = db.shops[0].id;
+      }
+      state.activeShop = (db.shops || []).find(s => s.id === state.activeShopId);
+    } else {
+      state.activeShop = (db.shops || []).find(s => s.id === user.shopId);
+      state.activeShopId = state.activeShop?.id;
+    }
+
+    db.shop = state.activeShop;
+    if(typeof updateBrandName === 'function') updateBrandName();
+    if(typeof updateTopBarShopSwitcher === 'function') updateTopBarShopSwitcher();
+
+    const loginScreen = $('#loginScreen');
+    if(loginScreen) loginScreen.classList.add('hidden');
+    const loginSlot = $('#loginSlot');
+    if(loginSlot) loginSlot.classList.add('hidden');
+
+    const appSlot = $('#appSlot') || $('#app');
   if(appSlot) appSlot.classList.remove('hidden');
 
   const uAvatar = $('#uAvatar');
@@ -219,6 +334,11 @@ async function doLogin(){
       setTimeout(() => toast('⚠️ අනුමැතිය අපේක්ෂිත ආපසු ඉල්ලීම් ' + pendingCount + 'ක් ඇත', 'warn'), 1500);
     }
   }
+  } finally {
+    if(btn) btn.disabled = false;
+    if(txt) txt.classList.remove('hidden');
+    if(spn) spn.classList.add('hidden');
+  }
 }
 
 function doLogout(){
@@ -255,6 +375,7 @@ function performLogout(){
   if(errEl) errEl.textContent = '';
 
   updateShiftIndicator();
+  if(typeof initLoginEnhancements === 'function') initLoginEnhancements();
 }
 
 function can(page){
@@ -268,3 +389,6 @@ window.doLogin = doLogin;
 window.doLogout = doLogout;
 window.can = can;
 window.showLockedAccountModal = showLockedAccountModal;
+window.togglePasswordVisibility = togglePasswordVisibility;
+window.showForgotHelp = showForgotHelp;
+window.initLoginEnhancements = initLoginEnhancements;
