@@ -148,14 +148,14 @@ function renderSearchTabsHtml(){
 function renderSearchControlsHtml(){
   if(searchMode === 'text'){
     return `
-      <div style="position:relative; flex:1;">
-        <input id="posSearch" placeholder="🔍 භාණ්ඩය සොයන්න (නම / කේතය / OEM / වාහන මාදිලිය)... [F2]"
+      <div class="search-input-wrap" style="position:relative; flex:1;">
+        <span class="search-icon" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--muted); font-size:16px; pointer-events:none;">🔍</span>
+        <input id="posSearch" placeholder="භාණ්ඩය සොයන්න (නම / කේතය / OEM / වාහන මාදිලිය)... [F2]"
                value="${esc(state.search)}"
                oninput="state.search=this.value;state.posPage=1;renderGrid()"
                onkeydown="if(event.key==='Enter')handleBarcodeScan(this.value)"
                style="padding-left:35px;padding-right:38px;">
-        <span style="position:absolute; left:12px; top:10px; color:var(--muted); font-size:16px; pointer-events:none;">🔍</span>
-        <span class="barcode-btn" style="position:absolute; right:12px; top:10px; color:var(--muted); font-size:16px; cursor:pointer;" title="බාර්කෝඩ් ස්කෑනරය (F2)" onclick="focusSearch()">📷</span>
+        <span class="barcode-icon barcode-btn" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); color:var(--muted); font-size:16px; cursor:pointer;" title="බාර්කෝඩ් ස්කෑනරය (F2)" onclick="focusSearch()">📷</span>
       </div>`;
   } else if(searchMode === 'vehicle'){
     const vf = window._vehicleFilter;
@@ -185,14 +185,14 @@ function renderSearchControlsHtml(){
       </div>`;
   } else if(searchMode === 'oem'){
     return `
-      <div style="position:relative; flex:1;">
-        <input id="posSearchOem" placeholder="🔢 OEM අංකය හෝ Alternate Part No (උදා: 04465 / AN-688)... [Enter=Add]"
+      <div class="search-input-wrap" style="position:relative; flex:1;">
+        <span class="search-icon" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--muted); font-size:16px; pointer-events:none;">🔢</span>
+        <input id="posSearchOem" placeholder="OEM අංකය හෝ Alternate Part No (උදා: 04465 / AN-688)... [Enter=Add]"
                value="${esc(state.search)}"
                oninput="state.search=this.value;state.posPage=1;renderGrid()"
                onkeydown="if(event.key==='Enter')handleOemScan(this.value)"
                style="padding-left:35px;padding-right:38px;">
-        <span style="position:absolute; left:12px; top:10px; color:var(--muted); font-size:16px; pointer-events:none;">🔢</span>
-        <span class="barcode-btn" style="position:absolute; right:12px; top:10px; color:var(--muted); font-size:16px; cursor:pointer;" title="බාර්කෝඩ් ස්කෑනරය (Enter)" onclick="$('#posSearchOem')?.focus()">📷</span>
+        <span class="barcode-icon barcode-btn" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); color:var(--muted); font-size:16px; cursor:pointer;" title="බාර්කෝඩ් ස්කෑනරය (Enter)" onclick="$('#posSearchOem')?.focus()">📷</span>
       </div>`;
   }
 }

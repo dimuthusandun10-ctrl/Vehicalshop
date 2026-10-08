@@ -540,50 +540,95 @@
   }
 
   .pos-tools {
+    display: flex !important;
     flex-direction: column !important;
+    gap: 8px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+  }
+  
+  .pos-tools > div {
+    width: 100% !important;
+    box-sizing: border-box !important;
+    min-width: 0 !important;
   }
 
-  /* 1. Search tabs: horizontal scroll (legacy fallback only) */
-  .search-tabs:not(.icon-tabs),
-  .range-tabs.search-tabs:not(.icon-tabs) {
+  /* 1. Search tabs: contain within viewport */
+  .search-tabs,
+  .range-tabs.search-tabs {
     display: flex !important;
     flex-wrap: nowrap !important;
     overflow-x: auto !important;
     overflow-y: hidden !important;
     gap: 6px !important;
-    padding: 2px 0 6px !important;
-    margin: 0 -10px !important;      /* edge bleed to align with .pos padding */
-    padding-left: 10px !important;
-    padding-right: 10px !important;
-    scroll-behavior: smooth;
+    padding: 2px 2px 6px !important;
+    margin: 0 !important;
     scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
-    width: calc(100% + 20px) !important;
-    max-width: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
   }
   
-  .search-tabs:not(.icon-tabs)::-webkit-scrollbar,
-  .range-tabs.search-tabs:not(.icon-tabs)::-webkit-scrollbar {
+  .search-tabs::-webkit-scrollbar,
+  .range-tabs.search-tabs::-webkit-scrollbar {
     display: none !important;
   }
   
-  .search-tabs:not(.icon-tabs) button,
-  .range-tabs.search-tabs:not(.icon-tabs) button {
+  .search-tabs button,
+  .range-tabs.search-tabs button {
     flex-shrink: 0 !important;
     white-space: nowrap !important;
     font-size: 12px !important;
     padding: 8px 12px !important;
+    min-height: 38px !important;
   }
 
-  /* 2. Search inputs: full width + proper padding */
+  /* 2. Search inputs: wrapper + full width + proper padding */
+  .pos-tools input,
+  .pos-tools select {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    font-size: 13px !important;
+  }
+  
+  .search-input-wrap {
+    position: relative !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  
+  .search-input-wrap input,
   .pos-tools input[type="text"],
   .pos-tools input[type="search"],
   #posSearch,
   #posSearchOem {
     width: 100% !important;
-    font-size: 14px !important;
-    padding: 10px 40px 10px 36px !important;  /* room for icon + barcode */
+    box-sizing: border-box !important;
+    font-size: 13px !important;
+    padding: 11px 40px 11px 36px !important;  /* room for icon + barcode */
     text-overflow: ellipsis;
+  }
+  
+  .search-input-wrap .search-icon {
+    position: absolute !important;
+    left: 10px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    font-size: 15px !important;
+    pointer-events: none !important;
+  }
+  
+  .search-input-wrap .barcode-icon,
+  .pos-tools input + .barcode-icon,
+  .pos-tools .barcode-btn {
+    position: absolute !important;
+    right: 10px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    font-size: 15px !important;
   }
   
   .pos-tools input::placeholder,
@@ -595,14 +640,7 @@
     white-space: nowrap;
   }
 
-  /* 3. Barcode icon on right */
-  .pos-tools input + .barcode-icon,
-  .pos-tools .barcode-btn {
-    right: 8px !important;
-    font-size: 16px !important;
-  }
-
-  /* 4. Vehicle search fields grid */
+  /* 3. Vehicle search fields grid */
   .vehicle-filter-row,
   .vehicle-search-row,
   .pos-tools .vehicle-search,
@@ -640,7 +678,7 @@
     }
   }
 
-  /* 5. Compact Category + Sort dropdowns */
+  /* 4. Compact Category + Sort dropdowns */
   .pos-tools select {
     width: 100% !important;
     font-size: 13px !important;
@@ -658,14 +696,170 @@
     width: 100% !important;
   }
 
-  .prod-grid {
-    grid-template-columns: repeat(2, 1fr) !important;
-    gap: 10px;
+  /* 5. Topbar: compact on mobile */
+  .topbar {
+    padding: 0 10px !important;
+    gap: 8px !important;
+    height: 52px !important;
+    display: flex !important;
+    align-items: center !important;
+    overflow: hidden !important;
+  }
+  
+  .topbar .menu-btn {
+    font-size: 20px !important;
+    padding: 4px 6px !important;
+    flex-shrink: 0 !important;
+  }
+  
+  .topbar h2 {
+    font-size: 13px !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    padding: 0 !important;
+  }
+  
+  .topbar h2 small {
+    display: none !important;
+  }
+  
+  #shiftIndicator,
+  .shift-badge {
+    font-size: 10.5px !important;
+    padding: 3px 8px !important;
+    gap: 4px !important;
+    max-width: 130px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    flex-shrink: 1 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+  }
+  
+  #shiftIndicator .shift-dot {
+    width: 6px !important;
+    height: 6px !important;
+  }
+  
+  #roleBadge {
+    font-size: 9.5px !important;
+    padding: 2px 6px !important;
+    flex-shrink: 0 !important;
+    max-width: 60px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+  
+  #clock {
+    display: none !important;
   }
 
+  /* 6. Product Grid: 2 clean columns, no overflow */
+  .pos,
+  .prod-grid-wrap {
+    overflow-x: hidden !important;  /* never allow horizontal scroll */
+    padding-bottom: 100px !important;  /* FAB safe space */
+  }
+  
+  .prod-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    padding: 0 !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  
+  /* Card: enforce proper constraints */
   .product-card-new {
-    min-height: 76px;
-    padding: 10px;
+    min-width: 0 !important;      /* CRITICAL — allow shrink */
+    max-width: 100% !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    padding: 10px !important;
+    padding-right: 32px !important;  /* room for view button */
+    min-height: 82px !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+  }
+  
+  /* Product name — truncate with ellipsis */
+  .product-card-new .product-name-si {
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    line-height: 1.25 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    display: block !important;
+  }
+  
+  /* English name — also truncate */
+  .product-card-new .product-name-en {
+    font-size: 9.5px !important;
+    line-height: 1.2 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    display: block !important;
+    margin-top: 2px !important;
+  }
+  
+  /* Bottom row: price + stock */
+  .product-card-new .product-meta {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: baseline !important;
+    gap: 4px !important;
+    margin-top: auto !important;
+    padding-top: 6px !important;
+    min-width: 0 !important;
+  }
+  
+  .product-card-new .product-price {
+    font-size: 12.5px !important;
+    font-weight: 700 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    min-width: 0 !important;
+  }
+  
+  .product-card-new .product-stock {
+    font-size: 10px !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+  }
+  
+  /* View button — smaller on mobile */
+  .product-card-new .card-view-btn {
+    width: 24px !important;
+    height: 24px !important;
+    font-size: 12px !important;
+    top: 6px !important;
+    right: 6px !important;
+  }
+  
+  /* Category / Code badge on card */
+  .product-card-new .prod-code,
+  .product-card-new .product-code {
+    font-size: 9.5px !important;
+    padding: 2px 5px !important;
+    max-width: calc(100% - 28px) !important;  /* leave room for view btn */
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    display: inline-block !important;
   }
 
   /* Cart hides by default on mobile — becomes bottom sheet */
@@ -1020,6 +1214,35 @@
   .icon-tab:not(.active):hover .it-label {
     max-width: 160px;
     opacity: 0.85;
+  }
+}
+
+/* Ultra narrow (< 360px) grid & cards */
+@media (max-width: 360px) {
+  .prod-grid {
+    gap: 6px !important;
+  }
+  
+  .product-card-new {
+    padding: 8px !important;
+    padding-right: 28px !important;
+    min-height: 76px !important;
+  }
+  
+  .product-card-new .product-name-si {
+    font-size: 12px !important;
+  }
+  
+  .product-card-new .product-name-en {
+    font-size: 9px !important;
+  }
+  
+  .product-card-new .product-price {
+    font-size: 11.5px !important;
+  }
+  
+  .product-card-new .product-stock {
+    font-size: 9.5px !important;
   }
 }
 
