@@ -5,6 +5,7 @@
 (async function boot() {
   /* 1. Scripts to load in strict dependency sequence */
   const SCRIPTS = [
+    'js/security.js',
     'js/firebase.js',
     'js/seed.js',
     'js/db-service.js',

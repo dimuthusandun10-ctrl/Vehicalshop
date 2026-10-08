@@ -403,11 +403,13 @@ async function submitAssignAdmin(shopId){
       return;
     }
 
+    const hashedPassword = window.Security ? await window.Security.hashPassword(password) : password;
+
     const newAdmin = {
       id: uid('U'),
       name,
       username,
-      password,
+      password: hashedPassword,
       role: 'admin',
       shopId: shopId,
       active: true,
@@ -697,11 +699,13 @@ async function submitAddStaffForShop(shopId){
     return;
   }
 
+  const hashedPassword = window.Security ? await window.Security.hashPassword(password) : password;
+
   const newUser = {
     id: uid('U'),
     name,
     username,
-    password,
+    password: hashedPassword,
     role,
     shopId,
     active: true,
