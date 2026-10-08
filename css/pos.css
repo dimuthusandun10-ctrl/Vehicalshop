@@ -876,7 +876,7 @@
     border-top-right-radius: 20px;
     border: 1px solid var(--line);
     border-bottom: none;
-    z-index: 90;
+    z-index: 110 !important;
     transform: translateY(100%);
     transition: transform 0.3s ease;
     display: flex;
@@ -894,12 +894,24 @@
     display: none;
     position: fixed;
     inset: 0;
-    background: rgba(2, 6, 23, 0.7);
-    z-index: 85;
-    backdrop-filter: blur(3px);
+    background: rgba(2, 6, 23, 0.65) !important;
+    z-index: 100 !important;
+    backdrop-filter: blur(0px);
+    -webkit-backdrop-filter: blur(0px);
+    opacity: 0;
+    pointer-events: auto;
+    cursor: pointer;
+    transition: 
+      opacity 0.25s ease,
+      backdrop-filter 0.25s ease,
+      -webkit-backdrop-filter 0.25s ease,
+      background 0.25s ease;
   }
   .pos-cart-backdrop.open {
     display: block !important;
+    opacity: 1 !important;
+    backdrop-filter: blur(5px) !important;
+    -webkit-backdrop-filter: blur(5px) !important;
   }
 
   /* Drag handle at top of cart */
@@ -957,7 +969,11 @@
   }
 
   .pos-fab {
-    display: inline-flex !important;
+    display: flex !important;
+    z-index: 80 !important;
+  }
+  .pos-fab.hidden-fab {
+    display: none !important;
   }
 
   /* Topbar compaction on mobile */
@@ -973,65 +989,71 @@
    FAB — Floating Action Button (Mobile Only)
    ═══════════════════════════════════════════════════════ */
 .pos-fab {
-  display: none;
   position: fixed;
-  bottom: 20px;
-  right: 20px;
   bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  right: 20px;
+  width: 60px;
   height: 60px;
-  padding: 0 20px;
-  border-radius: 30px;
+  border-radius: 50%;
   background: linear-gradient(135deg, var(--primary), #d97706);
   color: #1a1206;
   border: none;
-  font-weight: 700;
-  font-size: 14px;
-  font-family: 'Inter', sans-serif;
   cursor: pointer;
   z-index: 80;
+  display: none;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
   box-shadow: 0 8px 25px rgba(245, 158, 11, 0.4);
-  transition: transform 0.15s, box-shadow 0.15s;
+  transition: transform 0.15s, box-shadow 0.15s, opacity 0.2s;
+}
+
+.pos-fab.mobile-only {
+  display: none !important;
+}
+
+@media (max-width: 820px) {
+  .pos-fab.mobile-only {
+    display: flex !important;
+  }
+  .pos-fab.hidden-fab {
+    display: none !important;
+  }
 }
 
 .pos-fab:active {
-  transform: scale(0.95);
+  transform: scale(0.92);
 }
 
 .pos-fab .fab-icon {
-  font-size: 22px;
+  font-size: 26px;
   line-height: 1;
 }
 
-.pos-fab .fab-info {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  line-height: 1.1;
-}
-
-.pos-fab .fab-count {
-  font-size: 10px;
-  font-weight: 600;
-  opacity: 0.85;
-}
-
-.pos-fab .fab-total {
-  font-size: 15px;
+/* Count badge — top-right of FAB */
+.pos-fab .fab-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 11px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 11px;
   font-weight: 700;
+  font-family: 'Inter', sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--bg);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
 }
 
-.pos-fab.empty {
-  background: var(--panel2);
-  color: var(--muted);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-}
-
+/* Pulse animation when items added */
 .pos-fab.has-items {
   animation: fabPulse 2s infinite;
 }
-
 @keyframes fabPulse {
   0%, 100% { box-shadow: 0 8px 25px rgba(245, 158, 11, 0.4); }
   50% { box-shadow: 0 8px 35px rgba(245, 158, 11, 0.65); }
@@ -1246,3 +1268,22 @@
   }
 }
 
+
+/* ═══════════════════════════════════════════════════════
+   MOBILE POS LAYER / INTERACTION CONTROLS
+   ═══════════════════════════════════════════════════════ */
+body.cart-open {
+  overflow: hidden;
+}
+
+body.cart-open .pos-left,
+body.cart-open .topbar,
+body.cart-open .pos-tools {
+  pointer-events: none;
+  user-select: none;
+}
+
+body.cart-open .pos-right,
+body.cart-open .pos-cart-backdrop {
+  pointer-events: auto;
+}

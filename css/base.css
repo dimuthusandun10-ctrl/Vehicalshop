@@ -601,3 +601,89 @@ select optgroup {
     padding: 7px 4px !important;
   }
 }
+
+/* ═══════════════════════════════════════════════════════
+   MOBILE MODAL, TOAST & BOTTOM SCROLL FIXES
+   ═══════════════════════════════════════════════════════ */
+
+/* Toast layer */
+#toastRoot {
+  z-index: 200 !important;
+}
+
+/* Modal layer */
+.modal-bg {
+  z-index: 150 !important;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  background: rgba(2, 6, 23, 0.75) !important;
+}
+
+@media (max-width: 820px) {
+  /* Main content area — allow scroll + safe area */
+  .content {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 80px !important;    /* space for FAB + safe area */
+    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  
+  /* Ensure no parent traps content */
+  .app {
+    height: 100vh !important;
+    height: 100dvh !important;
+    overflow: hidden !important;
+  }
+  
+  .main {
+    overflow: hidden !important;
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  
+  /* Reports & Staff pages — don't cut off bottom */
+  .reports-page,
+  .staff-page {
+    min-height: 0 !important;
+    padding-bottom: 40px !important;
+  }
+  
+  /* Tables — don't shrink */
+  .tbl-wrap {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Last table row — visible */
+  table tbody tr:last-child td {
+    padding-bottom: 24px !important;
+  }
+
+  /* Reports summary */
+  .report-summary,
+  .report-metrics {
+    margin-bottom: 24px !important;
+  }
+  
+  /* Charts */
+  .report-chart,
+  .chart {
+    margin-bottom: 20px !important;
+  }
+
+  /* Staff Management page */
+  .staff-control-section,
+  .staff-list,
+  .staff-ctrl-card,
+  .profile-wrap {
+    padding-bottom: 60px !important;
+  }
+  
+  /* Last user card */
+  .user-row:last-child,
+  .staff-row:last-child {
+    margin-bottom: 40px !important;
+  }
+}

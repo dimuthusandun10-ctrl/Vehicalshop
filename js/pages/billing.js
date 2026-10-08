@@ -101,12 +101,9 @@ function pgBilling(){
   </div>
 
   <!-- FAB (mobile only, hidden on desktop via CSS) -->
-  <button class="pos-fab empty" id="posFab" onclick="openMobileCart()">
+  <button class="pos-fab mobile-only hidden-fab" id="posFab" onclick="openMobileCart()" title="කරත්ත බලන්න">
     <span class="fab-icon">🛒</span>
-    <span class="fab-info">
-      <span class="fab-count" id="fabCount">භාණ්ඩ 0</span>
-      <span class="fab-total" id="fabTotal">රු. 0.00</span>
-    </span>
+    <span class="fab-badge" id="fabCount">0</span>
   </button>`;
 }
 
@@ -840,7 +837,15 @@ function openMobileCart(){
   const backdrop = document.getElementById('cartBackdrop');
   if(panel) panel.classList.add('open');
   if(backdrop) backdrop.classList.add('open');
-  document.body.style.overflow = 'hidden';  // prevent background scroll
+  document.body.classList.add('cart-open');      // ⭐
+  document.body.style.overflow = 'hidden';
+
+  // Hide FAB while cart panel is open so it doesn't peek through
+  const fab = document.getElementById('posFab');
+  if(fab){
+    fab.style.opacity = '0';
+    fab.style.pointerEvents = 'none';
+  }
 
   // Focus first input if any
   setTimeout(() => {
@@ -854,7 +859,15 @@ function closeMobileCart(){
   const backdrop = document.getElementById('cartBackdrop');
   if(panel) panel.classList.remove('open');
   if(backdrop) backdrop.classList.remove('open');
+  document.body.classList.remove('cart-open');   // ⭐
   document.body.style.overflow = '';
+
+  // Restore FAB visibility
+  const fab = document.getElementById('posFab');
+  if(fab){
+    fab.style.opacity = '';
+    fab.style.pointerEvents = '';
+  }
 }
 
 function updateFab(){
@@ -864,19 +877,28 @@ function updateFab(){
   const itemCount = (state.cart || []).reduce((a,c) => a + c.qty, 0);
   const {total} = (typeof calcTotals === 'function') ? calcTotals() : {total: 0};
 
+  // ⭐ HIDE if empty
+  if(itemCount === 0){
+    fab.classList.add('hidden-fab');
+    fab.classList.remove('has-items', 'empty');
+    // Also auto-close cart panel if open
+    if(typeof closeMobileCart === 'function') closeMobileCart();
+    return;
+  }
+
+  // Show when items exist
+  fab.classList.remove('hidden-fab');
+  fab.classList.add('has-items');
+  fab.classList.remove('empty');
+
+  // Update count (item count only — no price)
   const countEl = document.getElementById('fabCount');
   const totalEl = document.getElementById('fabTotal');
 
-  if(countEl) countEl.textContent = 'භාණ්ඩ ' + itemCount;
-  if(totalEl) totalEl.textContent = money(total);
+  if(countEl) countEl.textContent = String(itemCount);
 
-  if(itemCount > 0){
-    fab.classList.remove('empty');
-    fab.classList.add('has-items');
-  } else {
-    fab.classList.add('empty');
-    fab.classList.remove('has-items');
-  }
+  // ⭐ REMOVE price display
+  if(totalEl) totalEl.remove();  // remove element entirely
 }
 
 // Swipe-down to close on drag handle (mobile only)
@@ -1128,6 +1150,11 @@ function openCheckout(){
     toast('බිලට භාණ්ඩ එකතු කර නැත (Cart empty)','warn');
     return;
   }
+
+  // ⭐ Close mobile cart BEFORE opening checkout modal
+  const wasCartOpen = Boolean(document.getElementById('cartPanel')?.classList.contains('open'));
+  if(typeof closeMobileCart === 'function') closeMobileCart();
+
   const db = DB || {};
   const {sub, disc, coreDeduction, tax, total} = calcTotals();
   const cartCust = $('#cartCustomer') ? $('#cartCustomer').value : state.cartCustomer;
@@ -1322,21 +1349,29 @@ function openCheckout(){
     </div>
   </div>`;
 
-  openModal('💳 ගෙවීම සම්පූර්ණ කරන්න', 'Complete Payment · ' + checkoutState.orderNo, bodyHtml, footerHtml);
+  const doOpenCheckoutModal = () => {
+    openModal('💳 ගෙවීම සම්පූර්ණ කරන්න', 'Complete Payment · ' + checkoutState.orderNo, bodyHtml, footerHtml);
 
-  // Setup Keyboard Shortcuts (Feature S1)
-  removeCheckoutKeyHandler();
-  window._checkoutKeyHandler = checkoutKeyHandler;
-  window.addEventListener('keydown', window._checkoutKeyHandler);
+    // Setup Keyboard Shortcuts (Feature S1)
+    removeCheckoutKeyHandler();
+    window._checkoutKeyHandler = checkoutKeyHandler;
+    window.addEventListener('keydown', window._checkoutKeyHandler);
 
-  // Auto-focus (Feature S4)
-  setTimeout(() => {
-    const inp = $('#coPaid');
-    if(inp){
-      inp.focus();
-      inp.select();
-    }
-  }, 150);
+    // Auto-focus (Feature S4)
+    setTimeout(() => {
+      const inp = $('#coPaid');
+      if(inp){
+        inp.focus();
+        inp.select();
+      }
+    }, 150);
+  };
+
+  if(wasCartOpen){
+    setTimeout(doOpenCheckoutModal, 250);   // matches cart slide-down animation
+  } else {
+    doOpenCheckoutModal();
+  }
 }
 
 function selectMethod(method){
