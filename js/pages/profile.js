@@ -427,7 +427,13 @@ async function submitChangePassword(){
   const conf = $('#pwdConfirm')?.value || '';
 
   if(!curr){ toast('කරුණාකර වත්මන් මුරපදය ඇතුළත් කරන්න', 'err'); return; }
-  if(curr !== state.user.password){
+
+  // Verify current password with Security.verifyPassword
+  const ok = window.Security 
+    ? await window.Security.verifyPassword(curr, state.user.password)
+    : (curr === state.user.password);
+
+  if(!ok){
     toast('❌ වත්මන් මුරපදය වැරදියි (Current password incorrect)', 'err');
     return;
   }
@@ -444,23 +450,26 @@ async function submitChangePassword(){
     return;
   }
 
+  // Hash new password using bcrypt
+  const hashed = window.Security ? await window.Security.hashPassword(newP) : newP;
+
   const db = window.DB || {};
   const user = (db.users || []).find(u => u.id === state.user.id);
   if(user){
-    user.password = newP;
+    user.password = hashed;
     if(window.FB && window.FB.fbUpdate){
-      await window.FB.fbUpdate(window.FB.COL.users, user.id, { password: newP });
+      await window.FB.fbUpdate(window.FB.COL.users, user.id, { password: hashed });
     }
     if(typeof saveDB === 'function') saveDB();
   }
-  state.user.password = newP;
+  state.user.password = hashed;
 
   closeModal();
   toast('✅ මුරපදය සාර්ථකව වෙනස් විය! කරුණාකර නැවත පිවිසෙන්න.', 'ok');
 
   /* Force logout after 2 sec */
   setTimeout(() => {
-    doLogout();
+    if(typeof doLogout === 'function') doLogout();
   }, 2000);
 }
 
@@ -713,11 +722,13 @@ async function saveNewCashier(){
   const selectedPerms = getSelectedPermsFromModal();
   const permissions = selectedPerms.length ? selectedPerms : ['billing', 'dashboard', 'customers', 'lowstock', 'profile'];
 
+  const hashedPassword = window.Security ? await window.Security.hashPassword(password) : password;
+
   const newCashier = {
     id: uid('U'),
     name,
     username,
-    password,
+    password: hashedPassword,
     role: 'cashier',
     permissions,
     shopId: state.user.shopId || 'SHOP-001',
@@ -837,11 +848,13 @@ async function saveNewUser(){
     : ['billing', 'dashboard', 'customers', 'lowstock', 'profile'];
   const permissions = selectedPerms.length ? selectedPerms : defaultPerms;
 
+  const hashedPassword = window.Security ? await window.Security.hashPassword(password) : password;
+
   const newUser = {
     id: uid('U'),
     name,
     username,
-    password,
+    password: hashedPassword,
     role,
     permissions,
     shopId,
@@ -1014,12 +1027,14 @@ async function submitResetPassword(userId){
   const newPass = $('#rpNewPass')?.value.trim();
   if(!newPass){ toast('කරුණාකර මුරපදයක් ඇතුළත් කරන්න', 'err'); return; }
 
+  const hashedPassword = window.Security ? await window.Security.hashPassword(newPass) : newPass;
+
   const db = window.DB || {};
   const u = (db.users || []).find(x => x.id === userId);
   if(u){
-    u.password = newPass;
+    u.password = hashedPassword;
     if(window.FB && window.FB.fbUpdate){
-      await window.FB.fbUpdate(window.FB.COL.users, u.id, { password: newPass });
+      await window.FB.fbUpdate(window.FB.COL.users, u.id, { password: hashedPassword });
     }
     if(typeof saveDB === 'function') saveDB();
   }

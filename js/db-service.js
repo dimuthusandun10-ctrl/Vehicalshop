@@ -25,9 +25,9 @@ Object.assign(DB, {
 
   shops: window.INITIAL_SHOPS || [],
   users: window.INITIAL_USERS || [
-    {id:'U1', name:'සුපිරි පරිපාලක', username:'superadmin', password:'1234', role:'superadmin', active:true, locked:false},
-    {id:'U2', name:'පරිපාලක',        username:'admin',      password:'1234', role:'admin',      active:true, locked:false, shopId:'SHOP-001'},
-    {id:'U3', name:'කැෂියර්',         username:'cashier',    password:'1234', role:'cashier',    active:true, locked:false, shopId:'SHOP-001'}
+    {id:'U1', name:'සුපිරි පරිපාලක', username:'superadmin', password:'$2a$10$c2b5qGhR4T0syGShhjaAzurwj8IuUUHPw5Mo2Kn/N.qRYN7./7Eh.', role:'superadmin', active:true, locked:false},
+    {id:'U2', name:'පරිපාලක',        username:'admin',      password:'$2a$10$c2b5qGhR4T0syGShhjaAzurwj8IuUUHPw5Mo2Kn/N.qRYN7./7Eh.', role:'admin',      active:true, locked:false, shopId:'SHOP-001'},
+    {id:'U3', name:'කැෂියර්',         username:'cashier',    password:'$2a$10$c2b5qGhR4T0syGShhjaAzurwj8IuUUHPw5Mo2Kn/N.qRYN7./7Eh.', role:'cashier',    active:true, locked:false, shopId:'SHOP-001'}
   ],
   products: window.INITIAL_PRODUCTS || [],
   customers: window.INITIAL_CUSTOMERS || [],
@@ -176,6 +176,13 @@ Object.assign(DB, {
         this.isFirebaseConnected = false;
         console.warn('Operating in local offline storage mode.');
       }
+    }
+
+    // Auto-migrate any unhashed legacy passwords
+    if(window.Security && typeof window.Security.migratePasswords === 'function'){
+      setTimeout(() => {
+        window.Security.migratePasswords().catch(() => {});
+      }, 500);
     }
   },
 

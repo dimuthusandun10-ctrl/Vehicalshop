@@ -50,7 +50,7 @@ function showLockedAccountModal(user){
   openModal('🚫 ගිණුම අගුළු දමා ඇත', 'Account Locked', bodyHtml, footerHtml);
 }
 
-function doLogin(){
+async function doLogin(){
   const uInp = $('#lUser');
   const pInp = $('#lPass');
   const errEl = $('#lErr');
@@ -58,17 +58,56 @@ function doLogin(){
   const u = uInp ? uInp.value.trim() : '';
   const p = pInp ? pInp.value : '';
 
-  const matched = (DB.users || []).find(x => x.username.toLowerCase() === u.toLowerCase() && x.password === p && !x.deleted);
-  if(!matched){
+  if(!u || !p){
+    if(errEl) errEl.textContent = '❌ කරුණාකර පරිශීලක නාමය සහ මුරපදය ඇතුළත් කරන්න';
+    return;
+  }
+
+  // 1. Rate Limiting Check
+  if(window.Security && typeof window.Security.checkLockout === 'function'){
+    if(window.Security.checkLockout(u)){
+      return;
+    }
+  }
+
+  // 2. Locate User
+  const user = (DB.users || []).find(x => x.username.toLowerCase() === u.toLowerCase() && !x.deleted);
+  if(!user){
+    if(window.Security && typeof window.Security.recordFailedAttempt === 'function'){
+      window.Security.recordFailedAttempt(u);
+    }
     if(errEl) errEl.textContent = '❌ වැරදි පරිශීලක නාමය හෝ මුරපදය';
     return;
   }
-  if(matched.locked === true){
-    showLockedAccountModal(matched);
+
+  // 3. Verify Password (bcrypt)
+  let ok = false;
+  if(window.Security && typeof window.Security.verifyPassword === 'function'){
+    ok = await window.Security.verifyPassword(p, user.password);
+  } else {
+    ok = (user.password === p);
+  }
+
+  if(!ok){
+    if(window.Security && typeof window.Security.recordFailedAttempt === 'function'){
+      window.Security.recordFailedAttempt(u);
+    }
+    if(errEl) errEl.textContent = '❌ වැරදි පරිශීලක නාමය හෝ මුරපදය';
+    return;
+  }
+
+  // 4. Clear Rate Limiting Failures on successful authentication
+  if(window.Security && typeof window.Security.clearAttempts === 'function'){
+    window.Security.clearAttempts(u);
+  }
+
+  // 5. Check Inactive / Locked status
+  if(user.locked === true){
+    showLockedAccountModal(user);
     if(errEl) errEl.textContent = '🔒 ගිණුම අගුළු දමා ඇත (Account Locked)';
     return;
   }
-  if(matched.active === false){
+  if(user.active === false){
     openModal(
       '⚠️ ගිණුම අක්‍රීයයි',
       'Account Inactive',
@@ -82,7 +121,25 @@ function doLogin(){
     if(errEl) errEl.textContent = '⚠️ මෙම ගිණුම අක්‍රීය කර ඇත';
     return;
   }
-  const user = matched;
+
+  // 6. Transparently upgrade plain text password if still unhashed
+  if(user.password && (user.password.length < 20 || !user.password.startsWith('$2')) && window.Security){
+    try {
+      const hashed = await window.Security.hashPassword(p);
+      user.password = hashed;
+      if(window.FB && window.FB.fbUpdate){
+        await window.FB.fbUpdate(window.FB.COL.users, user.id, { password: hashed });
+      }
+      if(typeof saveDB === 'function') saveDB();
+    } catch(e){
+      console.warn('Auto password rehash notice:', e);
+    }
+  }
+
+  // 7. Migration: run full password migration when superadmin logs in
+  if(user.role === 'superadmin' && window.Security && typeof window.Security.migratePasswords === 'function'){
+    window.Security.migratePasswords().catch(e => console.warn('Migration warning:', e));
+  }
   if(!user.permissions || !Array.isArray(user.permissions)){
     user.permissions = (typeof getDefaultPermissionsForRole === 'function')
       ? getDefaultPermissionsForRole(user.role)

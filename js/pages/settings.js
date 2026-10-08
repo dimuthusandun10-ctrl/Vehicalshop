@@ -224,12 +224,17 @@ async function saveUser(id){
   if(id){
     const u = db.users.find(x => x.id === id);
     if(u){
-      Object.assign(u, {name, username, password, role, active});
+      let finalPass = u.password;
+      if(password && password !== u.password){
+        finalPass = window.Security ? await window.Security.hashPassword(password) : password;
+      }
+      Object.assign(u, {name, username, password: finalPass, role, active});
       if(window.FB && window.FB.fbSet) await window.FB.fbSet(window.FB.COL.users, id, u);
     }
   } else {
     const newId = uid('U');
-    const newUser = { id: newId, name, username, password, role, active };
+    const finalPass = window.Security ? await window.Security.hashPassword(password) : password;
+    const newUser = { id: newId, name, username, password: finalPass, role, active };
     db.users.push(newUser);
     if(window.FB && window.FB.fbSet) await window.FB.fbSet(window.FB.COL.users, newId, newUser);
   }

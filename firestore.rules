@@ -3,150 +3,115 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // Helper functions
-    function isAuthenticated() {
+    function isSignedIn() {
       return request.auth != null;
     }
 
-    function getUserData() {
+    function userDoc() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
-    function isSuperAdmin() {
-      return isAuthenticated() && (
-        getUserData().role == 'superadmin' ||
-        request.auth.token.role == 'superadmin'
-      );
+    function role() {
+      return userDoc().role;
     }
 
-    function isAdmin() {
-      return isAuthenticated() && (
-        getUserData().role == 'admin' ||
-        request.auth.token.role == 'admin'
-      );
+    function shopId() {
+      return userDoc().shopId;
     }
 
-    function belongsToShop(shopId) {
-      return isSuperAdmin() || (
-        isAuthenticated() && getUserData().shopId == shopId
-      );
+    function isSuper()   { return isSignedIn() && role() == 'superadmin'; }
+    function isAdmin()   { return isSignedIn() && role() == 'admin'; }
+    function isCashier() { return isSignedIn() && role() == 'cashier'; }
+    function isStaff()   { return isSignedIn() && role() in ['cashier','admin','superadmin']; }
+
+    function sameShop(resourceShopId){
+      return isSuper() || (isStaff() && shopId() == resourceShopId);
     }
 
-    // 1. Shops Collection
+    // ============ USERS ============
+    match /users/{uid} {
+      // Read: self, or admin of same shop, or super
+      allow read: if isSignedIn() && (
+        request.auth.uid == uid || 
+        isSuper() || 
+        (isAdmin() && shopId() == resource.data.shopId)
+      );
+
+      // Create: super can create any, admin can create in own shop
+      allow create: if isSuper() || (isAdmin() && request.resource.data.shopId == shopId());
+
+      // Update: super any, admin own shop cashiers, self can update own profile
+      allow update: if isSuper() 
+                 || (isAdmin() && resource.data.shopId == shopId())
+                 || (request.auth.uid == uid 
+                     && request.resource.data.role == resource.data.role  // no role change
+                     && request.resource.data.permissions == resource.data.permissions); // no perm change
+
+      // Delete: super only
+      allow delete: if isSuper();
+    }
+
+    // ============ SHOPS ============
     match /shops/{shopId} {
-      // Super Admin can manage all shops
-      allow read, write: if isSuperAdmin();
-      // Admins and Cashiers can read their assigned shop
-      allow read: if isAuthenticated() && (
-        getUserData().shopId == shopId ||
-        getUserData().shopId == resource.data.id
-      );
+      allow read: if isStaff();
+      allow create: if isSuper();
+      allow update: if isSuper() || (isAdmin() && request.auth.uid in resource.data.adminIds);
+      allow delete: if isSuper();
     }
 
-    // 2. Users Collection
-    match /users/{userId} {
-      // Super Admin has full control over all users
-      allow read, write: if isSuperAdmin();
-
-      // Users can read their own profile
-      allow read: if isAuthenticated() && request.auth.uid == userId;
-
-      // Admin can manage cashiers belonging to their own shop
-      allow read: if isAdmin() && (
-        resource.data.shopId == getUserData().shopId ||
-        request.auth.uid == userId
-      );
-
-      allow create: if isAdmin() &&
-        request.resource.data.shopId == getUserData().shopId &&
-        request.resource.data.role == 'cashier';
-
-      allow update: if (isAdmin() &&
-        resource.data.shopId == getUserData().shopId &&
-        request.resource.data.shopId == getUserData().shopId &&
-        resource.data.role == 'cashier' &&
-        request.resource.data.role == 'cashier') ||
-        (isAuthenticated() && request.auth.uid == userId);
-
-      allow delete: if isSuperAdmin();
+    // ============ PRODUCTS ============
+    match /products/{id} {
+      allow read: if isStaff() && sameShop(resource.data.shopId);
+      allow create: if isSuper() || (isAdmin() && sameShop(request.resource.data.shopId));
+      allow update: if isSuper() || (isAdmin() && sameShop(resource.data.shopId));
+      allow delete: if isSuper();
     }
 
-    // 3. Products, Inventory & Catalogs
-    match /products/{productId} {
-      allow read: if isAuthenticated();
-      allow write: if isSuperAdmin() || isAdmin();
+    // ============ SALES ============
+    match /sales/{id} {
+      allow read: if isStaff() && sameShop(resource.data.shopId);
+      allow create: if isStaff() && sameShop(request.resource.data.shopId);
+      allow update: if isSuper() || (isAdmin() && sameShop(resource.data.shopId));
+      allow delete: if isSuper();
     }
 
-    // 4. Sales & Transactions (Scoped to Shop)
-    match /sales/{saleId} {
-      allow read: if isSuperAdmin() || (
-        isAuthenticated() && (
-          resource.data.shopId == getUserData().shopId ||
-          resource.data.cashierId == request.auth.uid
-        )
-      );
-      allow create: if isAuthenticated() && (
-        isSuperAdmin() ||
-        request.resource.data.shopId == getUserData().shopId
-      );
-      allow update, delete: if isSuperAdmin() || (isAdmin() && resource.data.shopId == getUserData().shopId);
+    // ============ CUSTOMERS ============
+    match /customers/{id} {
+      allow read: if isStaff() && sameShop(resource.data.shopId);
+      allow create: if isSuper() || (isAdmin() && sameShop(request.resource.data.shopId));
+      allow update: if isSuper() || (isAdmin() && sameShop(resource.data.shopId));
+      allow delete: if isSuper();
     }
 
-    // 5. Shifts & Cash Movements
-    match /shifts/{shiftId} {
-      allow read: if isSuperAdmin() || (
-        isAuthenticated() && (
-          resource.data.shopId == getUserData().shopId ||
-          resource.data.cashierId == request.auth.uid
-        )
-      );
-      allow create, update: if isAuthenticated() && (
-        isSuperAdmin() ||
-        request.resource.data.shopId == getUserData().shopId ||
-        request.resource.data.cashierId == request.auth.uid
-      );
-      allow delete: if isSuperAdmin();
+    // ============ RETURNS ============
+    match /returns/{id} {
+      allow read: if isStaff() && sameShop(resource.data.shopId);
+      allow create: if isStaff() && sameShop(request.resource.data.shopId);
+      allow update: if isSuper() || (isAdmin() && sameShop(resource.data.shopId));
     }
 
-    match /cashMovements/{moveId} {
-      allow read, write: if isAuthenticated() && (
-        isSuperAdmin() ||
-        request.resource.data.shopId == getUserData().shopId ||
-        resource.data.shopId == getUserData().shopId
-      );
+    // ============ GRNS ============
+    match /grns/{id} {
+      allow read: if isStaff() && sameShop(resource.data.shopId);
+      allow create: if isSuper() || (isAdmin() && sameShop(request.resource.data.shopId));
     }
 
-    // 6. Customers & Suppliers
-    match /customers/{custId} {
-      allow read, write: if isAuthenticated();
+    // ============ SHIFTS ============
+    match /shifts/{id} {
+      allow read: if isStaff() && sameShop(resource.data.shopId);
+      allow create: if isStaff() && sameShop(request.resource.data.shopId);
+      allow update: if isStaff() && sameShop(resource.data.shopId);
     }
 
-    match /suppliers/{supId} {
-      allow read: if isAuthenticated();
-      allow write: if isSuperAdmin() || isAdmin();
+    // ============ CASH MOVEMENTS ============
+    match /cashMovements/{id} {
+      allow read: if isStaff() && sameShop(resource.data.shopId);
+      allow create: if isStaff() && sameShop(request.resource.data.shopId);
     }
 
-    // 7. GRNs, Returns & Credit Settlements
-    match /grns/{grnId} {
-      allow read, write: if isSuperAdmin() || (isAdmin() && belongsToShop(resource.data.shopId));
-    }
-
-    match /returns/{retId} {
-      allow read, create: if isAuthenticated() && (isSuperAdmin() || belongsToShop(request.resource.data.shopId));
-      allow update, delete: if isSuperAdmin() || (isAdmin() && belongsToShop(resource.data.shopId));
-    }
-
-    match /creditPayments/{payId} {
-      allow read, write: if isAuthenticated() && (
-        isSuperAdmin() ||
-        belongsToShop(request.resource.data.shopId) ||
-        belongsToShop(resource.data.shopId)
-      );
-    }
-
-    // 8. Settings
-    match /settings/{docId} {
-      allow read: if isAuthenticated();
-      allow write: if isSuperAdmin() || (isAdmin() && docId == 'shop');
+    // ============ DEFAULT DENY ============
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
