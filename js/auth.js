@@ -212,8 +212,16 @@ async function doLogin(){
       }
     }
 
-    // 2. Locate User
+    // 2. Locate User (Offline-first with local cache fallback)
     let user = (DB.users || []).find(x => x.username.toLowerCase() === u.toLowerCase() && !x.deleted);
+
+    if(!user && window.DB && typeof window.DB.getLocalDB === 'function'){
+      const cached = window.DB.getLocalDB();
+      if(cached?.users?.length){
+        user = cached.users.find(x => x.username.toLowerCase() === u.toLowerCase() && !x.deleted && (x.active !== false));
+      }
+    }
+
     if(!user && window.INITIAL_USERS){
       const initUser = window.INITIAL_USERS.find(x => x.username.toLowerCase() === u.toLowerCase() && !x.deleted);
       if(initUser){
@@ -223,11 +231,29 @@ async function doLogin(){
         if(typeof saveDB === 'function') saveDB();
       }
     }
+
+    if(!user && typeof navigator !== 'undefined' && navigator.onLine && window.FB && window.FB.fbGetAll){
+      try {
+        const remoteUsers = await window.FB.fbGetAll(window.FB.COL.users);
+        if(remoteUsers && remoteUsers.length){
+          user = remoteUsers.find(x => x.username.toLowerCase() === u.toLowerCase() && !x.deleted);
+          if(user && DB.users){
+            DB.users.push(user);
+            if(typeof saveDB === 'function') saveDB();
+          }
+        }
+      } catch(e){}
+    }
+
     if(!user){
-      if(window.Security && typeof window.Security.recordFailedAttempt === 'function'){
-        window.Security.recordFailedAttempt(u);
+      if(typeof navigator !== 'undefined' && !navigator.onLine){
+        if(errEl) errEl.textContent = '🟡 Offline — cached user හමු නොවීය';
+      } else {
+        if(window.Security && typeof window.Security.recordFailedAttempt === 'function'){
+          window.Security.recordFailedAttempt(u);
+        }
+        if(errEl) errEl.textContent = '❌ වැරදි පරිශීලක නාමය හෝ මුරපදය';
       }
-      if(errEl) errEl.textContent = '❌ වැරදි පරිශීලක නාමය හෝ මුරපදය';
       return;
     }
 

@@ -9,6 +9,14 @@
   <!-- ⭐ Shift indicator with quick action menu -->
   <span id="shiftIndicator" class="shift-badge" style="display:none" onclick="if(typeof openShiftMenu==='function')openShiftMenu();else go('shifts')"></span>
 
+  <!-- Network status indicator & queue badge -->
+  <span id="networkStatus" class="network-status online" title="Online" onclick="if(window.Offline)window.Offline.sync()">
+    <span class="ns-dot"></span>
+  </span>
+  <span id="queueBadge" class="queue-badge hidden" title="Sync pending" onclick="if(window.Offline)window.Offline.sync()">
+    0
+  </span>
+
   <span id="roleBadge" class="badge"></span>
 
   <span id="clock"

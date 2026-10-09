@@ -6,6 +6,16 @@ var LOCAL_KEY = 'autoparts_pos_db';
 
 function getLocalDB(){
   try {
+    const shopId = (typeof currentShopId === 'function') ? currentShopId() : null;
+    if(shopId){
+      const raw = localStorage.getItem('pos.localDB.' + shopId);
+      if(raw){
+        const data = JSON.parse(raw);
+        if(!data.savedAt || (Date.now() - data.savedAt <= 48 * 3600 * 1000)){
+          return data;
+        }
+      }
+    }
     const s = localStorage.getItem(LOCAL_KEY);
     if(s) return JSON.parse(s);
   } catch(e){}
@@ -134,6 +144,8 @@ Object.assign(DB, {
       }
 
       if(cached.counters) this.counters = { ...this.counters, ...cached.counters };
+      console.log('⚡ Loaded from cache:', this.products.length, 'products');
+      if(typeof rerenderIfActive === 'function') rerenderIfActive();
     } else {
       // If completely fresh localStorage, seed with our default initial data
       if(window.INITIAL_SHOPS && (!this.shops || !this.shops.length)) this.shops = window.INITIAL_SHOPS;
@@ -142,6 +154,12 @@ Object.assign(DB, {
       if(window.INITIAL_SUPPLIERS && !this.suppliers.length) this.suppliers = window.INITIAL_SUPPLIERS;
       if(window.INITIAL_USERS && !this.users.length) this.users = window.INITIAL_USERS;
       this.persistLocal();
+    }
+
+    // ⭐ STEP 2: Try Firestore (in background if online)
+    if(typeof navigator !== 'undefined' && !navigator.onLine){
+      console.log('🟡 Offline — skipping Firestore load, local cache is active');
+      return;
     }
 
     // Try fetching live data from Firebase (strictly filtered by shopId)
@@ -294,6 +312,28 @@ Object.assign(DB, {
   persistLocal(){
     try {
       const shopId = (typeof currentShopId === 'function') ? currentShopId() : null;
+      const data = {
+        products:  this.products,
+        customers: this.customers,
+        sales:     this.sales,
+        grns:      this.grns,
+        returns:   this.returns,
+        shifts:    this.shifts,
+        cashMoves: this.cashMoves,
+        payments:  this.payments,
+        suppliers: this.suppliers,
+        users:     this.users,
+        shops:     this.shops,
+        counters:  this.counters,
+        shop:      this.shop,
+        savedAt:   Date.now(),
+        shopId:    shopId
+      };
+
+      if(shopId){
+        localStorage.setItem('pos.localDB.' + shopId, JSON.stringify(data));
+      }
+
       const existing = getLocalDB() || {};
 
       const mergeCol = (key, currentList) => {
@@ -321,9 +361,16 @@ Object.assign(DB, {
         shifts: mergeCol('shifts', this.shifts),
         cashMoves: mergeCol('cashMoves', this.cashMoves),
         payments: mergeCol('payments', this.payments),
-        counters: this.counters
+        counters: this.counters,
+        savedAt: Date.now()
       }));
-    } catch(e){}
+    } catch(e){
+      console.warn('Cache save failed:', e);
+    }
+  },
+
+  getLocalDB(){
+    return getLocalDB();
   },
 
   sanitizeProductsCoreDeposit(){

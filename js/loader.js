@@ -10,6 +10,7 @@
     'js/config.js',
     'js/helpers.js',
     'js/security.js',
+    'js/offline.js',
     'js/firebase.js',
     'js/seed.js',
     'js/db-service.js',
@@ -83,8 +84,20 @@
     console.warn('DB load warning:', e);
   }
 
-  /* 3. Initialize application */
+  /* 3. Initialize offline manager */
+  if (window.Offline && typeof window.Offline.init === 'function') {
+    window.Offline.init();
+  }
+
+  /* 4. Initialize application */
   if (typeof initApp === 'function') {
     initApp();
+  }
+
+  /* 5. Register PWA Service Worker for App Shell offline caching */
+  if ('serviceWorker' in navigator && (window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+    navigator.serviceWorker.register('service-worker.js')
+      .then(reg => console.log('✅ Service Worker registered, scope:', reg.scope))
+      .catch(err => console.log('SW registration notice:', err.message));
   }
 })();

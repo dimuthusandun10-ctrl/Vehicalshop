@@ -98,64 +98,170 @@ async function fbGet(colName, id){
   }
 }
 
-async function fbAdd(colName, data){
-  if(_fbPermissionDenied) return 'local_' + Date.now();
-  if(!_fbReady){
-    const ok = await initFirebase();
-    if(!ok || !_fbDb) return 'local_' + Date.now();
+/* =====================================================
+   DIRECT FIRESTORE CRUD HELPERS (Used for live writes & sync)
+   ===================================================== */
+async function fbAddDirect(colName, data){
+  if(!_fbReady) await initFirebase();
+  if(!_fbReady || !_fbDb || !_fbModules?.fsMod) throw new Error('Firebase not connected');
+  const { collection, addDoc, doc, setDoc, serverTimestamp } = _fbModules.fsMod;
+  const clean = { ...data };
+  delete clean._offline;
+  if(clean.id && typeof clean.id === 'string' && clean.id.startsWith('local_')){
+    await setDoc(doc(_fbDb, colName, clean.id), {
+      ...clean,
+      createdAt: serverTimestamp()
+    }, { merge: true });
+    return clean.id;
   }
+  const ref = await addDoc(collection(_fbDb, colName), {
+    ...clean,
+    createdAt: serverTimestamp()
+  });
+  return ref.id;
+}
+
+async function fbSetDirect(colName, id, data){
+  if(!_fbReady) await initFirebase();
+  if(!_fbReady || !_fbDb || !_fbModules?.fsMod) throw new Error('Firebase not connected');
+  const { doc, setDoc } = _fbModules.fsMod;
+  const clean = { ...data };
+  delete clean._offline;
+  await setDoc(doc(_fbDb, colName, id), clean, { merge: true });
+  return true;
+}
+
+async function fbUpdateDirect(colName, id, data){
+  if(!_fbReady) await initFirebase();
+  if(!_fbReady || !_fbDb || !_fbModules?.fsMod) throw new Error('Firebase not connected');
+  const { doc, updateDoc, setDoc } = _fbModules.fsMod;
+  const clean = { ...data };
+  delete clean._offline;
   try {
-    const { collection, addDoc, serverTimestamp } = _fbModules.fsMod;
-    const ref = await addDoc(collection(_fbDb, colName), {
-      ...data, createdAt: serverTimestamp()
-    });
-    return ref.id;
+    await updateDoc(doc(_fbDb, colName, id), clean);
   } catch(e) {
-    checkPermissionError(e, `fbAdd(${colName})`);
-    return 'local_' + Date.now();
+    await setDoc(doc(_fbDb, colName, id), clean, { merge: true });
   }
+  return true;
+}
+
+async function fbDeleteDirect(colName, id){
+  if(!_fbReady) await initFirebase();
+  if(!_fbReady || !_fbDb || !_fbModules?.fsMod) throw new Error('Firebase not connected');
+  const { doc, deleteDoc } = _fbModules.fsMod;
+  await deleteDoc(doc(_fbDb, colName, id));
+  return true;
+}
+
+/* =====================================================
+   OFFLINE-SAFE WRAPPERS (Try online first, fallback to queue)
+   ===================================================== */
+async function fbAdd(colName, data){
+  // 1. Try online first if connected
+  if(typeof navigator !== 'undefined' && navigator.onLine && !_fbPermissionDenied){
+    try {
+      return await fbAddDirect(colName, data);
+    } catch(e) {
+      console.warn(`fbAdd(${colName}) online failed, queueing offline:`, e.message);
+      checkPermissionError(e, `fbAdd(${colName})`);
+    }
+  }
+
+  // 2. Offline: generate local ID and enqueue
+  const localId = data.id || ('local_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7));
+  const docData = { ...data, id: localId, _offline: true };
+
+  if(window.Offline && typeof window.Offline.enqueue === 'function'){
+    window.Offline.enqueue(colName, 'add', docData, localId);
+  }
+
+  // Reflect in local in-memory DB immediately
+  if(window.DB && window.DB[colName] && Array.isArray(window.DB[colName])){
+    const exists = window.DB[colName].find(x => x.id === localId);
+    if(!exists){
+      window.DB[colName].push(docData);
+    }
+  }
+  if(window.DB && typeof window.DB.persistLocal === 'function'){
+    window.DB.persistLocal();
+  }
+
+  return localId;
 }
 
 async function fbSet(colName, id, data){
-  if(_fbPermissionDenied) return;
-  if(!_fbReady){
-    const ok = await initFirebase();
-    if(!ok || !_fbDb) return;
+  if(typeof navigator !== 'undefined' && navigator.onLine && !_fbPermissionDenied){
+    try {
+      return await fbSetDirect(colName, id, data);
+    } catch(e) {
+      console.warn(`fbSet(${colName}) online failed, queueing offline:`, e.message);
+      checkPermissionError(e, `fbSet(${colName}, ${id})`);
+    }
   }
-  try {
-    const { doc, setDoc } = _fbModules.fsMod;
-    await setDoc(doc(_fbDb, colName, id), data, { merge: true });
-  } catch(e) {
-    checkPermissionError(e, `fbSet(${colName}, ${id})`);
+
+  if(window.Offline && typeof window.Offline.enqueue === 'function'){
+    window.Offline.enqueue(colName, 'set', data, id);
   }
+
+  if(window.DB && window.DB[colName] && Array.isArray(window.DB[colName])){
+    const item = window.DB[colName].find(x => x.id === id);
+    if(item) Object.assign(item, data);
+    else window.DB[colName].push({ ...data, id });
+  }
+  if(window.DB && typeof window.DB.persistLocal === 'function'){
+    window.DB.persistLocal();
+  }
+
+  return true;
 }
 
 async function fbUpdate(colName, id, data){
-  if(_fbPermissionDenied) return;
-  if(!_fbReady){
-    const ok = await initFirebase();
-    if(!ok || !_fbDb) return;
+  if(typeof navigator !== 'undefined' && navigator.onLine && !_fbPermissionDenied){
+    try {
+      return await fbUpdateDirect(colName, id, data);
+    } catch(e) {
+      console.warn(`fbUpdate(${colName}) online failed, queueing offline:`, e.message);
+      checkPermissionError(e, `fbUpdate(${colName}, ${id})`);
+    }
   }
-  try {
-    const { doc, updateDoc } = _fbModules.fsMod;
-    await updateDoc(doc(_fbDb, colName, id), data);
-  } catch(e) {
-    checkPermissionError(e, `fbUpdate(${colName}, ${id})`);
+
+  if(window.Offline && typeof window.Offline.enqueue === 'function'){
+    window.Offline.enqueue(colName, 'update', data, id);
   }
+
+  if(window.DB && window.DB[colName] && Array.isArray(window.DB[colName])){
+    const item = window.DB[colName].find(x => x.id === id);
+    if(item) Object.assign(item, data);
+  }
+  if(window.DB && typeof window.DB.persistLocal === 'function'){
+    window.DB.persistLocal();
+  }
+
+  return true;
 }
 
 async function fbDelete(colName, id){
-  if(_fbPermissionDenied) return;
-  if(!_fbReady){
-    const ok = await initFirebase();
-    if(!ok || !_fbDb) return;
+  if(typeof navigator !== 'undefined' && navigator.onLine && !_fbPermissionDenied){
+    try {
+      return await fbDeleteDirect(colName, id);
+    } catch(e) {
+      console.warn(`fbDelete(${colName}) online failed, queueing offline:`, e.message);
+      checkPermissionError(e, `fbDelete(${colName}, ${id})`);
+    }
   }
-  try {
-    const { doc, deleteDoc } = _fbModules.fsMod;
-    await deleteDoc(doc(_fbDb, colName, id));
-  } catch(e) {
-    checkPermissionError(e, `fbDelete(${colName}, ${id})`);
+
+  if(window.Offline && typeof window.Offline.enqueue === 'function'){
+    window.Offline.enqueue(colName, 'delete', null, id);
   }
+
+  if(window.DB && window.DB[colName] && Array.isArray(window.DB[colName])){
+    window.DB[colName] = window.DB[colName].filter(x => x.id !== id);
+  }
+  if(window.DB && typeof window.DB.persistLocal === 'function'){
+    window.DB.persistLocal();
+  }
+
+  return true;
 }
 
 function fbWatch(colName, callback){
@@ -256,6 +362,11 @@ window.shopAdd = shopAdd;
 window.shopUpdate = shopUpdate;
 window.migrateOrphanDocumentsToShop = migrateOrphanDocumentsToShop;
 
+window.fbAddDirect = fbAddDirect;
+window.fbSetDirect = fbSetDirect;
+window.fbUpdateDirect = fbUpdateDirect;
+window.fbDeleteDirect = fbDeleteDirect;
+
 window.FB = {
   COL,
   initFirebase,
@@ -265,6 +376,10 @@ window.FB = {
   fbSet,
   fbUpdate,
   fbDelete,
+  fbAddDirect,
+  fbSetDirect,
+  fbUpdateDirect,
+  fbDeleteDirect,
   fbWatch,
   isPermissionDenied,
   currentShopId,

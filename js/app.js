@@ -35,6 +35,9 @@ setInterval(updateClock, 1000);
 /* Application Bootstrapper Entry Point */
 function initApp(){
   updateClock();
+  if(window.Offline && typeof window.Offline.init === 'function'){
+    window.Offline.init();
+  }
   if(typeof initLoginEnhancements === 'function'){
     initLoginEnhancements();
   } else {
