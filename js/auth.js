@@ -2,15 +2,25 @@
    js/auth.js - Authentication & Role Access Control
    ========================================================= */
 
+/* Immediately export hoisted functions to window */
+window.quick = quick;
+window.doLogin = doLogin;
+window.doLogout = doLogout;
+window.can = can;
+window.showLockedAccountModal = showLockedAccountModal;
+window.togglePasswordVisibility = togglePasswordVisibility;
+window.showForgotHelp = showForgotHelp;
+window.initLoginEnhancements = initLoginEnhancements;
+
 function quick(u){
-  const uInp = $('#lUser');
-  const pInp = $('#lPass');
+  const uInp = (typeof $ === 'function' ? $('#lUser') : null) || document.getElementById('lUser');
+  const pInp = (typeof $ === 'function' ? $('#lPass') : null) || document.getElementById('lPass');
   if(uInp) uInp.value = u;
   if(pInp) pInp.value = '1234';
   if(window.Security && typeof window.Security.clearAttempts === 'function'){
     window.Security.clearAttempts(u);
   }
-  const errEl = $('#lErr');
+  const errEl = (typeof $ === 'function' ? $('#lErr') : null) || document.getElementById('lErr');
   if(errEl) errEl.textContent = '';
   doLogin();
 }
@@ -124,7 +134,26 @@ function showForgotHelp(){
 
 function initLoginEnhancements(){
   const pass = document.getElementById('lPass');
-  if(pass){
+  const userInp = document.getElementById('lUser');
+
+  if(userInp && !userInp.dataset.boundEnter){
+    userInp.dataset.boundEnter = '1';
+    userInp.addEventListener('keydown', e => {
+      if(e.key === 'Enter'){
+        e.preventDefault();
+        document.getElementById('lPass')?.focus();
+      }
+    });
+  }
+
+  if(pass && !pass.dataset.boundEnter){
+    pass.dataset.boundEnter = '1';
+    pass.addEventListener('keydown', e => {
+      if(e.key === 'Enter'){
+        e.preventDefault();
+        doLogin();
+      }
+    });
     pass.addEventListener('keyup', e => {
       const caps = e.getModifierState && e.getModifierState('CapsLock');
       const warn = document.getElementById('capsWarn');
@@ -141,7 +170,6 @@ function initLoginEnhancements(){
   }
 
   const lastUser = localStorage.getItem('pos.lastUser');
-  const userInp = document.getElementById('lUser');
   const remBox = document.getElementById('rememberUser');
   if(lastUser && userInp){
     userInp.value = lastUser;
@@ -283,26 +311,32 @@ async function doLogin(){
 
     // Set active shop
     const db = window.DB || {};
+    const allShops = (db.shops && db.shops.length > 0) ? db.shops : (window.INITIAL_SHOPS || []);
     if(user.role === 'superadmin'){
       const savedShopId = localStorage.getItem('pos.activeShopId');
-      if(savedShopId && (db.shops || []).find(s => s.id === savedShopId)){
+      if(savedShopId && allShops.find(s => s.id === savedShopId)){
         state.activeShopId = savedShopId;
-      } else if((db.shops || []).length > 0){
-        state.activeShopId = db.shops[0].id;
+      } else if(allShops.length > 0){
+        state.activeShopId = allShops[0].id;
       }
-      state.activeShop = (db.shops || []).find(s => s.id === state.activeShopId);
+      state.activeShop = allShops.find(s => s.id === state.activeShopId) || allShops[0] || null;
     } else {
-      state.activeShop = (db.shops || []).find(s => s.id === user.shopId);
-      state.activeShopId = state.activeShop?.id;
+      state.activeShop = allShops.find(s => s.id === user.shopId) || null;
+      state.activeShopId = state.activeShop?.id || user.shopId;
     }
 
-    db.shop = state.activeShop;
+    db.shop = state.activeShop || db.shop;
     if(typeof updateBrandName === 'function') updateBrandName();
     if(typeof updateTopBarShopSwitcher === 'function') updateTopBarShopSwitcher();
 
     // Reload DB for this user's shop & start real-time listeners
     if(db && typeof db.loadAll === 'function'){
       await db.loadAll();
+      if(db.shops && db.shops.length > 0){
+        state.activeShop = db.shops.find(s => s.id === state.activeShopId) || state.activeShop || db.shops[0];
+        state.activeShopId = state.activeShop?.id || state.activeShopId;
+        db.shop = state.activeShop || db.shop;
+      }
     }
     if(typeof window.startPageListeners === 'function'){
       window.startPageListeners('billing');
@@ -433,3 +467,14 @@ window.showLockedAccountModal = showLockedAccountModal;
 window.togglePasswordVisibility = togglePasswordVisibility;
 window.showForgotHelp = showForgotHelp;
 window.initLoginEnhancements = initLoginEnhancements;
+
+/* Process any pending actions queued before auth.js was loaded */
+if(window._pendingQuick){
+  const pendingRole = window._pendingQuick;
+  window._pendingQuick = null;
+  quick(pendingRole);
+} else if(window._pendingLogin){
+  window._pendingLogin = false;
+  doLogin();
+}
+

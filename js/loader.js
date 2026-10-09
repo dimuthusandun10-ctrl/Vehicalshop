@@ -4,16 +4,17 @@
 
 (async function boot() {
   const APP_VERSION = '2.2.0';
-  /* 1. Scripts to load in strict dependency sequence */
+  /* 1. Scripts in strict dependency sequence */
   const SCRIPTS = [
     'js/bcrypt.min.js',
+    'js/config.js',
+    'js/helpers.js',
     'js/security.js',
     'js/firebase.js',
     'js/seed.js',
     'js/db-service.js',
-    'js/config.js',
-    'js/helpers.js',
     'js/shift.js',
+    'js/auth.js',
     'js/pages/credit.js',
     'js/pages/dashboard.js',
     'js/pages/billing.js',
@@ -29,13 +30,24 @@
     'js/pages/settings.js',
     'js/pages/serial-search.js',
     'js/pages/profile.js',
-    'js/auth.js',
     'js/router.js',
     'js/app.js'
   ];
 
+  function isScriptAlreadyLoaded(src) {
+    const scripts = document.querySelectorAll('script[src]');
+    for (const s of scripts) {
+      const sSrc = s.getAttribute('src') || s.src;
+      if (sSrc && sSrc.includes(src)) return true;
+    }
+    return false;
+  }
+
   function loadScript(src) {
     return new Promise((resolve) => {
+      if (isScriptAlreadyLoaded(src)) {
+        return resolve(src);
+      }
       const script = document.createElement('script');
       script.src = src + (src.includes('?') ? '&' : '?') + 'v=' + APP_VERSION;
       script.async = false;
@@ -49,7 +61,9 @@
   }
 
   for (const src of SCRIPTS) {
-    await loadScript(src);
+    if (!isScriptAlreadyLoaded(src)) {
+      await loadScript(src);
+    }
   }
 
   /* 2. Initialize Database & Backend */
