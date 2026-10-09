@@ -50,6 +50,8 @@
 <link rel="stylesheet" href="css/autoparts.css">
 <link rel="stylesheet" href="css/offline.css">
 <link rel="stylesheet" href="css/pwa.css">
+<link rel="stylesheet" href="css/date-picker.css">
+<link rel="stylesheet" href="css/reports.css">
 
 <!-- Immediate Safety Stubs for Buttons (so clicks work from millisecond 0) -->
 <script>
@@ -191,6 +193,52 @@
   </div>
   <div id="modalRoot"></div>
   <div id="toastRoot"></div>
+
+  <!-- Custom Date Picker Slot -->
+  <div id="datePickerSlot">
+    <div class="date-picker-backdrop" id="datePickerBackdrop" onclick="closeDatePicker()"></div>
+    <div class="date-picker-sheet" id="datePickerSheet" role="dialog" aria-modal="true" aria-label="Date Picker">
+      <div class="dp-drag-handle"></div>
+      <div class="dp-header">
+        <h3>📅 දිනය තෝරන්න <small>Select Date</small></h3>
+        <button type="button" class="dp-close" onclick="closeDatePicker()" aria-label="Close">✕</button>
+      </div>
+      <div class="dp-mode-tabs">
+        <button type="button" class="dp-mode-tab active" data-mode="day" onclick="dpSetMode('day')">
+          <span>📅</span>
+          <span>දිනය</span>
+          <small>Day</small>
+        </button>
+        <button type="button" class="dp-mode-tab" data-mode="month" onclick="dpSetMode('month')">
+          <span>📆</span>
+          <span>මාසය</span>
+          <small>Month</small>
+        </button>
+        <button type="button" class="dp-mode-tab" data-mode="year" onclick="dpSetMode('year')">
+          <span>🗓️</span>
+          <span>වර්ෂය</span>
+          <small>Year</small>
+        </button>
+      </div>
+      <div class="dp-nav">
+        <button type="button" class="dp-nav-btn" onclick="dpPrev()" aria-label="Previous">◀</button>
+        <div class="dp-nav-title" id="dpNavTitle">October 2026</div>
+        <button type="button" class="dp-nav-btn" onclick="dpNext()" aria-label="Next">▶</button>
+      </div>
+      <div class="dp-content" id="dpContent"></div>
+      <div class="dp-presets">
+        <button type="button" onclick="dpQuickSelect('today')">📅 අද</button>
+        <button type="button" onclick="dpQuickSelect('yesterday')">⏪ ඊයේ</button>
+        <button type="button" onclick="dpQuickSelect('thisWeek')">📆 මෙම සතිය</button>
+        <button type="button" onclick="dpQuickSelect('thisMonth')">🗓️ මෙම මාසය</button>
+        <button type="button" onclick="dpQuickSelect('thisYear')">📊 මෙම වර්ෂය</button>
+      </div>
+      <div class="dp-footer">
+        <button type="button" class="btn" onclick="closeDatePicker()">අවලංගු</button>
+        <button type="button" class="btn btn-primary" onclick="dpConfirm()">✅ තෝරන්න</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- ============ Core Scripts ============ -->
@@ -204,6 +252,7 @@
 <script src="js/db-service.js?v=2.2.0"></script>
 <script src="js/shift.js?v=2.2.0"></script>
 <script src="js/auth.js?v=2.2.0"></script>
+<script src="js/date-picker.js?v=2.2.0"></script>
 
 <!-- ============ Page Modules ============ -->
 <script src="js/pages/credit.js?v=2.2.0"></script>

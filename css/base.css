@@ -620,24 +620,84 @@ select optgroup {
 }
 
 @media (max-width: 820px) {
-  /* Main content area — allow scroll + safe area */
-  .content {
+  /* POS Billing: fixed layout with internal scroll */
+  .content.scroll-inner {
     overflow-y: auto !important;
     overflow-x: hidden !important;
-    -webkit-overflow-scrolling: touch;
-    padding-bottom: 80px !important;    /* space for FAB + safe area */
+    height: 100% !important;
+    flex: 1 !important;
     padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)) !important;
   }
+
+  /* Content pages: natural page scroll */
+  .content.scroll-natural {
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+    padding-bottom: 40px !important;
+    min-height: calc(100vh - 60px) !important;
+  }
+
+  /* Allow parent containers to grow and document to scroll */
+  body.page-scroll-natural .main,
+  body:has(.scroll-natural) .main {
+    overflow: visible !important;
+    height: auto !important;
+    min-height: 100vh !important;
+  }
+
+  body.page-scroll-natural .app,
+  body:has(.scroll-natural) .app {
+    overflow: visible !important;
+    height: auto !important;
+    min-height: 100vh !important;
+  }
+
+  /* Allow document to scroll naturally on content pages */
+  body.page-scroll-natural,
+  body:has(.scroll-natural) {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    height: auto !important;
+    min-height: 100vh !important;
+  }
+
+  /* Except when a modal / sheet / sidebar / cart is open */
+  body.cart-open,
+  body.modal-open,
+  body.sidebar-open {
+    overflow: hidden !important;
+    height: 100vh !important;
+  }
+
+  /* Topbar title priority so "📑 වාර්තා" does not truncate to "📑 වාර්..." */
+  .topbar h2 {
+    min-width: 75px !important;
+    flex-shrink: 0 !important;
+  }
+  #shiftIndicator,
+  .shift-badge {
+    min-width: 0 !important;
+    flex-shrink: 1 !important;
+  }
+
+  /* Default content area fallback */
+  .content {
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  }
   
-  /* Ensure no parent traps content */
+  /* Ensure parent containers default */
   .app {
     height: 100vh !important;
     height: 100dvh !important;
-    overflow: hidden !important;
+    overflow: hidden;
   }
   
   .main {
-    overflow: hidden !important;
+    overflow: hidden;
     height: 100% !important;
     display: flex !important;
     flex-direction: column !important;
@@ -645,15 +705,26 @@ select optgroup {
   
   /* Reports & Staff pages — don't cut off bottom */
   .reports-page,
+  .content.page-reports,
   .staff-page {
     min-height: 0 !important;
-    padding-bottom: 40px !important;
+    height: auto !important;
+    overflow: visible !important;
+    padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  /* Prevent last card from hiding */
+  .reports-page > .card:last-child,
+  .content.page-reports .card:last-child {
+    margin-bottom: 40px !important;
   }
   
   /* Tables — don't shrink */
   .tbl-wrap {
     overflow-x: auto !important;
-    -webkit-overflow-scrolling: touch;
+    overflow-y: visible !important;
+    -webkit-overflow-scrolling: touch !important;
+    max-height: none !important;
   }
   
   /* Last table row — visible */

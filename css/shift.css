@@ -95,7 +95,26 @@
 .invoice-row{cursor:pointer;transition:.15s}
 .invoice-row:hover td{background:#1e2a42}
 
+@media(max-width:820px){
+  .range-tabs{
+    display:flex !important;
+    overflow-x:auto !important;
+    overflow-y:hidden !important;
+    -webkit-overflow-scrolling:touch !important;
+    scrollbar-width:none !important;
+    max-width:100% !important;
+    width:100% !important;
+  }
+  .range-tabs::-webkit-scrollbar{display:none !important}
+  .range-tabs button{
+    flex:1 0 auto !important;
+    min-width:max-content !important;
+    text-align:center !important;
+  }
+}
+
 @media(max-width:640px){
   .shift-grid{grid-template-columns:repeat(2,1fr)}
   .shift-extra{grid-template-columns:1fr}
 }
+

@@ -71,6 +71,17 @@ function render(){
   if(titleEl) titleEl.innerHTML = `${n.icon} ${n.si}<small>${n.en}</small>`;
   const c = $('#content');
   if(!c) return;
+
+  // ⭐ Page-specific classes for proper scrolling
+  c.className = 'content page-' + state.page;
+  if(state.page === 'billing'){
+    c.classList.add('scroll-inner');   // Billing: internal scroll
+  } else {
+    c.classList.add('scroll-natural'); // Others: natural page scroll
+  }
+  document.body.classList.toggle('page-billing', state.page === 'billing');
+  document.body.classList.toggle('page-scroll-natural', state.page !== 'billing');
+
   const map = {
     dashboard: pgDashboard,
     billing: pgBilling,
@@ -93,6 +104,7 @@ function render(){
     renderCart();
   }
   c.scrollTop = 0;
+  window.scrollTo(0, 0);
 }
 
 window.renderNav = renderNav;

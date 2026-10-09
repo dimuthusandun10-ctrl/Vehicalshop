@@ -46,9 +46,9 @@ function pgPos(){
   </div>
 
   <!-- ============ FILTER BAR ============ -->
-  <div class="card" style="margin-bottom:14px;padding:12px">
-    <div style="display:flex;gap:9px;flex-wrap:wrap;align-items:center">
-      <div class="range-tabs">
+  <div class="card pos-inv-filter-card" style="margin-bottom:14px;padding:12px">
+    <div class="pos-inv-filter-bar">
+      <div class="range-tabs pos-range-tabs">
         ${[
           ['today','📅 අද'],
           ['yesterday','⏪ ඊයේ'],
@@ -60,31 +60,35 @@ function pgPos(){
                   onclick="setPosFilter('range','${v}')">${l}</button>`).join('')}
       </div>
 
-      <div style="flex:1;min-width:180px;position:relative">
+      <div class="pos-inv-search-wrap">
         <input id="posSearchInv"
-               placeholder="🔍 බිල් අංකය / පාරිභෝගික / වාහන අංකය..."
+               placeholder="බිල්පත් සොයන්න..."
+               title="බිල් අංකය / පාරිභෝගික / වාහන අංකය සොයන්න"
                value="${esc(state.posFilters.search)}"
-               oninput="setPosFilter('search',this.value)"
-               style="padding-left:32px">
-        <span style="position:absolute;left:11px;top:10px;color:var(--muted);font-size:14px">🔍</span>
+               oninput="setPosFilter('search',this.value)">
+        <span class="pos-inv-search-icon">🔍</span>
       </div>
 
-      <!-- ⭐ Payment Method Filter includes Credit -->
-      <select onchange="setPosFilter('method',this.value)" style="width:auto">
-        <option value="all"    ${state.posFilters.method==='all'?'selected':''}>සියලු ගෙවීම්</option>
-        <option value="cash"   ${state.posFilters.method==='cash'?'selected':''}>💵 මුදල්</option>
-        <option value="card"   ${state.posFilters.method==='card'?'selected':''}>💳 කාඩ්</option>
-        <option value="credit" ${state.posFilters.method==='credit'?'selected':''}>📝 ණය (Credit)</option>
-      </select>
+      <!-- ⭐ Payment Method & Sort Filters -->
+      <div class="pos-inv-filter-group">
+        <select class="pos-filter-select" onchange="setPosFilter('method',this.value)">
+          <option value="all"    ${state.posFilters.method==='all'?'selected':''}>සියලු ගෙවීම්</option>
+          <option value="cash"   ${state.posFilters.method==='cash'?'selected':''}>💵 මුදල්</option>
+          <option value="card"   ${state.posFilters.method==='card'?'selected':''}>💳 කාඩ්</option>
+          <option value="credit" ${state.posFilters.method==='credit'?'selected':''}>📝 ණය (Credit)</option>
+        </select>
 
-      <select onchange="setPosFilter('sort',this.value)" style="width:auto">
-        <option value="newest" ${state.posFilters.sort==='newest'?'selected':''}>අලුත්ම මුලින්</option>
-        <option value="oldest" ${state.posFilters.sort==='oldest'?'selected':''}>පරණ මුලින්</option>
-        <option value="amount" ${state.posFilters.sort==='amount'?'selected':''}>මුදල වැඩිපුර</option>
-      </select>
+        <select class="pos-filter-select" onchange="setPosFilter('sort',this.value)">
+          <option value="newest" ${state.posFilters.sort==='newest'?'selected':''}>අලුත්ම මුලින්</option>
+          <option value="oldest" ${state.posFilters.sort==='oldest'?'selected':''}>පරණ මුලින්</option>
+          <option value="amount" ${state.posFilters.sort==='amount'?'selected':''}>මුදල වැඩිපුර</option>
+        </select>
+      </div>
 
-      <button class="btn btn-sm" onclick="exportSalesCSV()" title="CSV බාගන්න">⬇️ CSV</button>
-      <button class="btn btn-primary btn-sm" onclick="go('billing')">+ නව බිල</button>
+      <div class="pos-inv-btn-group">
+        <button class="btn btn-sm pos-btn-csv" onclick="exportSalesCSV()" title="CSV බාගන්න">⬇️ CSV</button>
+        <button class="btn btn-primary btn-sm pos-btn-new" onclick="go('billing')">+ නව බිල</button>
+      </div>
     </div>
   </div>
 
@@ -152,6 +156,14 @@ function pgPos(){
 function setPosFilter(key, value){
   state.posFilters[key] = value;
   render();
+  if(key === 'search'){
+    const inp = document.getElementById('posSearchInv');
+    if(inp){
+      inp.focus();
+      const len = inp.value.length;
+      try { inp.setSelectionRange(len, len); } catch(_) {}
+    }
+  }
 }
 
 function rangeLabel(r){

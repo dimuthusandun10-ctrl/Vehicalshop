@@ -1,0 +1,287 @@
+/* =========================================================
+   css/reports.css - Reports Page Responsive & Mobile Card Layout
+   ========================================================= */
+
+/* Base / Container */
+.reports-page {
+  height: auto;
+  overflow: visible;
+  min-height: 0;
+}
+
+@media (max-width: 820px) {
+  /* Container & padding for sticky / safe-area */
+  .reports-page,
+  .content.page-reports {
+    padding: 10px !important;
+    padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px)) !important;
+    height: auto !important;
+    overflow: visible !important;
+    min-height: 0 !important;
+  }
+
+  /* Prevent last card from hiding behind bottom edge or home bar */
+  .reports-page > .card:last-child,
+  .content.page-reports .card:last-child {
+    margin-bottom: 40px !important;
+  }
+
+  /* Card spacing & headers */
+  .reports-page .card {
+    margin-bottom: 12px !important;
+    padding: 12px !important;
+    overflow: hidden !important;
+  }
+
+  .reports-page .card-h {
+    margin-bottom: 12px !important;
+    gap: 8px !important;
+  }
+
+  .reports-page .card-h h3 {
+    font-size: 13.5px !important;
+    line-height: 1.3 !important;
+  }
+
+  .reports-page .card-h h3 small {
+    font-size: 10px !important;
+  }
+
+  /* Table wrappers inside reports cards: no vertical scroll traps */
+  .reports-page .tbl-wrap {
+    overflow-x: auto !important;
+    overflow-y: visible !important;
+    -webkit-overflow-scrolling: touch !important;
+    max-height: none !important;
+  }
+
+  /* Prevent mid-word line breaks */
+  .reports-page table,
+  .reports-page td,
+  .reports-page th {
+    word-break: keep-all !important;
+    overflow-wrap: normal !important;
+  }
+
+  .reports-page td[data-label="අංකය"],
+  .invoice-no-cell {
+    white-space: nowrap !important;
+  }
+
+  .reports-page td[data-label="මුදල"],
+  .reports-page td[data-label="ආදායම"],
+  .amount-cell {
+    white-space: nowrap !important;
+  }
+
+  .reports-page td[data-label="දිනය"],
+  .date-cell {
+    white-space: nowrap !important;
+  }
+
+  /* ============ MOBILE CARD LAYOUT FOR REPORTS TABLES ============ */
+  .reports-table thead {
+    display: none !important;
+  }
+
+  .reports-table tbody {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+
+  /* Each row becomes a card */
+  .reports-table tbody tr {
+    display: grid !important;
+    grid-template-columns: 1fr auto !important;
+    gap: 4px 10px !important;
+    background: #0b1220 !important;
+    border: 1px solid var(--line) !important;
+    border-radius: 10px !important;
+    padding: 10px 12px !important;
+    position: relative !important;
+  }
+
+  /* Each cell: label + value on same row */
+  .reports-table td {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    padding: 4px 0 !important;
+    border: none !important;
+    font-size: 12.5px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  /* Label from data-label */
+  .reports-table td::before {
+    content: attr(data-label);
+    color: var(--muted) !important;
+    font-size: 11px !important;
+    font-weight: 500 !important;
+    margin-right: 8px !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* ⭐ TOP PRODUCTS specific */
+  .reports-top-products tbody tr {
+    grid-template-columns: auto 1fr !important;
+  }
+
+  /* # column — small badge */
+  .reports-top-products td[data-label="#"] {
+    background: rgba(245,158,11,0.15) !important;
+    color: var(--primary) !important;
+    width: 26px !important;
+    height: 26px !important;
+    border-radius: 7px !important;
+    font-weight: 700 !important;
+    font-family: 'Inter', sans-serif !important;
+    justify-content: center !important;
+    padding: 0 !important;
+    grid-row: 1 / 4 !important;
+    align-self: start !important;
+  }
+  .reports-top-products td[data-label="#"]::before {
+    display: none !important;
+  }
+
+  /* Product name — full row, bold */
+  .reports-top-products td[data-label="භාණ්ඩය"] {
+    grid-column: 2 !important;
+    display: block !important;
+    padding: 0 !important;
+  }
+  .reports-top-products td[data-label="භාණ්ඩය"]::before {
+    display: none !important;
+  }
+  .reports-top-products td[data-label="භාණ්ඩය"] small {
+    display: block !important;
+    font-size: 10.5px !important;
+    color: var(--muted) !important;
+    margin-top: 2px !important;
+    font-family: 'Inter', monospace !important;
+  }
+
+  /* Qty + Amount — inline small labels */
+  .reports-top-products td[data-label="ප්‍රමාණය"],
+  .reports-top-products td[data-label="ප්රමාණය"],
+  .reports-top-products td[data-label="ආදායම"] {
+    grid-column: 2 !important;
+    font-size: 11.5px !important;
+    color: var(--muted) !important;
+    display: flex !important;
+    justify-content: space-between !important;
+  }
+
+  .reports-top-products td[data-label="ආදායම"] {
+    color: var(--primary) !important;
+    font-weight: 700 !important;
+    font-family: 'Inter', sans-serif !important;
+  }
+
+  /* ⭐ INVOICE LIST specific */
+  .reports-invoices tbody tr {
+    grid-template-columns: 1fr !important;
+    gap: 3px !important;
+  }
+
+  /* Invoice # — first, bold, larger */
+  .reports-invoices td[data-label="අංකය"] {
+    font-size: 13.5px !important;
+    font-weight: 700 !important;
+    color: var(--txt) !important;
+    font-family: 'Inter', monospace !important;
+    border-bottom: 1px solid rgba(255,255,255,0.05) !important;
+    padding-bottom: 6px !important;
+    margin-bottom: 4px !important;
+    white-space: nowrap !important;
+  }
+  .reports-invoices td[data-label="අංකය"]::before {
+    content: '' !important;
+    display: none !important;
+  }
+
+  /* Date + Cashier — inline, muted */
+  .reports-invoices td[data-label="දිනය"],
+  .reports-invoices td[data-label="කැෂියර්"] {
+    font-size: 11.5px !important;
+    color: var(--muted) !important;
+    padding: 1px 0 !important;
+  }
+
+  /* Method — colored pill */
+  .reports-invoices td[data-label="ක්‍රමය"],
+  .reports-invoices td[data-label="ක්රමය"] {
+    font-size: 11px !important;
+  }
+
+  /* Amount — big, right-aligned, orange */
+  .reports-invoices td[data-label="මුදල"] {
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    color: var(--primary) !important;
+    font-family: 'Inter', sans-serif !important;
+    justify-content: flex-end !important;
+    margin-top: 4px !important;
+    padding-top: 6px !important;
+    border-top: 1px dashed rgba(255,255,255,0.08) !important;
+    white-space: nowrap !important;
+  }
+  .reports-invoices td[data-label="මුදල"]::before {
+    content: 'මුළු එකතුව: ' !important;
+    color: var(--muted) !important;
+    font-weight: 400 !important;
+    font-size: 11px !important;
+  }
+
+  /* ============ FINANCIAL SUMMARY: PROPER SPACING ============ */
+  .report-summary,
+  .financial-summary {
+    padding: 14px !important;
+    margin-bottom: 24px !important;
+  }
+
+  .report-summary .srow,
+  .financial-summary .srow {
+    font-size: 13px !important;
+    padding: 10px 0 !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    gap: 12px !important;
+    align-items: baseline !important;
+  }
+
+  .report-summary .srow span:first-child,
+  .financial-summary .srow span:first-child {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    white-space: normal !important;
+  }
+
+  .report-summary .srow span:last-child,
+  .report-summary .srow b,
+  .financial-summary .srow span:last-child,
+  .financial-summary .srow b {
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+    font-family: 'Inter', sans-serif !important;
+  }
+
+  .report-summary .srow.total,
+  .financial-summary .srow.total {
+    padding-top: 14px !important;
+    margin-top: 8px !important;
+    border-top: 1px dashed var(--line) !important;
+    font-size: 16px !important;
+    font-weight: 700 !important;
+  }
+
+  .report-summary .srow.total span:last-child,
+  .financial-summary .srow.total span:last-child {
+    color: var(--primary) !important;
+    font-size: 18px !important;
+  }
+}
