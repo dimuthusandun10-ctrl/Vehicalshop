@@ -391,7 +391,8 @@ async function doLogin(){
     roleBadge.textContent = ROLE_EN[user.role];
   }
 
-  state.page = 'billing';
+  const shortcut = window.state?.shortcutPage;
+  state.page = (shortcut && typeof can === 'function' && can(shortcut)) ? shortcut : 'billing';
   state.cart = [];
 
   renderNav();

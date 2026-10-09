@@ -2,8 +2,33 @@
 <html lang="si">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <title>AutoParts POS — වාහන අමතර කොටස් පද්ධතිය</title>
+
+<!-- PWA Manifest -->
+<link rel="manifest" href="/manifest.json">
+
+<!-- Theme color for mobile browser UI -->
+<meta name="theme-color" content="#f59e0b">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0f172a">
+
+<!-- iOS specific -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="AutoParts">
+<link rel="apple-touch-icon" href="/icons/icon-180x180.png">
+<link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152x152.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180x180.png">
+<link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192x192.png">
+
+<!-- General icons -->
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-16x16.png">
+<link rel="shortcut icon" href="/favicon.ico">
+
+<!-- Android Chrome -->
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="application-name" content="AutoParts POS">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -24,6 +49,7 @@
 <link rel="stylesheet" href="css/permissions.css">
 <link rel="stylesheet" href="css/autoparts.css">
 <link rel="stylesheet" href="css/offline.css">
+<link rel="stylesheet" href="css/pwa.css">
 
 <!-- Immediate Safety Stubs for Buttons (so clicks work from millisecond 0) -->
 <script>
