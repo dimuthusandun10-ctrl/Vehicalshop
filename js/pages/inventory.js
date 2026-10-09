@@ -2,77 +2,425 @@
    js/pages/inventory.js - Product & Auto Parts Inventory Management
    ========================================================= */
 
-function pgInventory(){
+// Ensure state defaults
+state.invSearch = state.invSearch || '';
+state.invCategory = state.invCategory || 'all';
+state.invSort = state.invSort || 'default';
+state.invStatus = state.invStatus || 'all';
+state.invPage = state.invPage || 1;
+const INV_PER_PAGE = 20;
+
+function setInvFilter(key, value){
+  if(key === 'search'){
+    state.invSearch = value;
+  } else if(key === 'category'){
+    state.invCategory = value;
+  } else if(key === 'sort'){
+    state.invSort = value;
+  } else if(key === 'status'){
+    state.invStatus = value;
+  }
+  state.invPage = 1;   // ⭐ reset page on any filter change
+  renderInvList();
+
+  // Show/hide clear button
+  const clearBtn = document.querySelector('.inv-search-clear');
+  if(clearBtn){
+    clearBtn.classList.toggle('hidden', !state.invSearch);
+  }
+}
+
+function clearInvSearch(){
+  state.invSearch = '';
+  state.invPage = 1;
+  const inp = document.getElementById('invSearch');
+  if(inp) inp.value = '';
+  renderInvList();
+  document.querySelector('.inv-search-clear')?.classList.add('hidden');
+}
+
+function getFilteredInventory(){
   const db = window.DB || {};
-  const q = (window._invQ||'').toLowerCase().trim();
-  const list = (db.products || []).filter(p => !q
-    || (p.name || '').toLowerCase().includes(q)
-    || (p.nameEn || '').toLowerCase().includes(q)
-    || (p.code || '').toLowerCase().includes(q)
-    || (p.oemNo || '').toLowerCase().includes(q)
-    || (p.brand || '').toLowerCase().includes(q)
-    || (p.model || '').toLowerCase().includes(q)
-    || (p.rack || '').toLowerCase().includes(q)
-    || (Array.isArray(p.altNos) && p.altNos.some(a => a.toLowerCase().includes(q)))
-    || (Array.isArray(p.chassis) && p.chassis.some(c => c.toLowerCase().includes(q)))
-  );
+  let list = (db.products || []).slice();
+
+  // Search filter
+  if((state.invSearch || '').trim()){
+    const q = state.invSearch.toLowerCase().trim();
+    list = list.filter(p =>
+      (p.name || '').toLowerCase().includes(q) ||
+      (p.nameEn || '').toLowerCase().includes(q) ||
+      (p.code || '').toLowerCase().includes(q) ||
+      (p.oemNo || '').toLowerCase().includes(q) ||
+      (Array.isArray(p.altNos) && p.altNos.some(a => (a || '').toLowerCase().includes(q))) ||
+      (p.brand || '').toLowerCase().includes(q) ||
+      (p.model || '').toLowerCase().includes(q) ||
+      (p.rack || '').toLowerCase().includes(q)
+    );
+  }
+
+  // Category filter
+  if(state.invCategory && state.invCategory !== 'all'){
+    list = list.filter(p => (p.cat || '').toLowerCase() === state.invCategory.toLowerCase());
+  }
+
+  // Status filter
+  if(state.invStatus === 'low'){
+    list = list.filter(p => p.qty > 0 && p.qty <= (p.reorder || 5));
+  } else if(state.invStatus === 'out'){
+    list = list.filter(p => (p.qty || 0) === 0);
+  }
+
+  // Sort
+  switch(state.invSort){
+    case 'name-asc':   list.sort((a,b) => (a.name||'').localeCompare(b.name||'','si')); break;
+    case 'name-desc':  list.sort((a,b) => (b.name||'').localeCompare(a.name||'','si')); break;
+    case 'price-asc':  list.sort((a,b) => (a.price || 0) - (b.price || 0)); break;
+    case 'price-desc': list.sort((a,b) => (b.price || 0) - (a.price || 0)); break;
+    case 'stock-asc':  list.sort((a,b) => (a.qty || 0) - (b.qty || 0)); break;
+    case 'stock-desc': list.sort((a,b) => (b.qty || 0) - (a.qty || 0)); break;
+    default:           list.sort((a,b) => (a.code||'').localeCompare(b.code||'')); break;
+  }
+
+  return list;
+}
+
+function updateInvCounts(){
+  const db = window.DB || {};
+  const products = db.products || [];
+  const all = products.length;
+  const low = products.filter(p => p.qty > 0 && p.qty <= (p.reorder || 5)).length;
+  const out = products.filter(p => (p.qty || 0) === 0).length;
+
+  const set = (id, val) => {
+    const el = document.getElementById(id);
+    if(el) el.textContent = val;
+  };
+  set('cntAll', all);
+  set('cntLow', low);
+  set('cntOut', out);
+
+  const totalEl = document.getElementById('invCount');
+  if(totalEl) totalEl.textContent = all;
+}
+
+function renderInvList(){
+  const list = getFilteredInventory();
+  updateInvCounts();
+
+  // Update count
+  const cntEl = document.getElementById('invResultsCount');
+  if(cntEl) cntEl.textContent = list.length + ' භාණ්ඩ';
+
+  // Paginate
+  const start = (state.invPage - 1) * INV_PER_PAGE;
+  const end = start + INV_PER_PAGE;
+  const paged = list.slice(start, end);
+  const totalPages = Math.ceil(list.length / INV_PER_PAGE) || 1;
+
+  const infoEl = document.getElementById('invPaginationInfo');
+  if(infoEl){
+    infoEl.textContent = list.length > 0
+      ? `${start + 1}-${Math.min(end, list.length)} / ${list.length}`
+      : '';
+  }
+
+  // ─── DESKTOP TABLE ───
+  const tableBody = document.querySelector('.inv-table tbody');
+  if(tableBody){
+    tableBody.innerHTML = paged.length
+      ? paged.map(p => `
+        <tr>
+          <td style="font-family:'Inter',monospace;font-size:12px">
+            <b>${esc(p.code)}</b>
+            ${p.oemNo ? `<br><small style="color:var(--muted);font-size:10px">${esc(p.oemNo)}</small>` : ''}
+          </td>
+          <td>
+            <b>${esc(p.name)}</b><br>
+            <small style="color:var(--muted)">${esc(p.nameEn || '')}</small>
+            ${p.warranty ? `<br><span class="pill ok" style="font-size:9px;padding:1px 5px">🛡️ ${p.warranty}m warranty</span>` : ''}
+            ${p.hasSerial ? `<span class="pill info" style="font-size:9px;padding:1px 5px">🛡️ S/N Track</span>` : ''}
+          </td>
+          <td><span class="pill mute">${esc(p.cat || 'Other')}</span></td>
+          <td>
+            <small>${esc(p.brand || '')}<br>${esc(p.model || '')}</small>
+          </td>
+          <td style="text-align:right">${money(p.cost)}</td>
+          <td style="text-align:right;color:var(--primary);font-weight:700">${money(p.price)}</td>
+          <td style="text-align:center">
+            <span class="pill ${p.qty===0?'bad':p.qty<=p.reorder?'warn':'ok'}">
+              ${p.qty} ${esc(p.unit || 'pcs')}
+            </span>
+          </td>
+          <td style="text-align:center;white-space:nowrap">
+            <button class="btn btn-sm" onclick="editProduct('${p.id}')" title="සංස්කරණය">✏️</button>
+            ${(hasPermission('delete-product') || state.user?.role === 'superadmin')
+              ? `<button class="btn btn-sm btn-red" onclick="delProduct('${p.id}')" title="මකන්න">🗑️</button>` : ''}
+          </td>
+        </tr>`).join('')
+      : `<tr><td colspan="8">
+           <div class="empty" style="padding:40px 20px;text-align:center">
+             <div class="e" style="font-size:32px;margin-bottom:6px">🔍</div>
+             <div style="font-weight:600">භාණ්ඩ හමු නොවීය</div>
+             <small style="color:var(--muted)">ෆිල්ටර වෙනස් කරන්න හෝ නව භාණ්ඩයක් ඇතුළත් කරන්න</small>
+           </div>
+         </td></tr>`;
+  }
+
+  // ─── MOBILE CARDS ───
+  const cardsEl = document.getElementById('invCards');
+  if(cardsEl){
+    cardsEl.innerHTML = paged.length
+      ? paged.map(p => renderInvCard(p)).join('')
+      : `<div class="empty" style="padding:60px 20px;text-align:center">
+           <div class="e" style="font-size:36px;margin-bottom:8px">🔍</div>
+           <div style="font-size:15px;font-weight:600">භාණ්ඩ හමු නොවීය</div>
+           <small style="color:var(--muted)">ෆිල්ටර වෙනස් කරන්න හෝ නව භාණ්ඩයක් එකතු කරන්න</small>
+         </div>`;
+  }
+
+  // ─── PAGINATION ───
+  renderInvPagination(list.length, totalPages);
+}
+
+function renderInvCard(p){
+  const stockCls = p.qty === 0 ? 'bad' : p.qty <= (p.reorder || 5) ? 'warn' : 'ok';
+  const stockLabel = p.qty === 0 ? 'අවසන්' : `${p.qty} ${p.unit || 'pcs'}`;
 
   return `
-  <div class="card">
-    <div class="card-h">
-      <h3>📦 භාණ්ඩ ලැයිස්තුව<small>Inventory — ${db.products?.length || 0} items</small></h3>
-      <div style="display:flex;gap:8px">
-        <input placeholder="🔍 නම / කේතය / OEM / Rack..." style="width:240px" value="${esc(window._invQ||'')}"
-               oninput="window._invQ=this.value;render()">
-        ${hasPermission('inventory') ? '<button class="btn btn-primary btn-sm" onclick="editProduct()">+ නව භාණ්ඩය</button>' : ''}
+    <div class="inv-card">
+      
+      <!-- Top: code + stock -->
+      <div class="inv-card-top">
+        <span class="inv-card-code">${esc(p.code)}</span>
+        <span class="pill ${stockCls}">${stockLabel}</span>
+      </div>
+      
+      <!-- Name -->
+      <div class="inv-card-name">${esc(p.name)}</div>
+      <div class="inv-card-name-en">${esc(p.nameEn || '')}</div>
+      
+      <!-- Meta -->
+      <div class="inv-card-meta">
+        <span class="inv-cat-pill">${esc(p.cat || 'Other')}</span>
+        ${p.rack ? `<span class="inv-rack">📍 ${esc(p.rack)}${p.bin ? '/' + esc(p.bin) : ''}</span>` : ''}
+        ${p.warranty ? `<span class="inv-warranty">🛡️ ${p.warranty}m</span>` : ''}
+      </div>
+      
+      <!-- Prices -->
+      <div class="inv-card-prices">
+        <div>
+          <small>පිරිවැය</small>
+          <b>${money(p.cost)}</b>
+        </div>
+        <div>
+          <small>විකුණුම් මිල</small>
+          <b class="price">${money(p.price)}</b>
+        </div>
+      </div>
+      
+      <!-- Actions -->
+      <div class="inv-card-actions">
+        <button onclick="viewProductDetail('${p.id}')" class="btn-view" title="බලන්න">👁️</button>
+        <button onclick="editProduct('${p.id}')" class="btn-edit" title="සංස්කරණය">✏️</button>
+        ${(hasPermission('delete-product') || state.user?.role==='superadmin')
+          ? `<button onclick="delProduct('${p.id}')" class="btn-del" title="මකන්න">🗑️</button>` : ''}
       </div>
     </div>
-    <div class="tbl-wrap">
-    <table><thead><tr>
-      <th>කේතය / OEM</th>
-      <th>භාණ්ඩය</th>
-      <th>කාණ්ඩය</th>
-      <th>වාහන අනුකූලතාව</th>
-      <th>ස්ථානය (Rack)</th>
-      <th style="text-align:right">පිරිවැය</th>
-      <th style="text-align:right">විකුණුම් මිල</th>
-      <th style="text-align:center">තොග</th>
-      <th>ක්‍රියා</th>
-    </tr></thead><tbody>
-    ${list.map(p => `<tr>
-      <td style="font-family:'Inter',monospace;font-size:12px">
-        <b>${p.code}</b>
-        ${p.oemNo ? `<br><small style="color:var(--primary);font-size:10px">OEM: ${esc(p.oemNo)}</small>` : ''}
-      </td>
-      <td>
-        <b>${esc(p.name)}</b><br>
-        <small style="color:var(--muted)">${esc(p.nameEn || '')}</small>
-        ${p.warranty ? `<br><span class="pill ok" style="font-size:9px;padding:1px 5px">🛡️ ${p.warranty}m warranty</span>` : ''}
-        ${p.hasSerial ? `<span class="pill info" style="font-size:9px;padding:1px 5px">🛡️ S/N Track</span>` : ''}
-        ${p.coreDeposit ? `<span class="pill warn" style="font-size:9px;padding:1px 5px">♻️ Core Rs.${p.coreDeposit}</span>` : ''}
-        ${(p.crossSell && p.crossSell.length) ? `<br><small style="color:var(--muted);font-size:10px">🔗 Cross: ${esc(p.crossSell.join(', '))}</small>` : ''}
-      </td>
-      <td><span class="pill mute">${p.cat}</span></td>
-      <td>
-        <small><b>${esc(p.brand || '')}</b> ${esc(p.model || '')}</small>
-        ${(p.chassis && p.chassis.length) ? `<br><small style="color:var(--muted)">Chassis: ${esc(p.chassis.join(', '))}</small>` : ''}
-        ${(p.engine && p.engine.length) ? `<br><small style="color:var(--muted)">Engine: ${esc(p.engine.join(', '))}</small>` : ''}
-      </td>
-      <td>
-        ${p.rack ? `<span class="pill info" style="font-size:10.5px">📍 ${p.rack}${p.bin ? ' / ' + p.bin : ''}</span>` : '<span style="color:var(--muted)">—</span>'}
-        ${p.warehouse && p.warehouse !== 'Main' ? `<br><small style="color:var(--muted)">(${esc(p.warehouse)})</small>` : ''}
-      </td>
-      <td style="text-align:right">${money(p.cost)}</td>
-      <td style="text-align:right;color:var(--primary);font-weight:700">${money(p.price)}</td>
-      <td style="text-align:center">
-        <span class="pill ${p.qty===0?'bad':p.qty<=p.reorder?'warn':'ok'}">${p.qty} ${p.unit||'pcs'}</span>
-      </td>
-      <td style="white-space:nowrap">
-        <button class="btn btn-sm" onclick="editProduct('${p.id}')">✏️</button>
-        ${hasPermission('delete-product') ? `<button class="btn btn-sm btn-red" onclick="delProduct('${p.id}')">🗑️</button>` : ''}
-      </td></tr>`).join('') || '<tr><td colspan="9" class="empty">භාණ්ඩ හමු නොවීය</td></tr>'}
-    </tbody></table></div>
-  </div>`;
+  `;
+}
+
+function viewProductDetail(id){
+  const db = window.DB || {};
+  const p = db.getProd ? db.getProd(id) : (db.products || []).find(x => x.id === id);
+  if(!p) return;
+  openModal(
+    `📦 ${esc(p.name)}`,
+    `${esc(p.code)} · ${esc(p.cat || '')}`,
+    `<div style="display:flex;flex-direction:column;gap:10px">
+       <div style="display:flex;justify-content:space-between;align-items:center">
+         <span class="pill ${p.qty===0?'bad':p.qty<=p.reorder?'warn':'ok'}">${p.qty} ${p.unit||'pcs'} in stock</span>
+         <b style="color:var(--primary);font-size:16px">${money(p.price)}</b>
+       </div>
+       ${p.nameEn ? `<div><small style="color:var(--muted)">English:</small> <div>${esc(p.nameEn)}</div></div>` : ''}
+       ${p.oemNo ? `<div><small style="color:var(--muted)">OEM Number:</small> <div>${esc(p.oemNo)}</div></div>` : ''}
+       ${(p.brand || p.model) ? `<div><small style="color:var(--muted)">Vehicle Match:</small> <div>${esc(p.brand||'')} ${esc(p.model||'')}</div></div>` : ''}
+       ${p.rack ? `<div><small style="color:var(--muted)">Rack / Bin:</small> <div>📍 ${esc(p.rack)}${p.bin ? ' / ' + esc(p.bin) : ''} (${esc(p.warehouse||'Main')})</div></div>` : ''}
+       <div><small style="color:var(--muted)">Cost:</small> <div>${money(p.cost)}</div></div>
+     </div>`,
+    `<button class="btn btn-primary" onclick="closeModal();editProduct('${p.id}')">✏️ සංස්කරණය කරන්න</button>`
+  );
+}
+
+function renderInvPagination(total, totalPages){
+  const el = document.getElementById('invPagination');
+  if(!el) return;
+  if(totalPages <= 1 || total === 0){ el.innerHTML = ''; return; }
+
+  const cur = state.invPage;
+  let html = '<div class="pg-controls">';
+
+  html += `<button class="pg-btn" ${cur===1?'disabled':''} 
+           onclick="invGoToPage(${cur-1})">◀</button>`;
+
+  // Page numbers (max 5 visible)
+  const start = Math.max(1, Math.min(cur - 2, totalPages - 4));
+  const end = Math.min(totalPages, start + 4);
+
+  for(let i = start; i <= end; i++){
+    html += `<button class="pg-btn ${i===cur?'active':''}" 
+             onclick="invGoToPage(${i})">${i}</button>`;
+  }
+
+  html += `<button class="pg-btn" ${cur===totalPages?'disabled':''} 
+           onclick="invGoToPage(${cur+1})">▶</button>`;
+
+  html += '</div>';
+  html += `<div class="pg-info">${(cur-1)*INV_PER_PAGE+1}-${Math.min(cur*INV_PER_PAGE, total)} / ${total}</div>`;
+
+  el.innerHTML = html;
+}
+
+function invGoToPage(n){
+  state.invPage = n;
+  renderInvList();
+  document.querySelector('.inv-results')?.scrollIntoView({ 
+    behavior: 'smooth', block: 'start' 
+  });
+}
+
+function pgInventory(){
+  const cats = ['Brake', 'Engine', 'Electrical', 'Body', 'Suspension', 'Filter', 'Lubricant', 'Battery', 'Other'];
+  const list = getFilteredInventory();
+
+  // Initialize view after render
+  setTimeout(() => {
+    renderInvList();
+    if(state.invSearch){
+      const inp = document.getElementById('invSearch');
+      if(inp){
+        inp.focus();
+        try { inp.setSelectionRange(inp.value.length, inp.value.length); } catch(_) {}
+      }
+    }
+  }, 50);
+
+  return `
+    <div class="inventory-page">
+      
+      <!-- ⭐ Toolbar card -->
+      <div class="inv-toolbar card">
+        
+        <!-- Header -->
+        <div class="inv-header">
+          <div>
+            <h3>📦 භාණ්ඩ ලේඛනය</h3>
+            <small>Inventory · <span id="invCount">0</span> items</small>
+          </div>
+          ${hasPermission('inventory') ? `
+            <button class="btn btn-primary btn-add" onclick="editProduct()">
+              <span class="desktop-only">+ නව භාණ්ඩය</span>
+              <span class="mobile-only">+</span>
+            </button>
+          ` : ''}
+        </div>
+        
+        <!-- ⭐ Search -->
+        <div class="inv-search-row">
+          <span class="inv-search-icon">🔍</span>
+          <input id="invSearch" 
+                 type="search"
+                 placeholder="භාණ්ඩය සොයන්න (නම / කේතය / OEM)..."
+                 value="${esc(state.invSearch || '')}"
+                 oninput="setInvFilter('search', this.value)">
+          <button class="inv-search-clear ${state.invSearch ? '' : 'hidden'}" onclick="clearInvSearch()">✕</button>
+        </div>
+        
+        <!-- ⭐ Dropdowns row (2 cols) -->
+        <div class="inv-dropdowns-row">
+          <div class="inv-select-wrap">
+            <label>කාණ්ඩය</label>
+            <select onchange="setInvFilter('category', this.value)">
+              <option value="all">සියලු කාණ්ඩ</option>
+              ${cats.map(c => `
+                <option value="${c}" ${state.invCategory===c?'selected':''}>${c}</option>
+              `).join('')}
+            </select>
+          </div>
+          <div class="inv-select-wrap">
+            <label>වර්ගය</label>
+            <select onchange="setInvFilter('sort', this.value)">
+              <option value="default" ${state.invSort==='default'?'selected':''}>පෙළගැස්ම</option>
+              <option value="name-asc" ${state.invSort==='name-asc'?'selected':''}>නම (A→Z)</option>
+              <option value="name-desc" ${state.invSort==='name-desc'?'selected':''}>නම (Z→A)</option>
+              <option value="price-asc" ${state.invSort==='price-asc'?'selected':''}>මිල (අඩු→වැඩි)</option>
+              <option value="price-desc" ${state.invSort==='price-desc'?'selected':''}>මිල (වැඩි→අඩු)</option>
+              <option value="stock-asc" ${state.invSort==='stock-asc'?'selected':''}>තොග (අඩු→වැඩි)</option>
+              <option value="stock-desc" ${state.invSort==='stock-desc'?'selected':''}>තොග (වැඩි→අඩු)</option>
+            </select>
+          </div>
+        </div>
+        
+        <!-- ⭐ Stock status quick filters -->
+        <div class="inv-status-tabs">
+          <button class="${!state.invStatus || state.invStatus==='all' ? 'active' : ''}" 
+                  onclick="setInvFilter('status','all')">
+            📊 සියල්ල <span class="cnt" id="cntAll">0</span>
+          </button>
+          <button class="${state.invStatus==='low' ? 'active' : ''}" 
+                  onclick="setInvFilter('status','low')">
+            ⚠️ අඩු තොග <span class="cnt" id="cntLow">0</span>
+          </button>
+          <button class="${state.invStatus==='out' ? 'active' : ''}" 
+                  onclick="setInvFilter('status','out')">
+            🚫 අවසන් <span class="cnt" id="cntOut">0</span>
+          </button>
+        </div>
+        
+      </div>
+      
+      <!-- ⭐ Results card -->
+      <div class="inv-results card">
+        
+        <div class="inv-results-header">
+          <span id="invResultsCount">0 භාණ්ඩ</span>
+          <span class="pagination-info" id="invPaginationInfo"></span>
+        </div>
+        
+        <!-- Desktop table view -->
+        <div class="inv-table-view desktop-only">
+          <div class="tbl-wrap">
+            <table class="inv-table">
+              <thead>
+                <tr>
+                  <th>කේතය / OEM</th>
+                  <th>භාණ්ඩය</th>
+                  <th>කාණ්ඩය</th>
+                  <th>වාහන අනුකූලතාව</th>
+                  <th style="text-align:right">පිරිවැය</th>
+                  <th style="text-align:right">විකුණුම් මිල</th>
+                  <th style="text-align:center">තොග</th>
+                  <th style="text-align:center">ක්‍රියා</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Populated by renderInvList() -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+        
+        <!-- ⭐ Mobile card view -->
+        <div class="inv-cards-view mobile-only" id="invCards">
+          <!-- Populated by renderInvList() -->
+        </div>
+        
+        <!-- ⭐ Pagination (mobile) -->
+        <div class="inv-pagination mobile-only" id="invPagination"></div>
+        
+      </div>
+      
+    </div>
+  `;
 }
 
 function editProduct(id){
@@ -259,6 +607,15 @@ async function delProduct(id){
 }
 
 window.pgInventory = pgInventory;
+window.setInvFilter = setInvFilter;
+window.clearInvSearch = clearInvSearch;
+window.getFilteredInventory = getFilteredInventory;
+window.updateInvCounts = updateInvCounts;
+window.renderInvList = renderInvList;
+window.renderInvCard = renderInvCard;
+window.viewProductDetail = viewProductDetail;
+window.renderInvPagination = renderInvPagination;
+window.invGoToPage = invGoToPage;
 window.editProduct = editProduct;
 window.saveProduct = saveProduct;
 window.delProduct = delProduct;

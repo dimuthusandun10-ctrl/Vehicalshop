@@ -1,0 +1,372 @@
+/* =========================================================
+   css/inventory.css - Inventory Management Styles
+   ========================================================= */
+
+/* Toolbar */
+.inv-toolbar {
+  padding: 14px !important;
+  margin-bottom: 12px !important;
+}
+.inv-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.inv-header h3 {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0 0 2px 0;
+}
+.inv-header small {
+  font-size: 11px;
+  color: var(--muted);
+}
+.inv-header .btn-add {
+  padding: 9px 16px !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  white-space: nowrap !important;
+}
+
+/* Search */
+.inv-search-row {
+  position: relative;
+  margin-bottom: 12px;
+}
+.inv-search-row input {
+  width: 100% !important;
+  padding: 12px 40px 12px 40px !important;
+  font-size: 14px !important;
+  min-height: 46px !important;
+  background: #0b1220 !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 10px !important;
+  color: var(--txt) !important;
+  transition: border-color 0.15s;
+  box-sizing: border-box !important;
+}
+.inv-search-row input:focus {
+  border-color: var(--primary) !important;
+  outline: none !important;
+}
+.inv-search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 15px;
+  color: var(--muted);
+  pointer-events: none;
+}
+.inv-search-clear {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  background: rgba(255,255,255,0.06);
+  border: none;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+.inv-search-clear:hover {
+  background: var(--red);
+  color: white;
+}
+.hidden { display: none !important; }
+
+/* Dropdowns */
+.inv-dropdowns-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.inv-select-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.inv-select-wrap label {
+  font-size: 10.5px;
+  color: var(--muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.inv-select-wrap select {
+  width: 100% !important;
+  font-size: 13px !important;
+  padding: 10px 12px !important;
+  min-height: 42px !important;
+  box-sizing: border-box !important;
+}
+
+/* Status tabs */
+.inv-status-tabs {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin-bottom: 4px;
+}
+.inv-status-tabs::-webkit-scrollbar { display: none; }
+.inv-status-tabs button {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 9px;
+  background: #0b1220;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.inv-status-tabs button:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+.inv-status-tabs button.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #1a1206;
+}
+.inv-status-tabs .cnt {
+  background: rgba(0,0,0,0.25);
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: 'Inter', sans-serif;
+}
+.inv-status-tabs button.active .cnt {
+  background: rgba(0,0,0,0.2);
+}
+
+/* Results */
+.inv-results {
+  padding: 12px !important;
+}
+.inv-results-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+  font-size: 12.5px;
+  color: var(--muted);
+  font-weight: 600;
+}
+.pagination-info {
+  font-family: 'Inter', monospace;
+  font-size: 11px;
+}
+
+/* Mobile card view */
+@media (min-width: 821px) {
+  .inv-cards-view.mobile-only { display: none !important; }
+  .inv-pagination.mobile-only { display: none !important; }
+}
+@media (max-width: 820px) {
+  .inv-table-view.desktop-only { display: none !important; }
+  
+  .inv-cards-view {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .inv-card {
+    background: #0b1220;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    position: relative;
+    transition: border-color 0.15s;
+  }
+  .inv-card:active {
+    border-color: var(--primary);
+  }
+  
+  .inv-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+  .inv-card-code {
+    font-family: 'Inter', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    background: rgba(255,255,255,0.04);
+    padding: 3px 8px;
+    border-radius: 6px;
+  }
+  
+  .inv-card-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--txt);
+    line-height: 1.3;
+  }
+  .inv-card-name-en {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: -4px;
+  }
+  
+  .inv-card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 2px;
+  }
+  .inv-cat-pill {
+    font-size: 10px;
+    padding: 2px 8px;
+    background: rgba(139,92,246,0.15);
+    color: #c4b5fd;
+    border-radius: 20px;
+    font-weight: 600;
+  }
+  .inv-rack, .inv-warranty {
+    font-size: 10.5px;
+    color: var(--muted);
+  }
+  
+  .inv-card-prices {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255,255,255,0.05);
+  }
+  .inv-card-prices > div {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .inv-card-prices small {
+    font-size: 10px;
+    color: var(--muted);
+  }
+  .inv-card-prices b {
+    font-size: 13px;
+    font-weight: 600;
+    font-family: 'Inter', sans-serif;
+  }
+  .inv-card-prices b.price {
+    color: var(--primary);
+  }
+  
+  .inv-card-actions {
+    display: flex;
+    gap: 6px;
+    justify-content: flex-end;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255,255,255,0.05);
+  }
+  .inv-card-actions button {
+    width: 36px;
+    height: 36px;
+    border-radius: 9px;
+    background: var(--panel2);
+    border: 1px solid var(--line);
+    color: var(--txt);
+    font-size: 14px;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    transition: all 0.15s;
+  }
+  .inv-card-actions .btn-view:hover { background: rgba(59,130,246,0.15); color: #93c5fd; }
+  .inv-card-actions .btn-edit:hover { background: rgba(245,158,11,0.15); color: var(--primary); }
+  .inv-card-actions .btn-del:hover { background: rgba(239,68,68,0.15); color: #fca5a5; }
+  
+  /* Pagination */
+  .inv-pagination {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0 4px;
+    border-top: 1px solid var(--line);
+    margin-top: 12px;
+  }
+  .pg-controls {
+    display: flex;
+    gap: 4px;
+  }
+  .pg-btn {
+    min-width: 34px;
+    height: 34px;
+    padding: 0 8px;
+    border-radius: 8px;
+    background: var(--panel2);
+    border: 1px solid var(--line);
+    color: var(--txt);
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+  }
+  .pg-btn:hover:not(:disabled) {
+    border-color: var(--primary);
+    color: var(--primary);
+  }
+  .pg-btn.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #1a1206;
+  }
+  .pg-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+  .pg-info {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'Inter', monospace;
+  }
+  
+  /* Bottom padding for content */
+  .inventory-page {
+    padding: 10px;
+    padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* Desktop tweaks */
+@media (min-width: 821px) {
+  .inv-search-row input {
+    max-width: 480px;
+  }
+  .inv-dropdowns-row {
+    max-width: 480px;
+  }
+  .inv-status-tabs {
+    max-width: 480px;
+  }
+}

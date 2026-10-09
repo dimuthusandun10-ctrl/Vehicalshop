@@ -38,7 +38,12 @@ window.state = window.state || {
     method: 'all',
     search: '',
     sort: 'newest'
-  }
+  },
+  invSearch: '',
+  invCategory: 'all',
+  invSort: 'default',
+  invStatus: 'all',
+  invPage: 1
 };
 var state = window.state;
 
