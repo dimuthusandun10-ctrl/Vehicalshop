@@ -331,7 +331,7 @@ function getDefaultPermissionsForRole(role){
 function hasPermission(perm, user){
   const u = user || (window.state && window.state.user);
   if(!u) return false;
-  if(u.role === 'superadmin') return true; // Super Admin has unrestricted access to all actions
+  if(u.role === 'superadmin' || u.role === 'admin') return true; // Super Admin & Admin have full access
   if(!u.permissions || !Array.isArray(u.permissions)) return false;
   return u.permissions.includes(perm);
 }

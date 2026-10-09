@@ -31,13 +31,20 @@
   /* ── TOPBAR ── */
   .topbar {
     height: 52px !important;
-    padding: 0 10px !important;
+    padding: 0 8px !important;
     gap: 6px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
     overflow: hidden !important;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 100 !important;
   }
   .topbar .menu-btn {
     width: 36px !important;
     height: 36px !important;
+    min-width: 36px !important;
     padding: 0 !important;
     font-size: 20px !important;
     display: grid !important;
@@ -45,32 +52,97 @@
     flex-shrink: 0 !important;
   }
   .topbar h2 {
-    font-size: 13px !important;
+    font-size: 13.5px !important;
+    font-weight: 700 !important;
     flex: 1 1 auto !important;
     min-width: 0 !important;
     white-space: nowrap !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
-    padding: 0 !important;
+    padding: 0 4px !important;
+    margin: 0 !important;
   }
   .topbar h2 small { display: none !important; }
   .topbar .shop-name-badge,
   .topbar .active-shop-name { display: none !important; }
   #clock { display: none !important; }
-  #roleBadge {
-    font-size: 9px !important;
-    padding: 2px 6px !important;
-    max-width: 52px !important;
+  #roleBadge { display: none !important; }
+
+  /* ── TOPBAR SHOP SWITCHER ── */
+  .topbar-shop-slot,
+  #topbarShopSwitcherSlot {
+    margin: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
     flex-shrink: 0 !important;
+    max-width: 85px !important;
   }
+  .shop-switcher-select {
+    max-width: 85px !important;
+    padding: 3px 6px !important;
+    font-size: 11px !important;
+    height: 30px !important;
+    min-height: 30px !important;
+    border-radius: 6px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  /* ── SHIFT INDICATOR ── */
   #shiftIndicator,
   .shift-badge {
-    font-size: 10px !important;
+    font-size: 10.5px !important;
     padding: 3px 8px !important;
+    height: 30px !important;
+    min-height: 30px !important;
     flex-shrink: 0 !important;
     white-space: nowrap !important;
+    max-width: 90px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    border-radius: 6px !important;
   }
-  #shiftIndicator [class*="amount"] { display: none !important; }
+  #shiftIndicator > span:nth-child(3),
+  #shiftIndicator > span:nth-child(4),
+  #shiftIndicator [style*="opacity"],
+  #shiftIndicator [class*="amount"] {
+    display: none !important;
+  }
+
+  /* ── 3-COLUMN STATUS TABS (Inventory, Low Stock, Customers) ── */
+  .inv-status-tabs,
+  .ls-status-tabs,
+  .cust-status-tabs {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 6px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    margin-bottom: 6px !important;
+  }
+  .inv-status-tabs button,
+  .ls-status-tabs button,
+  .cust-status-tabs button {
+    flex: none !important;
+    padding: 8px 2px !important;
+    font-size: 11px !important;
+    min-height: 38px !important;
+    white-space: nowrap !important;
+    justify-content: center !important;
+    text-align: center !important;
+    border-radius: 8px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+  }
+  .inv-status-tabs .cnt,
+  .ls-status-tabs .cnt,
+  .cust-status-tabs .cnt {
+    font-size: 10px !important;
+    padding: 1px 5px !important;
+    border-radius: 6px !important;
+  }
 
   /* ── PAGE HEADERS ── */
   .card-h {
@@ -1009,6 +1081,62 @@
     padding: 3px 8px !important;
   }
 
+  /* ── BOTTOM NAVIGATION BAR (Mobile Only) ── */
+  .mobile-bottom-nav {
+    display: flex !important;
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    height: 56px !important;
+    background: #0b1220 !important;
+    border-top: 1px solid var(--line) !important;
+    z-index: 9999 !important;
+    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+    box-shadow: 0 -4px 18px rgba(0, 0, 0, 0.45) !important;
+    box-sizing: border-box !important;
+  }
+  .bnav-item {
+    flex: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 2px !important;
+    background: transparent !important;
+    border: none !important;
+    color: var(--muted) !important;
+    padding: 5px 0 !important;
+    cursor: pointer !important;
+    transition: all 0.15s ease !important;
+    -webkit-tap-highlight-color: transparent !important;
+    text-decoration: none !important;
+    min-width: 0 !important;
+  }
+  .bnav-item:active {
+    background: rgba(255, 255, 255, 0.04) !important;
+  }
+  .bnav-item.active {
+    color: var(--primary, #f59e0b) !important;
+  }
+  .bnav-item.active .bnav-icon {
+    transform: scale(1.15) !important;
+  }
+  .bnav-icon {
+    font-size: 18px !important;
+    line-height: 1 !important;
+    transition: transform 0.15s ease !important;
+  }
+  .bnav-label {
+    font-size: 9.5px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.1px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-width: 100% !important;
+  }
+
   /* ── HIDE DESKTOP-ONLY, SHOW MOBILE-ONLY ── */
   .desktop-only { display: none !important; }
   .mobile-only { display: block !important; }
@@ -1018,6 +1146,7 @@
 }
 
 @media (min-width: 821px) {
+  .mobile-bottom-nav { display: none !important; }
   .mobile-only { display: none !important; }
   .desktop-only { display: block !important; }
   .pos-cards-wrap { display: none !important; }

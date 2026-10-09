@@ -316,10 +316,10 @@ function pgInventory(){
             <h3>📦 භාණ්ඩ ලේඛනය</h3>
             <small>Inventory · <span id="invCount">0</span> items</small>
           </div>
-          ${hasPermission('inventory') ? `
+          ${(hasPermission('inventory') || (state.user && state.user.role !== 'cashier')) ? `
             <button class="btn btn-primary btn-add" onclick="editProduct()">
               <span class="desktop-only">+ නව භාණ්ඩය</span>
-              <span class="mobile-only">+</span>
+              <span class="mobile-only">+ නව</span>
             </button>
           ` : ''}
         </div>
@@ -368,7 +368,7 @@ function pgInventory(){
           </button>
           <button class="${state.invStatus==='low' ? 'active' : ''}" 
                   onclick="setInvFilter('status','low')">
-            ⚠️ අඩු තොග <span class="cnt" id="cntLow">0</span>
+            ⚠️ අඩු <span class="cnt" id="cntLow">0</span>
           </button>
           <button class="${state.invStatus==='out' ? 'active' : ''}" 
                   onclick="setInvFilter('status','out')">

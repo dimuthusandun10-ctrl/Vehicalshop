@@ -32,6 +32,14 @@ function renderNav(){
         ${badge}${star}
       </button>`;
   }).join('');
+
+  // Update mobile bottom nav active tab
+  const bnav = document.getElementById('mobileBottomNav');
+  if(bnav){
+    bnav.querySelectorAll('.bnav-item[data-page]').forEach(btn => {
+      btn.classList.toggle('active', btn.getAttribute('data-page') === state.page);
+    });
+  }
 }
 
 async function go(page){
