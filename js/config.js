@@ -43,7 +43,11 @@ window.state = window.state || {
   invCategory: 'all',
   invSort: 'default',
   invStatus: 'all',
-  invPage: 1
+  invPage: 1,
+  custSearch: '',
+  custSort: 'name-asc',
+  custStatus: 'all',
+  custPage: 1
 };
 var state = window.state;
 
