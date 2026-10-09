@@ -73,6 +73,8 @@ Object.assign(DB, {
         } else {
           this.users = rawUsers; // before login, need users for auth lookup
         }
+      } else if(window.INITIAL_USERS){
+        this.users = window.INITIAL_USERS;
       }
 
       // Strict shop filtering (BUG 1 FIX: no orphan leakage)

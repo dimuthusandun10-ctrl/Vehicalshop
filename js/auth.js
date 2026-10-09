@@ -7,6 +7,11 @@ function quick(u){
   const pInp = $('#lPass');
   if(uInp) uInp.value = u;
   if(pInp) pInp.value = '1234';
+  if(window.Security && typeof window.Security.clearAttempts === 'function'){
+    window.Security.clearAttempts(u);
+  }
+  const errEl = $('#lErr');
+  if(errEl) errEl.textContent = '';
   doLogin();
 }
 
@@ -178,7 +183,16 @@ async function doLogin(){
     }
 
     // 2. Locate User
-    const user = (DB.users || []).find(x => x.username.toLowerCase() === u.toLowerCase() && !x.deleted);
+    let user = (DB.users || []).find(x => x.username.toLowerCase() === u.toLowerCase() && !x.deleted);
+    if(!user && window.INITIAL_USERS){
+      const initUser = window.INITIAL_USERS.find(x => x.username.toLowerCase() === u.toLowerCase() && !x.deleted);
+      if(initUser){
+        user = { ...initUser };
+        if(!DB.users) DB.users = [];
+        DB.users.push(user);
+        if(typeof saveDB === 'function') saveDB();
+      }
+    }
     if(!user){
       if(window.Security && typeof window.Security.recordFailedAttempt === 'function'){
         window.Security.recordFailedAttempt(u);
