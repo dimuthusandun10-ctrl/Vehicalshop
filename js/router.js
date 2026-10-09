@@ -34,12 +34,17 @@ function renderNav(){
   }).join('');
 }
 
-function go(page){
+async function go(page){
   if(!can(page)){
     toast('ඔබට මෙම අංශයට අවසර නැත', 'err');
     return;
   }
   state.page = page;
+
+  // Lazy-load page module scripts if not loaded yet
+  if(typeof window.loadPageModule === 'function'){
+    await window.loadPageModule(page);
+  }
 
   // Close mobile sidebar when navigating
   if(typeof closeMobileSidebar === 'function'){
@@ -85,25 +90,46 @@ function render(){
   document.body.classList.toggle('page-scroll-natural', state.page !== 'billing' && state.page !== 'grn');
 
   const map = {
-    dashboard: pgDashboard,
-    billing: pgBilling,
-    pos: pgPos,
-    inventory: pgInventory,
-    customers: pgCustomers,
-    lowstock: pgLowStock,
-    grn: pgGRN,
-    returns: pgReturns,
-    'serial-search': pgSerialSearch,
-    shifts: pgShifts,
-    reports: pgReports,
-    shops: pgShops,
-    profile: pgProfile,
-    settings: pgSettings
+    dashboard: typeof pgDashboard !== 'undefined' ? pgDashboard : null,
+    billing: typeof pgBilling !== 'undefined' ? pgBilling : null,
+    pos: typeof pgPos !== 'undefined' ? pgPos : null,
+    inventory: typeof pgInventory !== 'undefined' ? pgInventory : null,
+    customers: typeof pgCustomers !== 'undefined' ? pgCustomers : null,
+    lowstock: typeof pgLowStock !== 'undefined' ? pgLowStock : null,
+    grn: typeof pgGRN !== 'undefined' ? pgGRN : null,
+    returns: typeof pgReturns !== 'undefined' ? pgReturns : null,
+    'serial-search': typeof pgSerialSearch !== 'undefined' ? pgSerialSearch : null,
+    shifts: typeof pgShifts !== 'undefined' ? pgShifts : null,
+    reports: typeof pgReports !== 'undefined' ? pgReports : null,
+    shops: typeof pgShops !== 'undefined' ? pgShops : null,
+    profile: typeof pgProfile !== 'undefined' ? pgProfile : null,
+    settings: typeof pgSettings !== 'undefined' ? pgSettings : null,
+    credit: typeof pgCredit !== 'undefined' ? pgCredit : null
   };
-  c.innerHTML = (map[state.page] || (() => '<div class="empty">සොයාගත නොහැක</div>'))();
+
+  const renderFn = map[state.page];
+  if(typeof renderFn === 'function'){
+    c.innerHTML = renderFn();
+  } else if(!map.hasOwnProperty(state.page)) {
+    c.innerHTML = '<div class="empty">සොයාගත නොහැක</div>';
+  } else {
+    c.innerHTML = `
+      <div class="card" style="margin:20px;padding:30px;text-align:center">
+        <div style="font-size:36px;margin-bottom:12px">⏳</div>
+        <div style="font-weight:700;font-size:16px;margin-bottom:6px">පිටුව සූදානම් වෙමින් පවතී...</div>
+        <p style="color:var(--muted);font-size:13px;margin:0 0 16px 0">Loading page module (${state.page}). Please wait...</p>
+        <button class="btn btn-sm" onclick="go('${state.page}')">🔄 නැවත උත්සාහ කරන්න (Retry)</button>
+      </div>`;
+    if(typeof window.loadPageModule === 'function'){
+      window.loadPageModule(state.page).then(() => {
+        if(typeof render === 'function') render();
+      });
+    }
+  }
+
   if(state.page === 'billing'){
-    renderGrid();
-    renderCart();
+    if(typeof renderGrid === 'function') renderGrid();
+    if(typeof renderCart === 'function') renderCart();
   }
   c.scrollTop = 0;
   window.scrollTo(0, 0);
