@@ -1605,6 +1605,7 @@ async function executeSaleRecord(total, method, paid, change, cardRef='', notes=
   const sale = {
     id: uid('S'),
     no,
+    shopId: (typeof currentShopId === 'function' && currentShopId()) ? currentShopId() : (window.state?.user?.shopId || 'SHOP-001'),
     date: new Date().toISOString(),
     cashier: state.user ? state.user.name : 'කැෂියර්',
     customerId: checkoutState.custId || null,
@@ -1659,7 +1660,7 @@ async function executeSaleRecord(total, method, paid, change, cardRef='', notes=
   db.sales.push(sale);
 
   if(window.FB && window.FB.fbAdd){
-    await window.FB.fbAdd(window.FB.COL.sales, sale);
+    await (window.shopAdd ? window.shopAdd(window.FB.COL.sales, sale) : window.FB.fbAdd(window.FB.COL.sales, sale));
   }
   if(typeof saveDB === 'function') saveDB();
 

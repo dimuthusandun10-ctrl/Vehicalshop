@@ -638,7 +638,7 @@ function grnRowFieldKeydown(e){
 
 /* ---------- Add Item to GRN List ---------- */
 function grnAddItem(){
-  if(typeof requireActiveShift === 'function' && !requireActiveShift('GRN save')) return;
+  // GRN does not require an active shift — inventory action, not cash drawer
 
   const p = grnState.selectedProduct;
   if(!p){
@@ -965,7 +965,7 @@ function grnUpdateDraftIndicator(){
 
 /* ---------- Confirmation Modal with Weighted Average Cost (WAC) Preview ---------- */
 function grnConfirmModal(){
-  if(typeof requireActiveShift === 'function' && !requireActiveShift('GRN save')) return;
+  // GRN does not require an active shift
 
   const supEl = $('#grnSupplier');
   const sup = supEl?.value || grnState.supplier;
@@ -1080,7 +1080,7 @@ function grnConfirmModal(){
 
 /* ---------- Save GRN & Execute WAC Stock Update ---------- */
 async function grnSave(){
-  if(typeof requireActiveShift === 'function' && !requireActiveShift('GRN save')) return;
+  // GRN does not require an active shift — inventory action, not cash drawer
 
   if(!grnItems.length) return;
 
@@ -1138,6 +1138,7 @@ async function grnSave(){
   const grnRecord = {
     id: uid('G'),
     no: grnNo,
+    shopId: (typeof currentShopId === 'function' && currentShopId()) ? currentShopId() : (window.state?.user?.shopId || 'SHOP-001'),
     date: dateVal,
     supplier: sup,
     invoiceNo: invNo,
@@ -1153,7 +1154,7 @@ async function grnSave(){
   db.grns.push(grnRecord);
 
   if(window.FB && window.FB.fbAdd){
-    await window.FB.fbAdd(window.FB.COL.grns, grnRecord);
+    await (window.shopAdd ? window.shopAdd(window.FB.COL.grns, grnRecord) : window.FB.fbAdd(window.FB.COL.grns, grnRecord));
   }
   if(typeof saveDB === 'function') saveDB();
 
@@ -1373,6 +1374,7 @@ async function saveQuickSupplier(){
 
   const newSup = {
     id: uid('SUP'),
+    shopId: (typeof currentShopId === 'function' && currentShopId()) ? currentShopId() : (window.state?.user?.shopId || 'SHOP-001'),
     name,
     phone,
     contact,
@@ -1382,7 +1384,9 @@ async function saveQuickSupplier(){
   };
 
   db.suppliers.push(newSup);
-  if(window.FB && window.FB.fbAdd) await window.FB.fbAdd(window.FB.COL.suppliers, newSup);
+  if(window.FB && window.FB.fbAdd){
+    await (window.shopAdd ? window.shopAdd(window.FB.COL.suppliers, newSup) : window.FB.fbAdd(window.FB.COL.suppliers, newSup));
+  }
   if(typeof saveDB === 'function') saveDB();
 
   grnState.supplier = newSup.name;

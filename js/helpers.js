@@ -178,7 +178,7 @@ function updateTopBarShopSwitcher(){
   `;
 }
 
-function switchSuperAdminShop(shopId){
+async function switchSuperAdminShop(shopId){
   if(shopId === '__manage__'){
     if(typeof go === 'function') go('shops');
     updateTopBarShopSwitcher();
@@ -191,15 +191,46 @@ function switchSuperAdminShop(shopId){
   if(window.state){
     window.state.activeShopId = shopId;
     window.state.activeShop = shop;
+    window.state.cart = [];
+    window.state.held = [];
   }
   db.shop = shop;
   try {
     localStorage.setItem('pos.activeShopId', shopId);
   } catch(e){}
 
+  // 1. Unsubscribe previous shop listeners
+  if(typeof window.stopAllListeners === 'function') window.stopAllListeners();
+
+  // 2. Clear in-memory DB arrays
+  db.products  = [];
+  db.customers = [];
+  db.suppliers = [];
+  db.sales     = [];
+  db.grns      = [];
+  db.returns   = [];
+  db.shifts    = [];
+  db.cashMoves = [];
+  db.payments  = [];
+
+  // 3. Reload data for newly selected shop
+  if(typeof db.loadAll === 'function'){
+    await db.loadAll();
+  }
+
+  // 4. Restart page listeners
+  if(typeof window.startPageListeners === 'function'){
+    window.startPageListeners(window.state?.page || 'billing');
+  }
+
+  // 5. Update header branding & switcher
   updateBrandName();
   updateTopBarShopSwitcher();
 
+  // 6. Check active shift and update indicator
+  if(typeof updateShiftIndicator === 'function') updateShiftIndicator();
+
+  // 7. Re-render UI
   if(typeof rerenderIfActive === 'function') rerenderIfActive();
   else if(typeof render === 'function') render();
 
@@ -208,6 +239,7 @@ function switchSuperAdminShop(shopId){
 
 window.updateBrandName = updateBrandName;
 window.updateTopBarShopSwitcher = updateTopBarShopSwitcher;
+window.switchShop = switchSuperAdminShop;
 window.switchSuperAdminShop = switchSuperAdminShop;
 
 /* =========================================================

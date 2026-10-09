@@ -43,14 +43,21 @@ Object.assign(DB, {
   isFirebaseConnected: false,
 
   /* ---------- initial load ---------- */
+  /* ---------- initial load with strict multi-tenant isolation ---------- */
   async loadAll(){
+    const shopId = (typeof currentShopId === 'function') 
+      ? currentShopId() 
+      : (window.state?.user?.role === 'superadmin' ? (window.state?.activeShopId || window.state?.activeShop?.id) : window.state?.user?.shopId);
+
     // First load from localStorage for instant, offline display
     const cached = getLocalDB();
     if(cached){
       if(cached.shop) this.shop = cached.shop;
       if(cached.shops?.length) this.shops = cached.shops;
+
+      // Strict user filtering (BUG 2 FIX)
       if(cached.users?.length){
-        this.users = cached.users.map(u => {
+        const rawUsers = cached.users.map(u => {
           if(!u.permissions || !Array.isArray(u.permissions)){
             u.permissions = (typeof getDefaultPermissionsForRole === 'function')
               ? getDefaultPermissionsForRole(u.role)
@@ -58,43 +65,72 @@ Object.assign(DB, {
           }
           return u;
         });
+
+        if(window.state?.user?.role === 'superadmin'){
+          this.users = rawUsers;
+        } else if(shopId){
+          this.users = rawUsers.filter(u => u.shopId === shopId || u.role === 'superadmin');
+        } else {
+          this.users = rawUsers; // before login, need users for auth lookup
+        }
       }
-      if(cached.products?.length){
-        this.products = cached.products.map(p => {
-          const init = (window.INITIAL_PRODUCTS || []).find(ip => ip.id === p.id);
-          return {
-            chassis: [],
-            engine: [],
-            altNos: [],
-            rack: '',
-            bin: '',
-            warehouse: 'Main',
-            warranty: 0,
-            hasSerial: false,
-            coreDeposit: 0,
-            crossSell: [],
-            ...(init || {}),
-            ...p,
-            chassis: p.chassis || init?.chassis || [],
-            engine: p.engine || init?.engine || [],
-            altNos: p.altNos || init?.altNos || [],
-            crossSell: (p.crossSell && p.crossSell.length) ? p.crossSell : (init?.crossSell || []),
-            warehouse: p.warehouse || init?.warehouse || 'Main',
-            hasSerial: p.hasSerial !== undefined ? p.hasSerial : (init?.hasSerial || false),
-            coreDeposit: p.coreDeposit !== undefined ? p.coreDeposit : (init?.coreDeposit || 0),
-            warranty: p.warranty !== undefined ? p.warranty : (init?.warranty || 0)
-          };
-        });
-        this.sanitizeProductsCoreDeposit();
+
+      // Strict shop filtering (BUG 1 FIX: no orphan leakage)
+      const filterByShop = list => (list || []).filter(item => item.shopId === shopId);
+
+      if(shopId){
+        if(cached.products?.length){
+          this.products = filterByShop(cached.products).map(p => {
+            const init = (window.INITIAL_PRODUCTS || []).find(ip => ip.id === p.id);
+            return {
+              chassis: [],
+              engine: [],
+              altNos: [],
+              rack: '',
+              bin: '',
+              warehouse: 'Main',
+              warranty: 0,
+              hasSerial: false,
+              coreDeposit: 0,
+              crossSell: [],
+              ...(init || {}),
+              ...p,
+              chassis: p.chassis || init?.chassis || [],
+              engine: p.engine || init?.engine || [],
+              altNos: p.altNos || init?.altNos || [],
+              crossSell: (p.crossSell && p.crossSell.length) ? p.crossSell : (init?.crossSell || []),
+              warehouse: p.warehouse || init?.warehouse || 'Main',
+              hasSerial: p.hasSerial !== undefined ? p.hasSerial : (init?.hasSerial || false),
+              coreDeposit: p.coreDeposit !== undefined ? p.coreDeposit : (init?.coreDeposit || 0),
+              warranty: p.warranty !== undefined ? p.warranty : (init?.warranty || 0)
+            };
+          });
+          this.sanitizeProductsCoreDeposit();
+        } else {
+          this.products = [];
+        }
+
+        this.customers = filterByShop(cached.customers);
+        this.suppliers = filterByShop(cached.suppliers);
+        this.sales     = filterByShop(cached.sales);
+        this.grns      = filterByShop(cached.grns);
+        this.returns   = filterByShop(cached.returns);
+        this.shifts    = filterByShop(cached.shifts);
+        this.cashMoves = filterByShop(cached.cashMoves);
+        this.payments  = filterByShop(cached.payments);
+      } else {
+        // No active shop → empty arrays (strict isolation)
+        this.products  = [];
+        this.customers = [];
+        this.suppliers = [];
+        this.sales     = [];
+        this.grns      = [];
+        this.returns   = [];
+        this.shifts    = [];
+        this.cashMoves = [];
+        this.payments  = [];
       }
-      if(cached.customers?.length) this.customers = cached.customers;
-      if(cached.suppliers?.length) this.suppliers = cached.suppliers;
-      if(cached.sales) this.sales = cached.sales;
-      if(cached.grns) this.grns = cached.grns;
-      if(cached.returns) this.returns = cached.returns;
-      if(cached.shifts) this.shifts = cached.shifts;
-      if(cached.cashMoves) this.cashMoves = cached.cashMoves;
-      if(cached.payments) this.payments = cached.payments;
+
       if(cached.counters) this.counters = { ...this.counters, ...cached.counters };
     } else {
       // If completely fresh localStorage, seed with our default initial data
@@ -106,54 +142,87 @@ Object.assign(DB, {
       this.persistLocal();
     }
 
-    // Try fetching live data from Firebase (if online/network allowed)
+    // Try fetching live data from Firebase (strictly filtered by shopId)
     if(window.FB && (!window.FB.isPermissionDenied || !window.FB.isPermissionDenied())){
       try {
-        const [shops, users, products, customers, suppliers, sales, grns,
-               returns, shifts, cashMoves, payments, shopDoc] = await Promise.all([
-          window.FB.fbGetAll(window.FB.COL.shops),
-          window.FB.fbGetAll(window.FB.COL.users),
-          window.FB.fbGetAll(window.FB.COL.products),
-          window.FB.fbGetAll(window.FB.COL.customers),
-          window.FB.fbGetAll(window.FB.COL.suppliers),
-          window.FB.fbGetAll(window.FB.COL.sales),
-          window.FB.fbGetAll(window.FB.COL.grns),
-          window.FB.fbGetAll(window.FB.COL.returns),
-          window.FB.fbGetAll(window.FB.COL.shifts),
-          window.FB.fbGetAll(window.FB.COL.cashMoves),
-          window.FB.fbGetAll(window.FB.COL.payments),
-          window.FB.fbGet(window.FB.COL.settings, 'shop')
-        ]);
+        const mods = window.FB._getModules ? window.FB._getModules() : null;
+        const fsDb = window.FB._getDb ? window.FB._getDb() : null;
+        const hasFs = Boolean(mods?.fsMod && fsDb);
+        const { collection, getDocs, query, where } = hasFs ? mods.fsMod : {};
 
-        if(window.FB.isPermissionDenied && window.FB.isPermissionDenied()){
-          this.isFirebaseConnected = false;
-          return;
+        // Shops collection — always full (Super admin needs list)
+        const shops = await window.FB.fbGetAll(window.FB.COL.shops);
+        if(shops && shops.length) this.shops = shops;
+
+        // Users — filter by shop (except superadmin or before login)
+        if(window.state?.user?.role === 'superadmin' || !window.state?.user){
+          const users = await window.FB.fbGetAll(window.FB.COL.users);
+          if(users && users.length){
+            this.users = users.map(u => {
+              if(!u.permissions || !Array.isArray(u.permissions)){
+                u.permissions = (typeof getDefaultPermissionsForRole === 'function')
+                  ? getDefaultPermissionsForRole(u.role)
+                  : ['billing','dashboard','customers','lowstock','profile'];
+              }
+              return u;
+            });
+          }
+        } else if(hasFs && shopId){
+          const uSnap = await getDocs(query(collection(fsDb, 'users'), where('shopId', '==', shopId)));
+          const uDocs = uSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+          if(uDocs.length){
+            this.users = uDocs.map(u => {
+              if(!u.permissions || !Array.isArray(u.permissions)){
+                u.permissions = (typeof getDefaultPermissionsForRole === 'function')
+                  ? getDefaultPermissionsForRole(u.role)
+                  : ['billing','dashboard','customers','lowstock','profile'];
+              }
+              return u;
+            });
+          }
         }
 
-        if(shops && shops.length)         this.shops = shops;
-        if(users && users.length){
-          this.users = users.map(u => {
-            if(!u.permissions || !Array.isArray(u.permissions)){
-              u.permissions = (typeof getDefaultPermissionsForRole === 'function')
-                ? getDefaultPermissionsForRole(u.role)
-                : ['billing','dashboard','customers','lowstock','profile'];
-            }
-            return u;
+        // All other collections — strictly filtered by shopId
+        if(hasFs && shopId){
+          const cols = [
+            { key: 'products',  name: 'products' },
+            { key: 'customers', name: 'customers' },
+            { key: 'suppliers', name: 'suppliers' },
+            { key: 'sales',     name: 'sales' },
+            { key: 'grns',      name: 'grns' },
+            { key: 'returns',   name: 'returns' },
+            { key: 'shifts',    name: 'shifts' },
+            { key: 'cashMoves', name: 'cashMovements' },
+            { key: 'payments',  name: 'creditPayments' }
+          ];
+
+          const results = await Promise.all(
+            cols.map(c => 
+              getDocs(query(collection(fsDb, c.name), where('shopId', '==', shopId)))
+                .then(s => s.docs.map(d => ({ id: d.id, ...d.data() })))
+                .catch(() => [])
+            )
+          );
+
+          cols.forEach((c, idx) => {
+            this[c.key] = results[idx] || [];
           });
-        }
-        if(products && products.length){
-          this.products = products;
+
           this.sanitizeProductsCoreDeposit();
+        } else if(!shopId){
+          this.products  = [];
+          this.customers = [];
+          this.suppliers = [];
+          this.sales     = [];
+          this.grns      = [];
+          this.returns   = [];
+          this.shifts    = [];
+          this.cashMoves = [];
+          this.payments  = [];
         }
-        if(customers && customers.length) this.customers = customers;
-        if(suppliers && suppliers.length) this.suppliers = suppliers;
-        if(sales && sales.length)         this.sales = sales;
-        if(grns && grns.length)           this.grns = grns;
-        if(returns && returns.length)     this.returns = returns;
-        if(shifts && shifts.length)       this.shifts = shifts;
-        if(cashMoves && cashMoves.length) this.cashMoves = cashMoves;
-        if(payments && payments.length)   this.payments = payments;
-        if(shopDoc)                       this.shop = shopDoc;
+
+        const shopDoc = await window.FB.fbGet(window.FB.COL.settings, 'shop');
+        if(shopDoc) this.shop = shopDoc;
 
         this.recalculateCounters();
         this.isFirebaseConnected = true;
@@ -213,140 +282,43 @@ Object.assign(DB, {
     }
   },
 
-  /* ---------- real-time listeners for multi-terminal sync ---------- */
+  /* ---------- real-time listeners for multi-terminal sync (shop-scoped) ---------- */
   watch(){
     if(!window.FB || !this.isFirebaseConnected) return;
     if(window.FB.isPermissionDenied && window.FB.isPermissionDenied()) return;
-
-    window.FB.fbWatch(window.FB.COL.shops, list => {
-      if(list && list.length){
-        this.shops = list;
-        this.recalculateCounters();
-        this.persistLocal();
-
-        // If current user's shop was updated
-        if(window.state && window.state.user){
-          const targetShopId = window.state.user.role === 'superadmin'
-            ? (window.state.activeShopId || (window.state.activeShop && window.state.activeShop.id))
-            : window.state.user.shopId;
-          const myShop = list.find(s => s.id === targetShopId) || (window.state.user.role === 'superadmin' ? list[0] : null);
-          if(myShop){
-            window.state.activeShop = myShop;
-            window.state.activeShopId = myShop.id;
-            this.shop = myShop;
-            if(typeof updateBrandName === 'function') updateBrandName();
-          }
-          if(typeof updateTopBarShopSwitcher === 'function') updateTopBarShopSwitcher();
-        }
-
-        rerenderIfActive();
-      }
-    });
-
-    window.FB.fbWatch(window.FB.COL.products, list => {
-      if(list && list.length){
-        this.products = list;
-        this.persistLocal();
-        rerenderIfActive();
-      }
-    });
-
-    window.FB.fbWatch(window.FB.COL.sales, list => {
-      if(list && list.length){
-        this.sales = list;
-        this.recalculateCounters();
-        this.persistLocal();
-        rerenderIfActive();
-      }
-    });
-
-    window.FB.fbWatch(window.FB.COL.customers, list => {
-      if(list && list.length){
-        this.customers = list;
-        this.persistLocal();
-        rerenderIfActive();
-      }
-    });
-
-    window.FB.fbWatch(window.FB.COL.suppliers, list => {
-      if(list && list.length){
-        this.suppliers = list;
-        this.persistLocal();
-        rerenderIfActive();
-      }
-    });
-
-    window.FB.fbWatch(window.FB.COL.shifts, list => {
-      if(list && list.length){
-        this.shifts = list;
-        this.persistLocal();
-        if(typeof updateShiftIndicator === 'function') updateShiftIndicator();
-        rerenderIfActive();
-      }
-    });
-
-    window.FB.fbWatch(window.FB.COL.returns, list => {
-      if(list){
-        this.returns = list;
-        this.persistLocal();
-
-        // Check for newly approved returns belonging to the active cashier
-        list.forEach(ret => {
-          if(ret.status === 'approved'
-             && ret.notified === false
-             && (ret.cashierId === state.user?.id || ret.requestedById === state.user?.id)
-             && state.user?.role === 'cashier'){
-
-            // Trigger real-time cashier notification
-            if(typeof showReturnNotification === 'function'){
-              showReturnNotification(ret);
-            }
-
-            // Mark as notified in Firestore
-            ret.notified = true;
-            if(window.FB && window.FB.fbUpdate){
-              window.FB.fbUpdate(window.FB.COL.returns, ret.id, { notified: true });
-            }
-          }
-        });
-
-        rerenderIfActive();
-      }
-    });
-
-    window.FB.fbWatch(window.FB.COL.cashMoves, list => {
-      if(list && list.length){
-        this.cashMoves = list;
-        this.persistLocal();
-        if(typeof updateShiftIndicator === 'function') updateShiftIndicator();
-        rerenderIfActive();
-      }
-    });
-
-    window.FB.fbWatch(window.FB.COL.payments, list => {
-      if(list && list.length){
-        this.payments = list;
-        this.persistLocal();
-        rerenderIfActive();
-      }
-    });
+    startPageListeners(window.state?.page || 'billing');
   },
 
   persistLocal(){
     try {
+      const shopId = (typeof currentShopId === 'function') ? currentShopId() : null;
+      const existing = getLocalDB() || {};
+
+      const mergeCol = (key, currentList) => {
+        if(!shopId) return currentList || [];
+        const others = (existing[key] || []).filter(item => item.shopId && item.shopId !== shopId);
+        return [...others, ...(currentList || [])];
+      };
+
+      const mergeUsers = (currentUsers) => {
+        if(window.state?.user?.role === 'superadmin' || !shopId) return currentUsers || [];
+        const others = (existing.users || []).filter(u => u.shopId && u.shopId !== shopId);
+        return [...others, ...(currentUsers || [])];
+      };
+
       localStorage.setItem(LOCAL_KEY, JSON.stringify({
         shop: this.shop,
         shops: this.shops,
-        users: this.users,
-        products: this.products,
-        customers: this.customers,
-        suppliers: this.suppliers,
-        sales: this.sales,
-        grns: this.grns,
-        returns: this.returns,
-        shifts: this.shifts,
-        cashMoves: this.cashMoves,
-        payments: this.payments,
+        users: mergeUsers(this.users),
+        products: mergeCol('products', this.products),
+        customers: mergeCol('customers', this.customers),
+        suppliers: mergeCol('suppliers', this.suppliers),
+        sales: mergeCol('sales', this.sales),
+        grns: mergeCol('grns', this.grns),
+        returns: mergeCol('returns', this.returns),
+        shifts: mergeCol('shifts', this.shifts),
+        cashMoves: mergeCol('cashMoves', this.cashMoves),
+        payments: mergeCol('payments', this.payments),
         counters: this.counters
       }));
     } catch(e){}
@@ -401,3 +373,139 @@ function saveDB(){
 
 window.DB = DB;
 window.saveDB = saveDB;
+
+/* =====================================================
+   REAL-TIME SHOP-SCOPED LISTENERS & CLEANUP
+   ===================================================== */
+var _unsubscribers = {};
+
+function stopAllListeners(){
+  Object.values(_unsubscribers).forEach(fn => {
+    if(typeof fn === 'function') fn();
+  });
+  _unsubscribers = {};
+}
+
+function startPageListeners(page){
+  stopAllListeners();
+
+  const shopId = (typeof currentShopId === 'function') ? currentShopId() : null;
+  if(!shopId || !window.FB || (window.FB.isPermissionDenied && window.FB.isPermissionDenied())) return;
+
+  const mods = window.FB._getModules ? window.FB._getModules() : null;
+  const fsDb = window.FB._getDb ? window.FB._getDb() : null;
+  if(!mods?.fsMod || !fsDb) return;
+  const { collection, query, where, onSnapshot } = mods.fsMod;
+
+  const watch = (colName, dbKey = colName, processFn = null) => {
+    try {
+      const q = query(collection(fsDb, colName), where('shopId', '==', shopId));
+      _unsubscribers[colName] = onSnapshot(q, snap => {
+        const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        DB[dbKey] = list;
+        if(typeof processFn === 'function') processFn(list);
+        DB.persistLocal();
+        rerenderIfActive();
+      }, err => {
+        console.warn(`Shop listener error on ${colName}:`, err);
+      });
+    } catch(e){}
+  };
+
+  // Always sync shops
+  try {
+    _unsubscribers['shops'] = onSnapshot(collection(fsDb, 'shops'), snap => {
+      DB.shops = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      DB.persistLocal();
+      rerenderIfActive();
+    });
+  } catch(e){}
+
+  switch(page){
+    case 'billing':
+    case 'pos':
+      watch('products');
+      watch('sales');
+      watch('customers');
+      break;
+    case 'inventory':
+    case 'lowstock':
+      watch('products');
+      break;
+    case 'grn':
+      watch('products');
+      watch('suppliers');
+      watch('grns');
+      break;
+    case 'returns':
+      watch('returns', 'returns', (list) => {
+        list.forEach(ret => {
+          if(ret.status === 'approved' && ret.notified === false && (ret.cashierId === state.user?.id || ret.requestedById === state.user?.id) && state.user?.role === 'cashier'){
+            if(typeof showReturnNotification === 'function') showReturnNotification(ret);
+            ret.notified = true;
+            if(window.FB && window.FB.fbUpdate) window.FB.fbUpdate(window.FB.COL.returns, ret.id, { notified: true });
+          }
+        });
+      });
+      watch('sales');
+      break;
+    case 'shifts':
+      watch('shifts');
+      watch('cashMovements', 'cashMoves');
+      break;
+    case 'reports':
+    case 'dashboard':
+      watch('sales');
+      watch('products');
+      break;
+    default:
+      watch('products');
+      watch('sales');
+      break;
+  }
+}
+
+/* =====================================================
+   BOOT MIGRATION: BACKFILL MISSING shopId
+   ===================================================== */
+async function bootMigration(){
+  const migrated = localStorage.getItem('pos.migration.shopId.done');
+  if(migrated === 'v1') return;
+
+  // 1. Backfill LocalStorage cache
+  try {
+    const s = localStorage.getItem(LOCAL_KEY);
+    if(s){
+      const cached = JSON.parse(s);
+      let changed = false;
+      const collections = ['products', 'customers', 'suppliers', 'sales', 'grns', 'returns', 'shifts', 'cashMoves', 'payments'];
+      collections.forEach(col => {
+        if(Array.isArray(cached[col])){
+          cached[col].forEach(item => {
+            if(!item.shopId){
+              item.shopId = 'SHOP-001';
+              changed = true;
+            }
+          });
+        }
+      });
+      if(changed){
+        localStorage.setItem(LOCAL_KEY, JSON.stringify(cached));
+      }
+    }
+  } catch(e){}
+
+  // 2. Backfill Firestore documents
+  if(typeof migrateOrphanDocumentsToShop === 'function'){
+    try {
+      await migrateOrphanDocumentsToShop('SHOP-001');
+    } catch(e){}
+  }
+
+  localStorage.setItem('pos.migration.shopId.done', 'v1');
+}
+
+window.stopAllListeners = stopAllListeners;
+window.startPageListeners = startPageListeners;
+window.bootMigration = bootMigration;
+

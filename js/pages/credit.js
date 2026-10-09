@@ -124,6 +124,7 @@ async function submitCreditPayment(customerId){
   const payment = {
     id: uid('PAY'),
     no: payId,
+    shopId: (typeof currentShopId === 'function' && currentShopId()) ? currentShopId() : (window.state?.user?.shopId || 'SHOP-001'),
     customerId,
     customerName: c ? c.name : 'පාරිභෝගික',
     amount,
@@ -143,6 +144,7 @@ async function submitCreditPayment(customerId){
     if(!db.cashMoves) db.cashMoves = [];
     const move = {
       id: uid('CM'),
+      shopId: (typeof currentShopId === 'function' && currentShopId()) ? currentShopId() : (window.state?.user?.shopId || 'SHOP-001'),
       shiftId: activeShift.id,
       type: 'in',
       amount,
@@ -153,7 +155,9 @@ async function submitCreditPayment(customerId){
       by: state.user ? state.user.name : 'කැෂියර්'
     };
     db.cashMoves.push(move);
-    if(window.FB && window.FB.fbAdd) window.FB.fbAdd(window.FB.COL.cashMoves, move);
+    if(window.FB && window.FB.fbAdd){
+      (window.shopAdd ? window.shopAdd(window.FB.COL.cashMoves, move) : window.FB.fbAdd(window.FB.COL.cashMoves, move));
+    }
   }
 
   // Update customer balance in state
@@ -164,7 +168,7 @@ async function submitCreditPayment(customerId){
 
   // Firestore sync for payment
   if(window.FB && window.FB.fbAdd){
-    window.FB.fbAdd(window.FB.COL.payments, payment);
+    (window.shopAdd ? window.shopAdd(window.FB.COL.payments, payment) : window.FB.fbAdd(window.FB.COL.payments, payment));
   }
 
   if(typeof saveDB === 'function') saveDB();

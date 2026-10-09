@@ -21,6 +21,7 @@ const Shift = {
 
     const sh = {
       id: 'SH' + pad(db.counters.shift++, 3),
+      shopId: (typeof currentShopId === 'function' && currentShopId()) ? currentShopId() : (window.state?.user?.shopId || 'SHOP-001'),
       cashierId: userId,
       cashierName: userName,
       openedAt: new Date().toISOString(),
@@ -136,6 +137,7 @@ function addCashOutToShift(shiftId, amount, reason, refId){
 
   const move = {
     id: uid('CM'),
+    shopId: (typeof currentShopId === 'function' && currentShopId()) ? currentShopId() : (window.state?.user?.shopId || 'SHOP-001'),
     shiftId: shiftId,
     type: 'out',
     amount: Number(amount) || 0,
@@ -150,7 +152,7 @@ function addCashOutToShift(shiftId, amount, reason, refId){
 
   db.cashMoves.push(move);
   if(window.FB && window.FB.fbAdd){
-    window.FB.fbAdd(window.FB.COL.cashMoves, move);
+    (window.shopAdd ? window.shopAdd(window.FB.COL.cashMoves, move) : window.FB.fbAdd(window.FB.COL.cashMoves, move));
   }
   if(typeof saveDB === 'function') saveDB();
   return move;
@@ -325,6 +327,7 @@ async function confirmCashMove(type){
 
   const move = {
     id: uid('CM'),
+    shopId: (typeof currentShopId === 'function' && currentShopId()) ? currentShopId() : (window.state?.user?.shopId || 'SHOP-001'),
     shiftId: active.id,
     type,
     amount: amt,
@@ -339,7 +342,7 @@ async function confirmCashMove(type){
   db.cashMoves.push(move);
 
   if(window.FB && window.FB.fbAdd){
-    window.FB.fbAdd(window.FB.COL.cashMoves, move);
+    (window.shopAdd ? window.shopAdd(window.FB.COL.cashMoves, move) : window.FB.fbAdd(window.FB.COL.cashMoves, move));
   }
   if(typeof saveDB === 'function') saveDB();
 

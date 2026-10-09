@@ -763,6 +763,7 @@ async function returnsSubmitRequest(){
   const returnDoc = {
     id: uid('R'),
     no: retNo,
+    shopId: (typeof currentShopId === 'function' && currentShopId()) ? currentShopId() : (window.state?.user?.shopId || 'SHOP-001'),
     invoice: s.no,
     saleId: s.id,
     customerId: s.customerId || null,
@@ -793,7 +794,7 @@ async function returnsSubmitRequest(){
   db.returns.push(returnDoc);
 
   if(window.FB && window.FB.fbAdd){
-    await window.FB.fbAdd(window.FB.COL.returns, returnDoc);
+    await (window.shopAdd ? window.shopAdd(window.FB.COL.returns, returnDoc) : window.FB.fbAdd(window.FB.COL.returns, returnDoc));
   }
   if(typeof saveDB === 'function') saveDB();
 

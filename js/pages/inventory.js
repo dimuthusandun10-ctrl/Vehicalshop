@@ -217,16 +217,19 @@ async function saveProduct(id){
   const db = window.DB || {};
   if(!db.products) db.products = [];
 
+  const curShop = (typeof currentShopId === 'function' && currentShopId()) ? currentShopId() : (window.state?.user?.shopId || 'SHOP-001');
+
   if(id){
     const p = db.getProd ? db.getProd(id) : db.products.find(x => x.id === id);
     if(p){
+      if(!p.shopId) p.shopId = curShop;
       Object.assign(p, data);
       if(window.FB && window.FB.fbSet) await window.FB.fbSet(window.FB.COL.products, id, p);
     }
     toast('යාවත්කාලීන කළා ✅');
   } else {
     const newId = uid('P');
-    const newProd = { id: newId, ...data };
+    const newProd = { id: newId, shopId: curShop, ...data };
     db.products.push(newProd);
     if(window.FB && window.FB.fbSet) await window.FB.fbSet(window.FB.COL.products, newId, newProd);
     toast('නව භාණ්ඩය එකතු කළා ✅');

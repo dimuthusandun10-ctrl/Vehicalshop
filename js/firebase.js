@@ -176,6 +176,86 @@ function isPermissionDenied(){
   return _fbPermissionDenied;
 }
 
+/* =====================================================
+   MULTI-TENANT STRICT SHOP ISOLATION HELPERS
+   ===================================================== */
+function currentShopId(){
+  if(!window.state || !window.state.user) return null;
+  if(window.state.user.role === 'superadmin'){
+    return window.state.activeShopId 
+        || (window.state.activeShop && window.state.activeShop.id) 
+        || null;
+  }
+  return window.state.user.shopId || null;
+}
+
+function shopQuery(colName){
+  const shopId = currentShopId();
+  if(!shopId) throw new Error('No active shop');
+  if(!_fbReady || !_fbDb || !_fbModules?.fsMod) return null;
+  const { collection, query, where } = _fbModules.fsMod;
+  return query(
+    collection(_fbDb, colName),
+    where('shopId', '==', shopId)
+  );
+}
+
+async function shopAdd(colName, data){
+  const shopId = currentShopId();
+  if(!shopId) throw new Error('No active shop');
+  return await fbAdd(colName, {
+    ...data,
+    shopId
+  });
+}
+
+async function shopUpdate(colName, id, data){
+  const shopId = currentShopId();
+  return await fbUpdate(colName, id, {
+    ...data,
+    ...(shopId ? { shopId } : {})
+  });
+}
+
+async function migrateOrphanDocumentsToShop(defaultShopId = 'SHOP-001'){
+  if(_fbPermissionDenied) return;
+  if(!_fbReady){
+    const ok = await initFirebase();
+    if(!ok || !_fbDb) return;
+  }
+  try {
+    const { collection, getDocs, updateDoc, doc } = _fbModules.fsMod;
+    const collections = [
+      'products', 'customers', 'suppliers', 'sales',
+      'grns', 'returns', 'shifts', 'cashMovements', 'creditPayments'
+    ];
+    let updatedCount = 0;
+    for(const colName of collections){
+      try {
+        const snap = await getDocs(collection(_fbDb, colName));
+        for(const d of snap.docs){
+          const data = d.data();
+          if(!data.shopId){
+            await updateDoc(doc(_fbDb, colName, d.id), { shopId: defaultShopId });
+            updatedCount++;
+          }
+        }
+      } catch(err){
+        checkPermissionError(err, `migration(${colName})`);
+      }
+    }
+    if(updatedCount > 0){
+      console.log(`✅ shopId migration complete: ${updatedCount} documents updated.`);
+    }
+  } catch(e){}
+}
+
+window.currentShopId = currentShopId;
+window.shopQuery = shopQuery;
+window.shopAdd = shopAdd;
+window.shopUpdate = shopUpdate;
+window.migrateOrphanDocumentsToShop = migrateOrphanDocumentsToShop;
+
 window.FB = {
   COL,
   initFirebase,
@@ -186,5 +266,11 @@ window.FB = {
   fbUpdate,
   fbDelete,
   fbWatch,
-  isPermissionDenied
+  isPermissionDenied,
+  currentShopId,
+  shopQuery,
+  shopAdd,
+  shopUpdate,
+  _getModules: () => _fbModules,
+  _getDb: () => _fbDb
 };

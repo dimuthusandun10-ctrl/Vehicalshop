@@ -282,6 +282,14 @@ async function doLogin(){
     if(typeof updateBrandName === 'function') updateBrandName();
     if(typeof updateTopBarShopSwitcher === 'function') updateTopBarShopSwitcher();
 
+    // Reload DB for this user's shop & start real-time listeners
+    if(db && typeof db.loadAll === 'function'){
+      await db.loadAll();
+    }
+    if(typeof window.startPageListeners === 'function'){
+      window.startPageListeners('billing');
+    }
+
     const loginScreen = $('#loginScreen');
     if(loginScreen) loginScreen.classList.add('hidden');
     const loginSlot = $('#loginSlot');
@@ -353,11 +361,26 @@ function doLogout(){
 }
 
 function performLogout(){
+  if(typeof window.stopAllListeners === 'function') window.stopAllListeners();
+
+  if(window.DB){
+    window.DB.products  = [];
+    window.DB.customers = [];
+    window.DB.suppliers = [];
+    window.DB.sales     = [];
+    window.DB.grns      = [];
+    window.DB.returns   = [];
+    window.DB.shifts    = [];
+    window.DB.cashMoves = [];
+    window.DB.payments  = [];
+    window.DB.shop      = null;
+  }
+
   state.user = null;
   state.cart = [];
+  state.held = [];
   state.activeShop = null;
   state.activeShopId = null;
-  if(window.DB) window.DB.shop = null;
   if(typeof updateBrandName === 'function') updateBrandName();
   if(typeof updateTopBarShopSwitcher === 'function') updateTopBarShopSwitcher();
 

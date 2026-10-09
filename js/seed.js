@@ -4,7 +4,7 @@
 
 var INITIAL_PRODUCTS = [
   {
-    id: 'P01', code: 'BP-1001', name: 'බ්රේක් පෑඩ්', nameEn: 'Brake Pad - Toyota Axio', cat: 'Brake',
+    id: 'P01', shopId: 'SHOP-001', code: 'BP-1001', name: 'බ්රේක් පෑඩ්', nameEn: 'Brake Pad - Toyota Axio', cat: 'Brake',
     brand: 'Toyota', model: 'Axio / Fielder', oemNo: '04465-02220',
     altNos: ['Akebono AN-688K', 'Tokico TN-401', 'Advics SN-135', '0986AB1234'],
     chassis: ['NZE141', 'NZE144', 'NZE161', 'ZRE142'], engine: ['1NZ-FE', '2ZR-FE'],
@@ -13,7 +13,7 @@ var INITIAL_PRODUCTS = [
     warranty: 6, hasSerial: false, coreDeposit: 0, crossSell: ['OF-2002', 'AF-2003'], active: true
   },
   {
-    id: 'P02', code: 'OF-2002', name: 'තෙල් පෙරනය', nameEn: 'Oil Filter - Nissan Sunny', cat: 'Filter',
+    id: 'P02', shopId: 'SHOP-001', code: 'OF-2002', name: 'තෙල් පෙරනය', nameEn: 'Oil Filter - Nissan Sunny', cat: 'Filter',
     brand: 'Nissan', model: 'Sunny / Wingroad / Tiida', oemNo: '15208-65F0A',
     altNos: ['Bosch 0986452041', 'Vic C-224', 'Sakura C-1823'],
     chassis: ['N16', 'B15', 'Y11', 'Y12', 'C11'], engine: ['QG13', 'QG15', 'HR15DE'],
@@ -22,7 +22,7 @@ var INITIAL_PRODUCTS = [
     warranty: 0, hasSerial: false, coreDeposit: 0, crossSell: ['AF-2003'], active: true
   },
   {
-    id: 'P03', code: 'AF-2003', name: 'වායු පෙරනය', nameEn: 'Air Filter - Honda Fit / Vezel', cat: 'Filter',
+    id: 'P03', shopId: 'SHOP-001', code: 'AF-2003', name: 'වායු පෙරනය', nameEn: 'Air Filter - Honda Fit / Vezel', cat: 'Filter',
     brand: 'Honda', model: 'Fit / Vezel / Grace', oemNo: '17220-5R0-008',
     altNos: ['Sakura A-90180', 'Vic A-899'],
     chassis: ['GP5', 'GP6', 'RU3', 'GM4'], engine: ['LEB-H1', 'L15B'],
@@ -31,7 +31,7 @@ var INITIAL_PRODUCTS = [
     warranty: 0, hasSerial: false, coreDeposit: 0, crossSell: ['OF-2002'], active: true
   },
   {
-    id: 'P04', code: 'SP-3004', name: 'ස්පාර්ක් ප්ලග්', nameEn: 'Spark Plug - NGK Iridium', cat: 'Electrical',
+    id: 'P04', shopId: 'SHOP-001', code: 'SP-3004', name: 'ස්පාර්ක් ප්ලග්', nameEn: 'Spark Plug - NGK Iridium', cat: 'Electrical',
     brand: 'NGK', model: 'Universal / Laser Iridium', oemNo: 'ILKAR7B11',
     altNos: ['Denso IXEH22TT'],
     chassis: ['NZE141', 'GP5', 'ZVW30'], engine: ['1NZ-FE', '2ZR-FXE'],
@@ -40,7 +40,7 @@ var INITIAL_PRODUCTS = [
     warranty: 12, hasSerial: false, coreDeposit: 0, crossSell: [], active: true
   },
   {
-    id: 'P05', code: 'CP-4005', name: 'ක්ලච් ප්ලේට්', nameEn: 'Clutch Plate - Suzuki Alto', cat: 'Engine',
+    id: 'P05', shopId: 'SHOP-001', code: 'CP-4005', name: 'ක්ලච් ප්ලේට්', nameEn: 'Clutch Plate - Suzuki Alto', cat: 'Engine',
     brand: 'Suzuki', model: 'Alto / Wagon R', oemNo: '22400-M68K00',
     altNos: ['Exedy SZD048U'],
     chassis: ['HA25', 'HA36', 'MH23S'], engine: ['K10B', 'R06A'],
@@ -49,7 +49,7 @@ var INITIAL_PRODUCTS = [
     warranty: 6, hasSerial: false, coreDeposit: 0, crossSell: [], active: true
   },
   {
-    id: 'P06', code: 'SA-5006', name: 'ෂොක් ඇබ්සෝබර්', nameEn: 'Shock Absorber Front - Toyota', cat: 'Suspension',
+    id: 'P06', shopId: 'SHOP-001', code: 'SA-5006', name: 'ෂොක් ඇබ්සෝබර්', nameEn: 'Shock Absorber Front - Toyota', cat: 'Suspension',
     brand: 'Toyota', model: 'Corolla 141 / Axio', oemNo: '48510-80415',
     altNos: ['KYB 339114', 'Tokico B3232'],
     chassis: ['NZE141', 'ZRE142'], engine: ['1NZ-FE', '2ZR-FE'],
@@ -58,7 +58,7 @@ var INITIAL_PRODUCTS = [
     warranty: 12, hasSerial: true, coreDeposit: 0, crossSell: [], active: true
   },
   {
-    id: 'P07', code: 'BT-8009', name: 'වාහන බැටරි', nameEn: 'Car Battery 55Ah Maintenance Free', cat: 'Electrical',
+    id: 'P07', shopId: 'SHOP-001', code: 'BT-8009', name: 'වාහන බැටරි', nameEn: 'Car Battery 55Ah Maintenance Free', cat: 'Electrical',
     brand: 'Amaron', model: 'Universal / Hi-Life Pro', oemNo: '28800-YZZ01',
     altNos: ['Exide Matrix 55', 'Lucas 55Ah'],
     chassis: [], engine: [],
@@ -67,7 +67,7 @@ var INITIAL_PRODUCTS = [
     warranty: 24, hasSerial: true, coreDeposit: 2000, crossSell: [], active: true
   },
   {
-    id: 'P08', code: 'HL-6007', name: 'හෙඩ් ලයිට් බල්බ්', nameEn: 'Head Light Bulb H4 12V 60/55W', cat: 'Electrical',
+    id: 'P08', shopId: 'SHOP-001', code: 'HL-6007', name: 'හෙඩ් ලයිට් බල්බ්', nameEn: 'Head Light Bulb H4 12V 60/55W', cat: 'Electrical',
     brand: 'Philips', model: 'Universal', oemNo: '90981-13058',
     altNos: ['Osram 64193', 'Koito 0456'],
     chassis: [], engine: [],
@@ -76,7 +76,7 @@ var INITIAL_PRODUCTS = [
     warranty: 3, hasSerial: false, coreDeposit: 0, crossSell: [], active: true
   },
   {
-    id: 'P09', code: 'WB-7008', name: 'වයිපර් බ්ලේඩ්', nameEn: 'Wiper Blade 18" Premium', cat: 'Body',
+    id: 'P09', shopId: 'SHOP-001', code: 'WB-7008', name: 'වයිපර් බ්ලේඩ්', nameEn: 'Wiper Blade 18" Premium', cat: 'Body',
     brand: 'Bosch', model: 'Universal', oemNo: '3397011400',
     altNos: ['Denso DU-045L'],
     chassis: [], engine: [],
@@ -85,7 +85,7 @@ var INITIAL_PRODUCTS = [
     warranty: 1, hasSerial: false, coreDeposit: 0, crossSell: [], active: true
   },
   {
-    id: 'P10', code: 'SM-1011', name: 'සයිඩ් මිරර්', nameEn: 'Side Mirror Door Glass - Nissan Leaf', cat: 'Body',
+    id: 'P10', shopId: 'SHOP-001', code: 'SM-1011', name: 'සයිඩ් මිරර්', nameEn: 'Side Mirror Door Glass - Nissan Leaf', cat: 'Body',
     brand: 'Nissan', model: 'Leaf AZE0', oemNo: '96366-3NA0A',
     altNos: [],
     chassis: ['ZE0', 'AZE0'], engine: ['EM57'],
@@ -96,14 +96,14 @@ var INITIAL_PRODUCTS = [
 ];
 
 var INITIAL_CUSTOMERS = [
-  { id: 'C01', name: 'කමල් පෙරේරා', phone: '0771234567', vehicle: 'CAB-1234', points: 120, creditLimit: 50000, creditBalance: 0 },
-  { id: 'C02', name: 'නිමල් සිල්වා', phone: '0712345678', vehicle: 'CBB-5678', points: 80,  creditLimit: 30000, creditBalance: 0 },
-  { id: 'C03', name: 'සුනිල් ජයසිංහ', phone: '0765432190', vehicle: 'KL-9012',  points: 45,  creditLimit: 20000, creditBalance: 0 }
+  { id: 'C01', shopId: 'SHOP-001', name: 'කමල් පෙරේරා', phone: '0771234567', vehicle: 'CAB-1234', points: 120, creditLimit: 50000, creditBalance: 0 },
+  { id: 'C02', shopId: 'SHOP-001', name: 'නිමල් සිල්වා', phone: '0712345678', vehicle: 'CBB-5678', points: 80,  creditLimit: 30000, creditBalance: 0 },
+  { id: 'C03', shopId: 'SHOP-001', name: 'සුනිල් ජයසිංහ', phone: '0765432190', vehicle: 'KL-9012',  points: 45,  creditLimit: 20000, creditBalance: 0 }
 ];
 
 var INITIAL_SUPPLIERS = [
-  { id: 'SUP01', name: 'ABC Auto Parts (Pvt) Ltd', phone: '011-2233445', address: '123, Panchikawatta, Colombo 10', contact: 'Mr. Silva', payable: 0, terms: '30 days' },
-  { id: 'SUP02', name: 'Lanka Motor Traders', phone: '011-4567890', address: '45, Kandy Road, Kelaniya', contact: 'Mr. Perera', payable: 0, terms: '14 days' }
+  { id: 'SUP01', shopId: 'SHOP-001', name: 'ABC Auto Parts (Pvt) Ltd', phone: '011-2233445', address: '123, Panchikawatta, Colombo 10', contact: 'Mr. Silva', payable: 0, terms: '30 days' },
+  { id: 'SUP02', shopId: 'SHOP-001', name: 'Lanka Motor Traders', phone: '011-4567890', address: '45, Kandy Road, Kelaniya', contact: 'Mr. Perera', payable: 0, terms: '14 days' }
 ];
 
 var INITIAL_SHOPS = [

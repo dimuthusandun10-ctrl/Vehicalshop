@@ -187,15 +187,18 @@ async function saveCustomer(id){
 
   const data = { name, phone, vehicle, creditLimit, points };
 
+  const curShop = (typeof currentShopId === 'function' && currentShopId()) ? currentShopId() : (window.state?.user?.shopId || 'SHOP-001');
+
   if(id){
     const c = db.customers.find(x => x.id === id);
     if(c){
+      if(!c.shopId) c.shopId = curShop;
       Object.assign(c, data);
       if(window.FB && window.FB.fbSet) await window.FB.fbSet(window.FB.COL.customers, id, c);
     }
   } else {
     const newId = uid('C');
-    const newCust = { id: newId, ...data, creditBalance: 0 };
+    const newCust = { id: newId, shopId: curShop, ...data, creditBalance: 0 };
     db.customers.push(newCust);
     if(window.FB && window.FB.fbSet) await window.FB.fbSet(window.FB.COL.customers, newId, newCust);
   }

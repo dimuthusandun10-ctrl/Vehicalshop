@@ -52,9 +52,16 @@
 
   /* 2. Initialize Database & Backend */
   try {
+    if(typeof window.bootMigration === 'function'){
+      await window.bootMigration();
+    }
     if(window.DB && typeof window.DB.loadAll === 'function'){
       await window.DB.loadAll();
-      if(typeof window.DB.watch === 'function') window.DB.watch();
+      if(typeof window.startPageListeners === 'function'){
+        window.startPageListeners(window.state?.currentPage || 'billing');
+      } else if(typeof window.DB.watch === 'function'){
+        window.DB.watch();
+      }
     }
   } catch(e) {
     console.warn('DB load warning:', e);
