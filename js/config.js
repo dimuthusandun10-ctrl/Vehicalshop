@@ -47,9 +47,15 @@ window.state = window.state || {
   custSearch: '',
   custSort: 'name-asc',
   custStatus: 'all',
-  custPage: 1
+  custPage: 1,
+  lsSearch: '',
+  lsCategory: 'all',
+  lsUrgency: 'all',
+  lsStatus: 'all',
+  lsPage: 1
 };
 var state = window.state;
+
 
 window.checkoutState = window.checkoutState || {
   theme: localStorage.getItem('co_modal_theme') || 'light',

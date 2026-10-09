@@ -40,6 +40,7 @@ const APP_SHELL = [
   '/css/reports.css',
   '/css/inventory.css',
   '/css/customers.css',
+  '/css/lowstock.css',
 
 
   // JS Core
