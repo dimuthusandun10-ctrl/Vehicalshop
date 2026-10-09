@@ -30,6 +30,11 @@ function setInvFilter(key, value){
   }
 }
 
+const debouncedInvSearch = (typeof debounce === 'function')
+  ? debounce(val => setInvFilter('search', val), 250)
+  : (val => setInvFilter('search', val));
+window.debouncedInvSearch = debouncedInvSearch;
+
 function clearInvSearch(){
   state.invSearch = '';
   state.invPage = 1;
@@ -331,7 +336,7 @@ function pgInventory(){
                  type="search"
                  placeholder="භාණ්ඩය සොයන්න (නම / කේතය / OEM)..."
                  value="${esc(state.invSearch || '')}"
-                 oninput="setInvFilter('search', this.value)">
+                 oninput="document.querySelector('.inv-search-clear')?.classList.toggle('hidden', !this.value); debouncedInvSearch(this.value)">
           <button class="inv-search-clear ${state.invSearch ? '' : 'hidden'}" onclick="clearInvSearch()">✕</button>
         </div>
         
@@ -608,6 +613,7 @@ async function delProduct(id){
 
 window.pgInventory = pgInventory;
 window.setInvFilter = setInvFilter;
+window.debouncedInvSearch = debouncedInvSearch;
 window.clearInvSearch = clearInvSearch;
 window.getFilteredInventory = getFilteredInventory;
 window.updateInvCounts = updateInvCounts;

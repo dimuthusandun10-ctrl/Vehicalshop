@@ -54,7 +54,7 @@ Object.assign(DB, {
 
   /* ---------- initial load ---------- */
   /* ---------- initial load with strict multi-tenant isolation ---------- */
-  async loadAll(){
+  async loadAll(background = false){
     const shopId = (typeof currentShopId === 'function') 
       ? currentShopId() 
       : (window.state?.user?.role === 'superadmin' ? (window.state?.activeShopId || window.state?.activeShop?.id) : window.state?.user?.shopId);
@@ -156,7 +156,16 @@ Object.assign(DB, {
       this.persistLocal();
     }
 
-    // ⭐ STEP 2: Try Firestore (in background if online)
+    // ⭐ STEP 2: Try Firestore (Non-blocking on boot before login)
+    if(background || !window.state?.user){
+      setTimeout(() => this.syncRemote(shopId), 200);
+      return;
+    }
+
+    await this.syncRemote(shopId);
+  },
+
+  async syncRemote(shopId){
     if(typeof navigator !== 'undefined' && !navigator.onLine){
       console.log('🟡 Offline — skipping Firestore load, local cache is active');
       return;
@@ -309,7 +318,66 @@ Object.assign(DB, {
     startPageListeners(window.state?.page || 'billing');
   },
 
-  persistLocal(){
+  /* ---------- synchronous cache-only load (instant 0.1s login & boot) ---------- */
+  loadAllSync(){
+    const shopId = (typeof currentShopId === 'function') 
+                    ? currentShopId() 
+                    : (window.state?.user?.shopId || window.state?.activeShopId || (window.state?.activeShop && window.state?.activeShop.id));
+
+    const cached = this.getLocalDB();
+    if(!cached){
+      console.log('⚠️ No local cache — starting fresh with defaults');
+      if(window.INITIAL_SHOPS && (!this.shops || !this.shops.length)) this.shops = window.INITIAL_SHOPS;
+      if(window.INITIAL_PRODUCTS && !this.products.length) this.products = window.INITIAL_PRODUCTS;
+      if(window.INITIAL_CUSTOMERS && !this.customers.length) this.customers = window.INITIAL_CUSTOMERS;
+      if(window.INITIAL_SUPPLIERS && !this.suppliers.length) this.suppliers = window.INITIAL_SUPPLIERS;
+      if(window.INITIAL_USERS && !this.users.length) this.users = window.INITIAL_USERS;
+      return;
+    }
+
+    const filterByShop = (list) => (list || []).filter(item => item.shopId === shopId);
+
+    if(cached.shop) this.shop = cached.shop;
+    if(cached.shops?.length) this.shops = cached.shops;
+
+    if(window.state?.user?.role === 'superadmin'){
+      this.users = cached.users || [];
+    } else {
+      this.users = (cached.users || []).filter(u => 
+        u.shopId === shopId || u.role === 'superadmin'
+      );
+    }
+
+    if(shopId){
+      this.products  = filterByShop(cached.products);
+      this.customers = filterByShop(cached.customers);
+      this.suppliers = filterByShop(cached.suppliers);
+      this.sales     = filterByShop(cached.sales);
+      this.grns      = filterByShop(cached.grns);
+      this.returns   = filterByShop(cached.returns);
+      this.shifts    = filterByShop(cached.shifts);
+      this.cashMoves = filterByShop(cached.cashMoves);
+      this.payments  = filterByShop(cached.payments);
+    } else {
+      this.products = cached.products || [];
+      this.customers = cached.customers || [];
+      this.suppliers = cached.suppliers || [];
+      this.sales = cached.sales || [];
+      this.grns = cached.grns || [];
+      this.returns = cached.returns || [];
+      this.shifts = cached.shifts || [];
+      this.cashMoves = cached.cashMoves || [];
+      this.payments = cached.payments || [];
+    }
+
+    if(cached.counters) this.counters = { ...this.counters, ...cached.counters };
+    this.recalculateCounters();
+    console.log(`⚡ Instant load from cache: ${this.products.length} products, ${this.sales.length} sales`);
+  },
+
+  _persistTimer: null,
+
+  _persistLocalNow(){
     try {
       const shopId = (typeof currentShopId === 'function') ? currentShopId() : null;
       const data = {
@@ -369,6 +437,14 @@ Object.assign(DB, {
     }
   },
 
+  persistLocal(){
+    if(this._persistTimer) clearTimeout(this._persistTimer);
+    this._persistTimer = setTimeout(() => {
+      this._persistLocalNow();
+      this._persistTimer = null;
+    }, 2000);
+  },
+
   getLocalDB(){
     return getLocalDB();
   },
@@ -416,8 +492,12 @@ function rerenderIfActive(){
   }
 }
 
-function saveDB(){
-  DB.persistLocal();
+function saveDB(immediate = false){
+  if(immediate && typeof DB._persistLocalNow === 'function'){
+    DB._persistLocalNow();
+  } else {
+    DB.persistLocal();
+  }
 }
 
 window.DB = DB;

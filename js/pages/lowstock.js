@@ -27,6 +27,11 @@ function setLsFilter(key, value){
   if(clearBtn) clearBtn.classList.toggle('hidden', !state.lsSearch);
 }
 
+const debouncedLsSearch = (typeof debounce === 'function')
+  ? debounce(val => setLsFilter('search', val), 250)
+  : (val => setLsFilter('search', val));
+window.debouncedLsSearch = debouncedLsSearch;
+
 function clearLsSearch(){
   state.lsSearch = '';
   state.lsPage = 1;
@@ -341,7 +346,7 @@ function pgLowStock(){
           <input id="lsSearch" type="search"
                  placeholder="භාණ්ඩය සොයන්න (නම / කේතය)..."
                  value="${esc(state.lsSearch || '')}"
-                 oninput="setLsFilter('search', this.value)">
+                 oninput="document.querySelector('.ls-search-clear')?.classList.toggle('hidden', !this.value); debouncedLsSearch(this.value)">
           <button class="ls-search-clear ${state.lsSearch ? '' : 'hidden'}"
                   onclick="clearLsSearch()" title="මකන්න">✕</button>
         </div>
@@ -443,6 +448,7 @@ function pgLowStock(){
 // Window exports
 window.pgLowStock = pgLowStock;
 window.setLsFilter = setLsFilter;
+window.debouncedLsSearch = debouncedLsSearch;
 window.clearLsSearch = clearLsSearch;
 window.getFilteredLowStock = getFilteredLowStock;
 window.updateLsCounts = updateLsCounts;

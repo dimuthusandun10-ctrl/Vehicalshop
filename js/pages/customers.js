@@ -30,6 +30,11 @@ function setCustFilter(key, value){
   }
 }
 
+const debouncedCustSearch = (typeof debounce === 'function')
+  ? debounce(val => setCustFilter('search', val), 250)
+  : (val => setCustFilter('search', val));
+window.debouncedCustSearch = debouncedCustSearch;
+
 function clearCustSearch(){
   state.custSearch = '';
   state.custPage = 1;
@@ -364,7 +369,7 @@ function pgCustomers(){
                  type="text"
                  placeholder="සොයන්න (නම / දුරකථනය / වාහනය)..."
                  value="${esc(state.custSearch || '')}"
-                 oninput="setCustFilter('search', this.value)">
+                 oninput="document.querySelector('.cust-search-clear')?.classList.toggle('hidden', !this.value); debouncedCustSearch(this.value)">
           <button class="cust-search-clear ${state.custSearch ? '' : 'hidden'}"
                   onclick="clearCustSearch()"
                   title="මකන්න">✕</button>
@@ -623,6 +628,7 @@ async function delCustomer(id){
 
 window.pgCustomers = pgCustomers;
 window.setCustFilter = setCustFilter;
+window.debouncedCustSearch = debouncedCustSearch;
 window.clearCustSearch = clearCustSearch;
 window.getFilteredCustomers = getFilteredCustomers;
 window.getCustomerMetrics = getCustomerMetrics;

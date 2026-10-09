@@ -106,7 +106,8 @@ const Shift = {
     if(window.FB && window.FB.fbSet){
       window.FB.fbSet(window.FB.COL.shifts, sh.id, sh);
     }
-    if(typeof saveDB === 'function') saveDB();
+    if(typeof saveDB === 'function') saveDB(true);
+    if(window.DB && typeof window.DB._persistLocalNow === 'function') window.DB._persistLocalNow();
     return sh;
   },
 

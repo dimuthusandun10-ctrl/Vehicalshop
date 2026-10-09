@@ -355,17 +355,14 @@ async function doLogin(){
     if(typeof updateBrandName === 'function') updateBrandName();
     if(typeof updateTopBarShopSwitcher === 'function') updateTopBarShopSwitcher();
 
-    // Reload DB for this user's shop & start real-time listeners
-    if(db && typeof db.loadAll === 'function'){
-      await db.loadAll();
+    // 1. Instant local load from cache (synchronous — 0.05s)
+    if(window.DB && typeof window.DB.loadAllSync === 'function'){
+      window.DB.loadAllSync();
       if(db.shops && db.shops.length > 0){
         state.activeShop = db.shops.find(s => s.id === state.activeShopId) || state.activeShop || db.shops[0];
         state.activeShopId = state.activeShop?.id || state.activeShopId;
         db.shop = state.activeShop || db.shop;
       }
-    }
-    if(typeof window.startPageListeners === 'function'){
-      window.startPageListeners('billing');
     }
 
     const loginScreen = $('#loginScreen');
@@ -395,6 +392,10 @@ async function doLogin(){
   state.page = (shortcut && typeof can === 'function' && can(shortcut)) ? shortcut : 'billing';
   state.cart = [];
 
+  if(typeof window.loadPageModule === 'function'){
+    await window.loadPageModule(state.page);
+  }
+
   renderNav();
   render();
   updateClock();
@@ -421,10 +422,61 @@ async function doLogin(){
       setTimeout(() => toast('⚠️ අනුමැතිය අපේක්ෂිත ආපසු ඉල්ලීම් ' + pendingCount + 'ක් ඇත', 'warn'), 1500);
     }
   }
+
+    // 2. Non-blocking Firestore sync in background
+    if(db && typeof db.loadAll === 'function'){
+      showSyncIndicator('Cloud වෙතින් දත්ත සමමුහුර්ත වෙමින්...');
+      db.loadAll(true).then(() => {
+        hideSyncIndicator();
+        if(db.shops && db.shops.length > 0){
+          state.activeShop = db.shops.find(s => s.id === state.activeShopId) || state.activeShop || db.shops[0];
+          state.activeShopId = state.activeShop?.id || state.activeShopId;
+          db.shop = state.activeShop || db.shop;
+        }
+        if(typeof window.startPageListeners === 'function'){
+          window.startPageListeners(state.page || 'billing');
+        }
+        if(typeof render === 'function') render();
+      }).catch(err => {
+        console.warn('Background sync failed (using local data):', err);
+        hideSyncIndicator();
+      });
+    } else if(typeof window.startPageListeners === 'function'){
+      window.startPageListeners('billing');
+    }
   } finally {
-    if(btn) btn.disabled = false;
-    if(txt) txt.classList.remove('hidden');
-    if(spn) spn.classList.add('hidden');
+    resetLoginButton();
+  }
+}
+
+function resetLoginButton(){
+  const btn = document.getElementById('loginBtn');
+  const txt = document.getElementById('loginBtnText');
+  const spn = document.getElementById('loginBtnSpinner');
+  if(btn) btn.disabled = false;
+  if(txt) txt.classList.remove('hidden');
+  if(spn) spn.classList.add('hidden');
+}
+
+function showSyncIndicator(msg){
+  let el = document.getElementById('syncIndicator');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'syncIndicator';
+    el.className = 'sync-indicator';
+    document.body.appendChild(el);
+  }
+  el.innerHTML = `<span class="sync-dot"></span> <span>${msg || 'සමමුහුර්ත වෙමින්...'}</span>`;
+  el.classList.add('show');
+}
+
+function hideSyncIndicator(){
+  const el = document.getElementById('syncIndicator');
+  if(el){
+    el.classList.remove('show');
+    setTimeout(() => {
+      if(el && !el.classList.contains('show')) el.remove();
+    }, 500);
   }
 }
 
@@ -494,6 +546,9 @@ window.showLockedAccountModal = showLockedAccountModal;
 window.togglePasswordVisibility = togglePasswordVisibility;
 window.showForgotHelp = showForgotHelp;
 window.initLoginEnhancements = initLoginEnhancements;
+window.resetLoginButton = resetLoginButton;
+window.showSyncIndicator = showSyncIndicator;
+window.hideSyncIndicator = hideSyncIndicator;
 
 /* Process any pending actions queued before auth.js was loaded */
 if(window._pendingQuick){

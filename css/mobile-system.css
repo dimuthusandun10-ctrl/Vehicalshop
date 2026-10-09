@@ -1153,3 +1153,57 @@
   .shift-cards-wrap { display: none !important; }
   .returns-cards-wrap { display: none !important; }
 }
+
+/* ─── Sync Indicator (Non-blocking background sync) ─── */
+.sync-indicator {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: rgba(15, 23, 42, 0.94);
+  color: #f8fafc;
+  padding: 8px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  z-index: 99998;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  pointer-events: none;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.sync-indicator.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.sync-indicator .sync-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10b981;
+  animation: syncPulse 1.5s infinite;
+  flex-shrink: 0;
+}
+
+@keyframes syncPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.75); }
+}
+
+@media (max-width: 820px) {
+  .sync-indicator {
+    bottom: 74px; /* sits comfortably above mobile bottom nav */
+    right: 14px;
+    font-size: 11px;
+    padding: 6px 12px;
+  }
+}
+

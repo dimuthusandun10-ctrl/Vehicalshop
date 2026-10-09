@@ -200,7 +200,7 @@ function pgPos(){
                placeholder="බිල්පත් සොයන්න..."
                title="බිල් අංකය / පාරිභෝගික / වාහන අංකය සොයන්න"
                value="${esc(state.posFilters.search)}"
-               oninput="setPosFilter('search',this.value)">
+               oninput="debouncedPosSearch(this.value)">
         <span class="pos-inv-search-icon">🔍</span>
       </div>
 
@@ -313,6 +313,11 @@ function setPosFilter(key, value){
     }
   }
 }
+
+const debouncedPosSearch = (typeof debounce === 'function')
+  ? debounce(val => setPosFilter('search', val), 250)
+  : (val => setPosFilter('search', val));
+window.debouncedPosSearch = debouncedPosSearch;
 
 function rangeLabel(r){
   if(r === 'custom') return getCurrentDateLabel();
@@ -496,6 +501,7 @@ function openPosDatePicker(){
 window.pgPos = pgPos;
 window.methodBadge = methodBadge;
 window.setPosFilter = setPosFilter;
+window.debouncedPosSearch = debouncedPosSearch;
 window.openPosDatePicker = openPosDatePicker;
 window.openPosDateFilter = openPosDateFilter;
 window.getCurrentDateLabel = getCurrentDateLabel;

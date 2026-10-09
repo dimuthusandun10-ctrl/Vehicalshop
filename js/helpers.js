@@ -12,6 +12,18 @@ const esc = s => String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','
 const pad = (n,l=4) => String(n).padStart(l,'0');
 const getProd = id => DB.products.find(p=>p.id===id);
 
+function debounce(fn, wait = 250){
+  let timer = null;
+  return function(...args){
+    if(timer) clearTimeout(timer);
+    timer = setTimeout(() => {
+      fn.apply(this, args);
+      timer = null;
+    }, wait);
+  };
+}
+window.debounce = debounce;
+
 function toast(msg, type='ok'){
   const root = $('#toastRoot');
   if(!root) return;

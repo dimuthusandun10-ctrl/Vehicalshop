@@ -6,6 +6,30 @@ let searchMode = 'text'; // 'text' | 'vehicle' | 'oem'
 window._vehicleFilter = { brand:'', chassis:'', engine:'', year:'' };
 window._shownCrossSellFor = window._shownCrossSellFor || new Set();
 
+const debouncedProductSearch = (typeof debounce === 'function')
+  ? debounce((val) => {
+      state.search = val;
+      state.posPage = 1;
+      renderGrid();
+    }, 250)
+  : ((val) => {
+      state.search = val;
+      state.posPage = 1;
+      renderGrid();
+    });
+window.debouncedProductSearch = debouncedProductSearch;
+
+const debouncedVehicleSearch = (typeof debounce === 'function')
+  ? debounce(() => {
+      state.posPage = 1;
+      renderVehicleSearch();
+    }, 250)
+  : (() => {
+      state.posPage = 1;
+      renderVehicleSearch();
+    });
+window.debouncedVehicleSearch = debouncedVehicleSearch;
+
 state.posPage = state.posPage || 1;
 state.posSort = state.posSort || 'default';
 const PER_PAGE = 20;
@@ -149,7 +173,7 @@ function renderSearchControlsHtml(){
         <span class="search-icon" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--muted); font-size:16px; pointer-events:none;">🔍</span>
         <input id="posSearch" placeholder="භාණ්ඩය සොයන්න (නම / කේතය / OEM / වාහන මාදිලිය)... [F2]"
                value="${esc(state.search)}"
-               oninput="state.search=this.value;state.posPage=1;renderGrid()"
+               oninput="debouncedProductSearch(this.value)"
                onkeydown="if(event.key==='Enter')handleBarcodeScan(this.value)"
                style="padding-left:35px;padding-right:38px;">
         <span class="barcode-icon barcode-btn" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); color:var(--muted); font-size:16px; cursor:pointer;" title="බාර්කෝඩ් ස්කෑනරය (F2)" onclick="focusSearch()">📷</span>
@@ -169,11 +193,11 @@ function renderSearchControlsHtml(){
             ${brands.map(b => `<option value="${esc(b)}" ${vf.brand===b?'selected':''}>${esc(b)}</option>`).join('')}
           </select>
           <input id="vChassis" placeholder="Chassis (උදා: NZE141)" value="${esc(vf.chassis)}"
-                 oninput="this.value=this.value.toUpperCase();window._vehicleFilter.chassis=this.value.trim();state.posPage=1;renderVehicleSearch()" style="width:150px">
+                 oninput="this.value=this.value.toUpperCase();window._vehicleFilter.chassis=this.value.trim();debouncedVehicleSearch()" style="width:150px">
           <input id="vEngine" placeholder="Engine (උදා: 1NZ)" value="${esc(vf.engine)}"
-                 oninput="this.value=this.value.toUpperCase();window._vehicleFilter.engine=this.value.trim();state.posPage=1;renderVehicleSearch()" style="width:130px">
+                 oninput="this.value=this.value.toUpperCase();window._vehicleFilter.engine=this.value.trim();debouncedVehicleSearch()" style="width:130px">
           <input id="vYear" type="number" placeholder="වර්ෂය (Year)" value="${esc(vf.year)}"
-                 oninput="window._vehicleFilter.year=this.value.trim();state.posPage=1;renderVehicleSearch()" style="width:105px">
+                 oninput="window._vehicleFilter.year=this.value.trim();debouncedVehicleSearch()" style="width:105px">
           <button class="btn btn-sm" onclick="clearVehicleSearch()">✕ Clear</button>
         </div>
         <div class="vehicle-results-bar">
@@ -186,7 +210,7 @@ function renderSearchControlsHtml(){
         <span class="search-icon" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--muted); font-size:16px; pointer-events:none;">🔢</span>
         <input id="posSearchOem" placeholder="OEM අංකය හෝ Alternate Part No (උදා: 04465 / AN-688)... [Enter=Add]"
                value="${esc(state.search)}"
-               oninput="state.search=this.value;state.posPage=1;renderGrid()"
+               oninput="debouncedProductSearch(this.value)"
                onkeydown="if(event.key==='Enter')handleOemScan(this.value)"
                style="padding-left:35px;padding-right:38px;">
         <span class="barcode-icon barcode-btn" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); color:var(--muted); font-size:16px; cursor:pointer;" title="බාර්කෝඩ් ස්කෑනරය (Enter)" onclick="$('#posSearchOem')?.focus()">📷</span>
@@ -1662,7 +1686,8 @@ async function executeSaleRecord(total, method, paid, change, cardRef='', notes=
   if(window.FB && window.FB.fbAdd){
     await (window.shopAdd ? window.shopAdd(window.FB.COL.sales, sale) : window.FB.fbAdd(window.FB.COL.sales, sale));
   }
-  if(typeof saveDB === 'function') saveDB();
+  if(typeof saveDB === 'function') saveDB(true);
+  if(window.DB && typeof window.DB._persistLocalNow === 'function') window.DB._persistLocalNow();
 
   /* 7. Clear cart & checkout state */
   state.cart = [];
@@ -1781,6 +1806,8 @@ window.renderSearchControlsHtml = renderSearchControlsHtml;
 window.switchSearchMode = switchSearchMode;
 window.clearVehicleSearch = clearVehicleSearch;
 window.renderVehicleSearch = renderVehicleSearch;
+window.debouncedProductSearch = debouncedProductSearch;
+window.debouncedVehicleSearch = debouncedVehicleSearch;
 window.handleBarcodeScan = handleBarcodeScan;
 window.handleOemScan = handleOemScan;
 window.renderGrid = renderGrid;

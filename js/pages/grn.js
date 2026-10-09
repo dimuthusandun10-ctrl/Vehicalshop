@@ -1168,7 +1168,8 @@ async function grnSave(){
   if(window.FB && window.FB.fbAdd){
     await (window.shopAdd ? window.shopAdd(window.FB.COL.grns, grnRecord) : window.FB.fbAdd(window.FB.COL.grns, grnRecord));
   }
-  if(typeof saveDB === 'function') saveDB();
+  if(typeof saveDB === 'function') saveDB(true);
+  if(window.DB && typeof window.DB._persistLocalNow === 'function') window.DB._persistLocalNow();
 
   /* 4. Clear Draft & State */
   try {
