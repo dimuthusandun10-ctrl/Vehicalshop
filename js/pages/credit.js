@@ -5,8 +5,10 @@
 /* ---------- Customer credit balance ---------- */
 function customerCreditBalance(customerId){
   const db = window.DB || {};
+  const c = db.getCustomer ? db.getCustomer(customerId) : (db.customers || []).find(x => x.id === customerId);
+  const custName = c?.name;
   const custSales = (db.sales || []).filter(s =>
-    (s.customerId === customerId || (!s.customerId && s.customer === db.getCustomer(customerId)?.name))
+    (s.customerId === customerId || (custName && s.customer === custName))
     && s.method === 'credit'
   );
   const owed = custSales.reduce((a,s) => a + (s.total || 0), 0);

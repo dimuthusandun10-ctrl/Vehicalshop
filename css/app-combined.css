@@ -8933,14 +8933,14 @@ body.cart-open .pos-cart-backdrop {
     gap: 10px !important;
   }
 
-  /* ── TABLES → CARDS ── */
-  table:not(.no-card) thead { display: none !important; }
-  table:not(.no-card) tbody {
+  /* ── TABLES → CARDS (Receipts & opted-out tables excluded) ── */
+  table:not(.no-card):not(.receipt-items-table):not(.receipt-table) thead { display: none !important; }
+  table:not(.no-card):not(.receipt-items-table):not(.receipt-table) tbody {
     display: flex !important;
     flex-direction: column !important;
     gap: 8px !important;
   }
-  table:not(.no-card) tbody tr {
+  table:not(.no-card):not(.receipt-items-table):not(.receipt-table) tbody tr {
     display: grid !important;
     grid-template-columns: 1fr !important;
     gap: 4px !important;
@@ -8950,7 +8950,7 @@ body.cart-open .pos-cart-backdrop {
     padding: 10px 12px !important;
     position: relative !important;
   }
-  table:not(.no-card) td {
+  table:not(.no-card):not(.receipt-items-table):not(.receipt-table) td {
     display: flex !important;
     justify-content: space-between !important;
     align-items: center !important;
@@ -8962,7 +8962,7 @@ body.cart-open .pos-cart-backdrop {
     text-overflow: ellipsis !important;
     min-width: 0 !important;
   }
-  table:not(.no-card) td::before {
+  table:not(.no-card):not(.receipt-items-table):not(.receipt-table) td::before {
     content: attr(data-label);
     color: var(--muted) !important;
     font-size: 11px !important;
@@ -8970,21 +8970,172 @@ body.cart-open .pos-cart-backdrop {
     margin-right: 8px !important;
     flex-shrink: 0 !important;
   }
-  table:not(.no-card) td[data-label=""]::before,
-  table:not(.no-card) td:not([data-label])::before {
+  table:not(.no-card):not(.receipt-items-table):not(.receipt-table) td[data-label=""]::before,
+  table:not(.no-card):not(.receipt-items-table):not(.receipt-table) td:not([data-label])::before {
     display: none !important;
   }
 
-  /* Amounts — orange, right aligned */
-  table td[data-label*="මුදල"],
-  table td[data-label*="ආදායම"],
-  table td[data-label*="එකතුව"],
-  table td[data-label*="Total"],
-  table td.amount {
+  /* Amounts — orange, right aligned (for card tables only) */
+  table:not(.no-card):not(.receipt-items-table):not(.receipt-table) td[data-label*="මුදල"],
+  table:not(.no-card):not(.receipt-items-table):not(.receipt-table) td[data-label*="ආදායම"],
+  table:not(.no-card):not(.receipt-items-table):not(.receipt-table) td[data-label*="එකතුව"],
+  table:not(.no-card):not(.receipt-items-table):not(.receipt-table) td[data-label*="Total"],
+  table:not(.no-card):not(.receipt-items-table):not(.receipt-table) td.amount {
     color: var(--primary) !important;
     font-weight: 700 !important;
     font-family: 'Inter', sans-serif !important;
     justify-content: flex-end !important;
+  }
+
+  /* ── THERMAL RECEIPT MODAL & PRINT (Clean white paper thermal look) ── */
+  .receipt,
+  #printArea .receipt {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    max-width: 320px !important;
+    width: 100% !important;
+    margin: 0 auto !important;
+    padding: 18px 14px !important;
+    border-radius: 10px !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25) !important;
+    font-family: 'Inter', monospace, system-ui, sans-serif !important;
+    box-sizing: border-box !important;
+  }
+  .receipt h2 {
+    color: #0f172a !important;
+    text-align: center !important;
+    font-size: 16px !important;
+    font-weight: 800 !important;
+    margin-bottom: 2px !important;
+    letter-spacing: -0.2px !important;
+  }
+  .receipt .rc {
+    text-align: center !important;
+    font-size: 10.5px !important;
+    color: #475569 !important;
+    line-height: 1.4 !important;
+  }
+  .receipt hr {
+    border: none !important;
+    border-top: 1px dashed #94a3b8 !important;
+    margin: 8px 0 !important;
+  }
+  .receipt .tr {
+    display: flex !important;
+    justify-content: space-between !important;
+    font-size: 11.5px !important;
+    color: #334155 !important;
+    margin: 2px 0 !important;
+  }
+  .receipt .tr b {
+    color: #0f172a !important;
+  }
+  .receipt .tt {
+    display: flex !important;
+    justify-content: space-between !important;
+    font-size: 14.5px !important;
+    font-weight: 800 !important;
+    color: #0f172a !important;
+    border-top: 1.5px solid #0f172a !important;
+    padding-top: 6px !important;
+    margin-top: 6px !important;
+  }
+  .receipt table,
+  #printArea table,
+  table.receipt-items-table,
+  table.receipt-table {
+    display: table !important;
+    width: 100% !important;
+    background: transparent !important;
+    border-collapse: collapse !important;
+    margin: 6px 0 !important;
+  }
+  .receipt table thead,
+  #printArea table thead,
+  table.receipt-items-table thead,
+  table.receipt-table thead {
+    display: table-header-group !important;
+  }
+  .receipt table tbody,
+  #printArea table tbody,
+  table.receipt-items-table tbody,
+  table.receipt-table tbody {
+    display: table-row-group !important;
+  }
+  .receipt table tr,
+  #printArea table tr,
+  table.receipt-items-table tr,
+  table.receipt-table tr {
+    display: table-row !important;
+    background: transparent !important;
+    border: none !important;
+    border-bottom: 1px dashed #e2e8f0 !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+  }
+  .receipt table th,
+  #printArea table th,
+  table.receipt-items-table th,
+  table.receipt-table th {
+    display: table-cell !important;
+    background: transparent !important;
+    color: #475569 !important;
+    font-size: 10.5px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    padding: 4px 2px !important;
+    border: none !important;
+    border-bottom: 1px dashed #64748b !important;
+  }
+  .receipt table td,
+  #printArea table td,
+  table.receipt-items-table td,
+  table.receipt-table td {
+    display: table-cell !important;
+    background: transparent !important;
+    color: #0f172a !important;
+    font-size: 11px !important;
+    padding: 5px 2px !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    border: none !important;
+    vertical-align: top !important;
+  }
+  .receipt table td::before,
+  #printArea table td::before,
+  table.receipt-items-table td::before,
+  table.receipt-table td::before {
+    display: none !important;
+  }
+  .receipt .r-item-name {
+    color: #0f172a !important;
+    font-weight: 600 !important;
+    font-size: 11px !important;
+    line-height: 1.3 !important;
+  }
+  .receipt .r-item-code {
+    color: #64748b !important;
+    font-size: 9.5px !important;
+    display: block !important;
+    font-family: monospace !important;
+  }
+  .receipt-warranty-block {
+    border: 1px dashed #94a3b8 !important;
+    border-radius: 6px !important;
+    padding: 6px 8px !important;
+    margin: 8px 0 !important;
+    background: #f8fafc !important;
+    color: #1e293b !important;
+    font-size: 10.5px !important;
+  }
+  .receipt-warranty-title {
+    font-weight: 700 !important;
+    font-size: 11px !important;
+    color: #0f172a !important;
+    border-bottom: 1px dotted #cbd5e1 !important;
+    padding-bottom: 2px !important;
+    margin-bottom: 4px !important;
   }
 
   /* ── TABLES WRAPPER ── */
@@ -9156,11 +9307,19 @@ body.cart-open .pos-cart-backdrop {
   }
   .modal-b { padding: 14px !important; }
   .modal-f {
-    padding: 12px 16px !important;
+    padding: 10px 14px !important;
     padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)) !important;
-    flex-direction: column !important;
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 8px !important;
+    flex-wrap: wrap !important;
   }
-  .modal-f .btn { width: 100% !important; }
+  .modal-f .btn {
+    flex: 1 1 auto !important;
+    width: auto !important;
+    min-height: 40px !important;
+    margin: 0 !important;
+  }
 
   /* ── EMPTY STATES ── */
   .empty {

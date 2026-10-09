@@ -1743,19 +1743,24 @@ function showReceipt(s){
       <div class="tr"><span>Customer</span><span>${esc(customerName)}</span></div>
       ${s.vehicle?`<div class="tr"><span>Vehicle No</span><span>${esc(s.vehicle)}</span></div>`:''}
       ${s.notes ? `<div style="font-size:11px;font-style:italic;color:#444;margin:4px 0;text-align:center"><em>Note: ${esc(s.notes)}</em></div>` : ''}
-      <hr>
-      <table>
-        <thead><tr><th>Item</th><th style="text-align:center">Qty</th><th style="text-align:right">Amount</th></tr></thead>
+      <table class="receipt-items-table no-card">
+        <thead>
+          <tr>
+            <th style="text-align:left">Item</th>
+            <th style="text-align:center;width:40px">Qty</th>
+            <th style="text-align:right;width:75px">Amount</th>
+          </tr>
+        </thead>
         <tbody>${s.items.map(i => {
           const prod = (db.getProd ? db.getProd(i.pid) : null) || (db.products || []).find(p => p.id === i.pid || p.code === i.code);
           const itemName = i.nameEn || prod?.nameEn || i.name;
           return `<tr>
-          <td>
-            ${esc(itemName)}<br>
-            <small style="color:var(--muted)">${esc(i.code)}</small>
+          <td style="text-align:left">
+            <div class="r-item-name">${esc(itemName)}</div>
+            <small class="r-item-code">${esc(i.code)}</small>
           </td>
-          <td style="text-align:center">${i.qty}</td>
-          <td style="text-align:right">${(i.price*i.qty).toFixed(2)}</td></tr>`;
+          <td style="text-align:center;font-weight:600">${i.qty}</td>
+          <td style="text-align:right;font-weight:700">${(i.price*i.qty).toFixed(2)}</td></tr>`;
         }).join('')}</tbody>
       </table>
       <hr>
@@ -1796,8 +1801,8 @@ function showReceipt(s){
   </div>`;
 
   openModal('🧾 බිල්පත','Receipt — ' + s.no, body,
-    `<button class="btn" onclick="closeModal()">වසන්න</button>
-     <button class="btn btn-primary" onclick="window.print()">🖨️ Thermal Print</button>`);
+    `<button class="btn btn-primary" onclick="window.print()" style="flex:1.2;font-weight:700">🖨️ Thermal Print</button>
+     <button class="btn" onclick="closeModal()" style="flex:1">වසන්න</button>`);
 }
 
 window.pgBilling = pgBilling;
