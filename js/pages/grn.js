@@ -124,15 +124,16 @@ function pgGRN(){
 
             <!-- Search Overlay Anchored to Inline Field -->
             <div id="grnSearchOverlay" class="grn-search-overlay hidden">
-              <div class="grn-search-overlay-input-wrap">
-                <input id="grnSearchInput" autocomplete="off"
-                       placeholder="🔍 සොයන්න (නම / කේතය / OEM / Barcode)..."
+              <div class="grn-search-overlay-input-wrap grn-search-wrap">
+                <input id="grnSearchInput" class="grn-search-input" autocomplete="off"
+                       placeholder="භාණ්ඩය සොයන්න..."
+                       title="සොයන්න (නම / කේතය / OEM / Barcode)"
                        oninput="grnSearchProducts(this.value)"
                        onkeydown="grnSearchKeydown(event)">
-                <span class="grn-barcode-badge">📷 SCAN</span>
+                <span class="grn-barcode-badge scan-btn grn-scan-btn" onclick="$('#grnSearchInput')?.focus()" title="Barcode Search">📷 SCAN</span>
                 <button type="button" class="grn-overlay-close-btn" onclick="grnCloseSearchOverlay()" title="Close">✕</button>
               </div>
-              <div id="grnSearchDropdown" class="grn-search-dropdown"></div>
+              <div id="grnSearchDropdown" class="grn-search-dropdown grn-search-results"></div>
             </div>
           </div>
 
@@ -188,15 +189,15 @@ function pgGRN(){
     </div>
 
     <!-- 3. Received Items Table Card -->
-    <div class="card">
+    <div class="card grn-items-card">
       <div class="card-h">
         <h3>📋 ලැබූ භාණ්ඩ ලැයිස්තුව <small id="grnItemCountBadge">${grnItems.length} items</small></h3>
       </div>
-      <div class="tbl-wrap">
+      <div class="tbl-wrap grn-items-list-wrap">
         <table class="grn-items-table">
           <thead>
             <tr>
-              <th style="width:40px;text-align:center">#</th>
+              <th style="width:110px">කේතය / Code</th>
               <th>භාණ්ඩය / Item Details</th>
               <th style="text-align:center;width:120px">ප්‍රමාණය / Qty</th>
               <th style="text-align:right;width:130px">පිරිවැය / Unit Cost</th>
@@ -245,16 +246,19 @@ function pgGRN(){
     </div>
 
     <!-- 5. Sticky Footer -->
-    <div class="grn-footer-sticky">
-      <button type="button" class="btn grn-btn-cancel" onclick="grnClearDraft(true)">
-        ✕ අවලංගු කරන්න (Cancel)
+    <div class="grn-footer-sticky grn-footer">
+      <button type="button" class="btn btn-cancel grn-btn-cancel" onclick="grnClearDraft(true)">
+        <span>❌</span>
+        <span>අවලංගු</span>
       </button>
-      <button type="button" class="btn btn-blue grn-btn-draft" onclick="grnSaveDraft(true)">
-        💾 Draft Save (Ctrl+S)
+      <button type="button" class="btn btn-blue btn-draft grn-btn-draft" onclick="grnSaveDraft(true)">
+        <span>💾</span>
+        <span>Draft</span>
       </button>
-      <button type="button" class="btn btn-green grn-btn-confirm" id="grnConfirmBtn"
+      <button type="button" class="btn btn-green btn-save grn-btn-confirm" id="grnConfirmBtn"
               ${grnItems.length ? '' : 'disabled'} onclick="grnConfirmModal()">
-        ✅ GRN තහවුරු කරන්න (F9)
+        <span>✅</span>
+        <span>තහවුරු</span>
       </button>
     </div>
 
@@ -279,7 +283,7 @@ function renderSelectedProdBox(){
 /* ---------- Helper: Render Table Rows (View & Inline Edit) ---------- */
 function renderGrnTableRows(){
   if(!grnItems.length){
-    return `<tr><td colspan="7" class="empty" style="text-align:center;padding:26px;color:var(--muted)">භාණ්ඩ එකතු කර නැත (No items added yet)</td></tr>`;
+    return `<tr><td colspan="7" class="empty grn-items-empty" style="text-align:center;padding:26px;color:var(--muted)">භාණ්ඩ එකතු කර නැත (No items added yet)</td></tr>`;
   }
 
   const db = window.DB || {};
@@ -291,32 +295,31 @@ function renderGrnTableRows(){
     if(isEditing){
       return `
       <tr class="grn-editing-row" style="background:#1b283d">
-        <td style="text-align:center"><b>${i + 1}</b></td>
-        <td>
-          <div class="grn-p-cell">
-            <span class="grn-p-code">${esc(r.code || (p ? p.code : r.pid))}</span>
-            <span class="grn-p-name">${esc(r.name || (p ? p.name : ''))}</span>
-          </div>
+        <td data-label="කේතය">
+          <span class="grn-p-code">${esc(r.code || (p ? p.code : r.pid))}</span>
         </td>
-        <td style="text-align:center">
+        <td data-label="භාණ්ඩය">
+          <span class="grn-p-name">${esc(r.name || (p ? p.name : ''))}</span>
+        </td>
+        <td data-label="ප්රමාණය" style="text-align:center">
           <input id="grnEditQty_${i}" class="grn-edit-input" type="number" step="1" min="1"
                  value="${r.qty}" oninput="grnLiveRecalcEditRow(${i})"
                  onkeydown="if(event.key==='Enter')grnSaveEdit(${i}); if(event.key==='Escape')grnCancelEdit(${i});">
         </td>
-        <td style="text-align:right">
+        <td data-label="පිරිවැය" style="text-align:right">
           <input id="grnEditCost_${i}" class="grn-edit-input" type="number" step="0.01" min="0"
                  value="${r.cost}" oninput="grnLiveRecalcEditRow(${i})"
                  onkeydown="if(event.key==='Enter')grnSaveEdit(${i}); if(event.key==='Escape')grnCancelEdit(${i});">
         </td>
-        <td style="text-align:center">
+        <td data-label="වට්ටම" class="grn-col-disc ${r.disc ? '' : 'grn-disc-zero'}" style="text-align:center">
           <input id="grnEditDisc_${i}" class="grn-edit-input" type="number" step="0.1" min="0" max="100"
                  value="${r.disc || 0}" oninput="grnLiveRecalcEditRow(${i})"
                  onkeydown="if(event.key==='Enter')grnSaveEdit(${i}); if(event.key==='Escape')grnCancelEdit(${i});" style="width:65px">
         </td>
-        <td style="text-align:right">
+        <td data-label="එකතුව" style="text-align:right">
           <b id="grnEditTotal_${i}" style="color:var(--primary)">${money(r.total)}</b>
         </td>
-        <td style="text-align:center">
+        <td data-label="ක්රියා" style="text-align:center">
           <div class="grn-actions-cell">
             <button type="button" class="btn btn-sm btn-green" onclick="grnSaveEdit(${i})" title="සුරකින්න">💾</button>
             <button type="button" class="btn btn-sm" onclick="grnCancelEdit(${i})" title="අවලංගු">✕</button>
@@ -329,25 +332,22 @@ function renderGrnTableRows(){
 
     return `
     <tr>
-      <td style="text-align:center;color:var(--muted)">${i + 1}</td>
-      <td>
-        <div class="grn-p-cell">
-          <span class="grn-p-code">${esc(r.code || (p ? p.code : r.pid))}</span>
-          <span class="grn-p-name">${esc(r.name || (p ? p.name : ''))}</span>
-          <span class="grn-p-sub">${esc(p?.nameEn || '')} ${p?.brand ? '· ' + esc(p.brand) : ''}</span>
-        </div>
+      <td data-label="කේතය"><span class="grn-p-code">${esc(r.code || (p ? p.code : r.pid))}</span></td>
+      <td data-label="භාණ්ඩය">
+        <span class="grn-p-name">${esc(r.name || (p ? p.name : ''))}</span>
+        ${(p?.nameEn || p?.brand) ? `<small class="grn-p-sub" style="display:block;color:var(--muted);font-size:11px">${esc(p?.nameEn || '')} ${p?.brand ? '· ' + esc(p.brand) : ''}</small>` : ''}
       </td>
-      <td style="text-align:center">
+      <td data-label="ප්රමාණය" style="text-align:center">
         <b>${r.qty}</b> <small style="color:var(--muted)">${esc(r.unit || p?.unit || 'pcs')}</small>
       </td>
-      <td style="text-align:right">${money(r.cost)}</td>
-      <td style="text-align:center">
+      <td data-label="පිරිවැය" style="text-align:right">${money(r.cost)}</td>
+      <td data-label="වට්ටම" class="grn-col-disc ${disc > 0 ? '' : 'grn-disc-zero'}" style="text-align:center">
         ${disc > 0 ? `<span class="grn-disc-tag">-${disc}%</span>` : `<span style="color:var(--muted)">-</span>`}
       </td>
-      <td style="text-align:right;font-weight:700;color:var(--primary)">
+      <td data-label="එකතුව" style="text-align:right;font-weight:700;color:var(--primary)">
         ${money(r.total)}
       </td>
-      <td style="text-align:center">
+      <td data-label="ක්රියා" style="text-align:center">
         <div class="grn-actions-cell">
           <button type="button" class="btn btn-sm" onclick="grnEditItem(${i})" title="සංස්කරණය / Edit">✏️</button>
           <button type="button" class="btn btn-sm btn-red" onclick="grnDeleteItem(${i})" title="ඉවත් කරන්න / Delete">🗑️</button>
@@ -408,7 +408,8 @@ function grnSearchProducts(query){
   grnState.activeSearchIndex = results.length > 0 ? 0 : -1;
 
   if(!results.length){
-    dd.innerHTML = `<div class="grn-search-no-results">🔍 '${esc(query)}' සඳහා භාණ්ඩ හමු නොවීය</div>`;
+    const cleanQ = (query || '').trim();
+    dd.innerHTML = `<div class="grn-no-results grn-search-no-results">${cleanQ ? `🔍 "${esc(cleanQ)}" සඳහා භාණ්ඩ හමු නොවීය` : '🔍 භාණ්ඩ හමු නොවීය'}</div>`;
   } else {
     dd.innerHTML = results.map((p, idx) => `
       <div class="grn-search-result ${idx === 0 ? 'active' : ''}" data-idx="${idx}"
@@ -693,6 +694,17 @@ function grnAddItem(){
   grnUpdateDraftIndicator();
 
   $('#grnSelectedProdBox')?.focus();
+
+  // After successful add, scroll to items list
+  setTimeout(() => {
+    const itemsCard = document.querySelector('.grn-items-card, .grn-items-list-wrap');
+    if(itemsCard){
+      itemsCard.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'start' 
+      });
+    }
+  }, 100);
 }
 
 /* ---------- Edit / Delete Row Helpers ---------- */
@@ -1462,6 +1474,7 @@ window.grnConfirmModal = grnConfirmModal;
 window.grnSave = grnSave;
 window.saveGRN = grnSave; // Backward compatibility alias
 window.addGrnRow = grnAddItem; // Backward compatibility alias
+window.grnCancel = grnClearDraft; // Cancel alias
 window.grnKeyHandler = grnKeyHandler;
 window.quickAddSupplier = quickAddSupplier;
 window.saveQuickSupplier = saveQuickSupplier;

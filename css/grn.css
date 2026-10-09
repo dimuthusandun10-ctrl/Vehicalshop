@@ -249,11 +249,16 @@
   color: var(--muted);
 }
 
-.grn-search-no-results {
-  padding: 14px;
-  text-align: center;
-  color: var(--muted);
-  font-size: 13px;
+.grn-search-no-results,
+.grn-no-results {
+  padding: 16px !important;
+  text-align: center !important;
+  color: var(--muted) !important;
+  font-size: 12.5px !important;
+  background: rgba(255, 255, 255, 0.02) !important;
+  border-radius: 8px !important;
+  line-height: 1.5 !important;
+  word-break: break-word !important;
 }
 
 /* Divider or text */
@@ -780,9 +785,10 @@
 
 /* Responsive */
 @media (max-width: 820px) {
-  .grn-footer-sticky {
-    left: 0;
+  .grn-page {
+    padding-bottom: 110px !important;
   }
+
   .grn-sup-grid {
     grid-template-columns: 1fr;
   }
@@ -792,5 +798,407 @@
   }
   .grn-summary {
     grid-template-columns: 1fr;
+  }
+
+  /* ----------------------------------------------------
+     FIX 1: Footer buttons — 3 columns, single line
+     ---------------------------------------------------- */
+  .grn-footer,
+  .grn-footer-sticky,
+  .grn-actions-footer {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 70 !important;
+    background: linear-gradient(180deg, 
+                  rgba(15,23,42,0.92), 
+                  rgba(15,23,42,1)) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    border-top: 1px solid var(--line) !important;
+    padding: 8px 10px !important;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)) !important;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr 1fr !important;
+    gap: 6px !important;
+    box-shadow: 0 -6px 20px rgba(0,0,0,0.35) !important;
+  }
+
+  /* Buttons — icon on top, short label below, all in ONE line each */
+  .grn-footer button,
+  .grn-footer .btn,
+  .grn-footer-sticky button,
+  .grn-footer-sticky .btn,
+  .grn-actions-footer button {
+    min-height: 52px !important;
+    height: 52px !important;
+    padding: 6px 4px !important;
+    font-size: 10.5px !important;
+    font-weight: 700 !important;
+    line-height: 1.1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 2px !important;
+    border-radius: 10px !important;
+    white-space: nowrap !important;    /* ⭐ SINGLE LINE */
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    letter-spacing: -0.2px !important; /* tighter letters */
+    font-family: inherit !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+  }
+
+  /* Cancel button */
+  .grn-footer .btn-cancel,
+  .grn-footer .grn-btn-cancel,
+  .grn-footer-sticky .btn-cancel,
+  .grn-footer-sticky .grn-btn-cancel,
+  .grn-footer button:nth-child(1),
+  .grn-footer-sticky button:nth-child(1) {
+    background: rgba(239,68,68,0.12) !important;
+    color: #fca5a5 !important;
+    border: 1px solid rgba(239,68,68,0.35) !important;
+  }
+
+  /* Draft Save button */
+  .grn-footer .btn-draft,
+  .grn-footer .grn-btn-draft,
+  .grn-footer-sticky .btn-draft,
+  .grn-footer-sticky .grn-btn-draft,
+  .grn-footer button:nth-child(2),
+  .grn-footer-sticky button:nth-child(2) {
+    background: rgba(59,130,246,0.12) !important;
+    color: #93c5fd !important;
+    border: 1px solid rgba(59,130,246,0.35) !important;
+  }
+
+  /* GRN Confirm button */
+  .grn-footer .btn-save,
+  .grn-footer .grn-btn-confirm,
+  .grn-footer-sticky .btn-save,
+  .grn-footer-sticky .grn-btn-confirm,
+  .grn-footer button:nth-child(3),
+  .grn-footer-sticky button:nth-child(3) {
+    background: linear-gradient(135deg, var(--green), #059669) !important;
+    color: #04231a !important;
+    border: none !important;
+  }
+
+  .grn-footer button:disabled,
+  .grn-footer .btn:disabled,
+  .grn-footer-sticky button:disabled,
+  .grn-footer-sticky .btn:disabled {
+    opacity: 0.45 !important;
+    cursor: not-allowed !important;
+    filter: grayscale(0.6) !important;
+  }
+
+  /* Icon size */
+  .grn-footer button .btn-icon,
+  .grn-footer button > span:first-child,
+  .grn-footer-sticky button .btn-icon,
+  .grn-footer-sticky button > span:first-child {
+    font-size: 16px !important;
+    line-height: 1 !important;
+  }
+
+  /* Hide keyboard hints (Ctrl+S, F9) on mobile */
+  .grn-footer .kbd-hint,
+  .grn-footer button small,
+  .grn-footer button .key-hint,
+  .grn-footer-sticky .kbd-hint,
+  .grn-footer-sticky button small,
+  .grn-footer-sticky button .key-hint {
+    display: none !important;
+  }
+
+  /* ----------------------------------------------------
+     FIX 2: Items list — visible + scrollable card layout
+     ---------------------------------------------------- */
+  /* Items list card */
+  .grn-items-card,
+  .grn-items-list-wrap {
+    margin-bottom: 24px !important;
+  }
+
+  /* Items table — switch to card layout */
+  .grn-items-table {
+    width: 100% !important;
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+  }
+
+  .grn-items-table thead {
+    display: none !important;   /* hide header on mobile */
+  }
+
+  .grn-items-table tbody {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+
+  .grn-items-table tbody tr {
+    display: grid !important;
+    grid-template-columns: 1fr auto !important;
+    gap: 6px 12px !important;
+    background: #0b1220 !important;
+    border: 1px solid var(--line) !important;
+    border-radius: 10px !important;
+    padding: 10px 12px !important;
+    position: relative !important;
+    box-sizing: border-box !important;
+  }
+
+  .grn-items-table tbody tr:active {
+    background: var(--panel2) !important;
+  }
+
+  .grn-items-table td {
+    display: block !important;
+    padding: 0 !important;
+    border: none !important;
+    font-size: 12.5px !important;
+    white-space: normal !important;
+    word-break: break-word !important;
+  }
+
+  /* Item name — full row */
+  .grn-items-table td[data-label="භාණ්ඩය"],
+  .grn-items-table td:nth-child(2) {
+    grid-column: 1 / -1 !important;
+    font-weight: 600 !important;
+    font-size: 13.5px !important;
+    margin-bottom: 4px !important;
+    padding-right: 70px !important; /* avoid overlapping action buttons */
+  }
+
+  /* Code — small muted */
+  .grn-items-table td[data-label="කේතය"],
+  .grn-items-table td:nth-child(1) {
+    grid-column: 1 / -1 !important;
+    font-size: 10.5px !important;
+    color: var(--muted) !important;
+    font-family: 'Inter', monospace !important;
+    margin-bottom: 2px !important;
+    padding-right: 70px !important;
+  }
+
+  /* Qty · Cost · Total — inline labels */
+  .grn-items-table td[data-label]::before {
+    content: attr(data-label) " ";
+    color: var(--muted) !important;
+    font-size: 10.5px !important;
+    font-weight: 500 !important;
+    margin-right: 4px !important;
+  }
+
+  /* Hide discount cell if zero on mobile */
+  .grn-items-table td.grn-disc-zero {
+    display: none !important;
+  }
+
+  /* Total — emphasize */
+  .grn-items-table td[data-label="එකතුව"],
+  .grn-items-table td:last-child {
+    grid-column: 1 / -1 !important;
+    color: var(--primary) !important;
+    font-weight: 700 !important;
+    font-family: 'Inter', sans-serif !important;
+    border-top: 1px dashed rgba(255, 255, 255, 0.08) !important;
+    padding-top: 6px !important;
+    margin-top: 2px !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    font-size: 13.5px !important;
+  }
+
+  /* Action buttons (edit / delete) — absolute position */
+  .grn-items-table td[data-label="ක්රියා"],
+  .grn-items-table td[data-label="ක්‍රියා"],
+  .grn-items-table td:has(.btn-sm) {
+    position: absolute !important;
+    top: 8px !important;
+    right: 8px !important;
+    display: flex !important;
+    gap: 4px !important;
+  }
+
+  .grn-items-table td[data-label="ක්රියා"]::before,
+  .grn-items-table td[data-label="ක්‍රියා"]::before {
+    display: none !important;
+    content: none !important;
+  }
+
+  .grn-items-table .btn-sm {
+    width: 30px !important;
+    height: 30px !important;
+    padding: 0 !important;
+    font-size: 13px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 6px !important;
+  }
+
+  /* Empty state */
+  .grn-items-empty {
+    padding: 24px 16px !important;
+    text-align: center !important;
+    color: var(--muted) !important;
+    font-size: 12.5px !important;
+  }
+
+  /* ----------------------------------------------------
+     FIX: Search bar, SCAN button & results dropdown
+     ---------------------------------------------------- */
+  .grn-search-overlay {
+    width: 100% !important;
+    max-width: 100% !important;
+    left: 0 !important;
+    right: 0 !important;
+    box-sizing: border-box !important;
+    padding: 8px !important;
+  }
+
+  /* Search wrapper — flex layout */
+  .grn-search-overlay-input-wrap,
+  .grn-search-wrap,
+  .grn-search-bar {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    width: 100% !important;
+    position: relative !important;
+  }
+
+  /* Input takes remaining space */
+  .grn-search-overlay-input-wrap input,
+  .grn-search-wrap input,
+  .grn-search-bar input,
+  .grn-search-input {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;              /* ⭐ allow shrink */
+    font-size: 13px !important;
+    padding: 10px 12px !important;
+    text-overflow: ellipsis !important;
+    width: auto !important;
+  }
+
+  /* Left search icon inside input */
+  .grn-search-icon,
+  .grn-search-wrap .search-icon {
+    left: 10px !important;
+    font-size: 14px !important;
+  }
+
+  /* SCAN button — compact, fixed width */
+  .grn-barcode-badge,
+  .grn-search-wrap .scan-btn,
+  .grn-scan-btn,
+  button[class*="scan"] {
+    position: static !important;
+    transform: none !important;
+    flex: 0 0 auto !important;            /* ⭐ don't grow */
+    padding: 0 10px !important;
+    min-width: 58px !important;
+    max-width: 72px !important;
+    height: 38px !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 4px !important;
+    white-space: nowrap !important;
+    border-radius: 8px !important;
+    background: rgba(59,130,246,0.15) !important;
+    color: #93c5fd !important;
+    border: 1px solid rgba(59,130,246,0.35) !important;
+    cursor: pointer !important;
+  }
+
+  /* If SCAN is inside input (absolutely positioned), reposition */
+  .grn-search-wrap .scan-btn-inside {
+    position: absolute !important;
+    right: 4px !important;
+    top: 4px !important;
+    bottom: 4px !important;
+    padding: 0 10px !important;
+    font-size: 10.5px !important;
+    border-radius: 6px !important;
+  }
+
+  /* Close button */
+  .grn-overlay-close-btn {
+    flex: 0 0 auto !important;
+    padding: 6px 10px !important;
+    font-size: 16px !important;
+    height: 38px !important;
+  }
+
+  /* Shorten placeholder text on mobile */
+  .grn-search-overlay-input-wrap input::placeholder,
+  .grn-search-wrap input::placeholder {
+    font-size: 12px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  /* Search results dropdown — no extra whitespace at top */
+  .grn-search-results,
+  .grn-search-dropdown,
+  .grn-search-overlay .grn-search-dropdown {
+    position: static !important;
+    top: auto !important;
+    margin-top: 6px !important;
+    max-height: 280px !important;
+    overflow-y: auto !important;
+    background: var(--panel) !important;
+    border: 1px solid var(--line) !important;
+    border-radius: 10px !important;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4) !important;
+    padding: 4px !important;
+  }
+
+  /* Result row */
+  .grn-search-results > div,
+  .grn-search-result {
+    padding: 10px 12px !important;
+    border-radius: 8px !important;
+    font-size: 12.5px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 2px !important;
+    cursor: pointer !important;
+    transition: background 0.15s !important;
+  }
+
+  .grn-search-result:hover,
+  .grn-search-result:active,
+  .grn-search-result.active {
+    background: rgba(255,255,255,0.06) !important;
+  }
+
+  /* Result product name */
+  .grn-search-result .name,
+  .grn-search-result .grn-sr-name {
+    font-weight: 600 !important;
+    color: var(--txt) !important;
+    font-size: 13px !important;
+  }
+
+  /* Result code / OEM */
+  .grn-search-result .code,
+  .grn-search-result .grn-sr-code {
+    font-size: 10.5px !important;
+    color: var(--muted) !important;
+    font-family: 'Inter', monospace !important;
   }
 }
