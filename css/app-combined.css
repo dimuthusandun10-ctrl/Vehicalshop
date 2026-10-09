@@ -1,4 +1,4 @@
-﻿/* === css/base.css === */
+/* === css/base.css === */
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
   color-scheme: dark;
@@ -627,7 +627,7 @@ select optgroup {
     overflow-x: hidden !important;
     height: 100% !important;
     flex: 1 !important;
-    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)) !important;
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)) !important;
   }
 
   /* Content pages: natural page scroll */
@@ -635,7 +635,7 @@ select optgroup {
     overflow: visible !important;
     height: auto !important;
     max-height: none !important;
-    padding-bottom: 40px !important;
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)) !important;
     min-height: calc(100vh - 60px) !important;
   }
 
@@ -690,7 +690,7 @@ select optgroup {
     overflow-y: auto;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
-    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
   }
   
   /* Ensure parent containers default */
@@ -714,7 +714,7 @@ select optgroup {
     min-height: 0 !important;
     height: auto !important;
     overflow: visible !important;
-    padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px)) !important;
+    padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)) !important;
   }
 
   /* Prevent last card from hiding */
@@ -8625,7 +8625,7 @@ body.cart-open .pos-cart-backdrop {
   /* ── CONTENT AREA & SCROLL ── */
   .content {
     padding: 10px !important;
-    padding-bottom: calc(70px + env(safe-area-inset-bottom, 0px)) !important;
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)) !important;
   }
 
   body:has(.content.scroll-natural) {
@@ -8642,7 +8642,7 @@ body.cart-open .pos-cart-backdrop {
   .content.scroll-natural {
     overflow: visible !important;
     height: auto !important;
-    padding-bottom: calc(70px + env(safe-area-inset-bottom, 0px)) !important;
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)) !important;
   }
 
   /* ── TOPBAR ── */
@@ -9497,7 +9497,7 @@ body.cart-open .pos-cart-backdrop {
   /* ── SHOPS MANAGEMENT ── */
   .shops-page {
     padding: 12px !important;
-    padding-bottom: calc(70px + env(safe-area-inset-bottom, 0px)) !important;
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)) !important;
   }
   .shops-page .card-h {
     flex-direction: column !important;
@@ -9540,7 +9540,7 @@ body.cart-open .pos-cart-backdrop {
   /* ── PROFILE & SETTINGS ── */
   .profile-page, .settings-page {
     padding: 12px !important;
-    padding-bottom: calc(70px + env(safe-area-inset-bottom, 0px)) !important;
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)) !important;
   }
   .profile-hero {
     flex-direction: column !important;
