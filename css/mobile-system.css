@@ -90,34 +90,73 @@
     margin-bottom: 10px !important;
   }
 
-  /* ── STAT CARDS ── */
+  /* ── STAT CARDS (Universal 2-column bulletproof responsive grid) ── */
   .stats {
     display: grid !important;
-    grid-template-columns: repeat(2, 1fr) !important;
-    gap: 10px !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
     margin-bottom: 12px !important;
+    overflow: hidden !important;
   }
   .stat {
-    padding: 12px !important;
-    flex-direction: column !important;
-    align-items: flex-start !important;
-    gap: 6px !important;
-    min-height: 90px !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    padding: 10px 10px !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 8px !important;
+    min-height: 70px !important;
     border-radius: 12px !important;
+    overflow: hidden !important;
+  }
+  .stat > div,
+  .stat .stack {
+    min-width: 0 !important;
+    flex: 1 1 auto !important;
+    overflow: hidden !important;
   }
   .stat .ic, .stat .ic-lg {
-    width: 32px !important;
-    height: 32px !important;
-    font-size: 15px !important;
+    width: 34px !important;
+    height: 34px !important;
+    min-width: 34px !important;
+    font-size: 16px !important;
     border-radius: 9px !important;
+    display: grid !important;
+    place-items: center !important;
+    flex-shrink: 0 !important;
   }
-  .stat b, .stat b.big {
-    font-size: 15px !important;
-    line-height: 1.2 !important;
+  .stat b, .stat b.big, .stat .big {
+    font-size: 13.5px !important;
+    line-height: 1.25 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-width: 100% !important;
+    display: block !important;
   }
   .stat span {
     font-size: 10.5px !important;
-    line-height: 1.3 !important;
+    line-height: 1.25 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-width: 100% !important;
+    display: block !important;
+  }
+  .stat .stat-trend {
+    font-size: 9.5px !important;
+    padding: 2px 6px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-width: 100% !important;
+    display: inline-block !important;
   }
   .stat::after { display: none !important; }
 
@@ -486,6 +525,118 @@
     min-height: 42px !important;
   }
 
+  /* ── POS INVOICE CARDS ── */
+  .pos-cards-wrap {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+  }
+  .pos-card {
+    background: var(--card) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 12px !important;
+    padding: 12px 14px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    cursor: pointer !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+  }
+  .pos-card:active {
+    border-color: var(--primary) !important;
+  }
+  .pos-card-head {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: flex-start !important;
+    gap: 8px !important;
+  }
+  .pos-card-no-wrap {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 2px !important;
+    min-width: 0 !important;
+  }
+  .pos-card-no {
+    font-family: 'Inter', monospace !important;
+    font-size: 14.5px !important;
+    color: var(--primary) !important;
+  }
+  .pos-card-time {
+    font-size: 11px !important;
+    color: var(--muted) !important;
+  }
+  .pos-card-badges {
+    flex-shrink: 0 !important;
+  }
+  .pos-card-body {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 4px !important;
+    padding: 8px 10px !important;
+    background: rgba(0, 0, 0, 0.2) !important;
+    border-radius: 8px !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+  }
+  .pos-card-cust {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    gap: 8px !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+  }
+  .pos-card-cust-name {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+  .pos-card-cust-veh {
+    font-size: 11.5px !important;
+    color: var(--muted) !important;
+    font-weight: 500 !important;
+    flex-shrink: 0 !important;
+  }
+  .pos-card-cashier {
+    font-size: 11px !important;
+    color: var(--muted) !important;
+  }
+  .pos-card-foot {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    gap: 10px !important;
+    padding-top: 4px !important;
+  }
+  .pos-card-amt-wrap {
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  .pos-card-amt-lbl {
+    font-size: 10px !important;
+    color: var(--muted) !important;
+  }
+  .pos-card-amt {
+    font-family: 'Inter', sans-serif !important;
+    font-size: 16px !important;
+    color: var(--txt) !important;
+  }
+  .pos-card-disc {
+    font-size: 10px !important;
+    color: var(--red) !important;
+  }
+  .pos-card-actions {
+    display: flex !important;
+    gap: 6px !important;
+    flex-shrink: 0 !important;
+  }
+  .pos-card-actions .btn {
+    min-height: 34px !important;
+    padding: 6px 12px !important;
+    font-size: 12px !important;
+  }
+
   .pos-terminal table.invoice-table thead { display: none !important; }
   .pos-terminal table.invoice-table tbody {
     display: flex !important;
@@ -541,28 +692,45 @@
     font-size: 12px !important;
     padding: 8px 14px !important;
   }
-  .return-card { padding: 12px !important; }
-  .return-card-header {
+  .returns-cards-wrap,
+  .returns-cards-grid {
+    display: flex !important;
     flex-direction: column !important;
-    align-items: flex-start !important;
+    gap: 10px !important;
+  }
+  .return-card {
+    background: var(--card) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 12px !important;
+    padding: 12px 14px !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    flex-direction: column !important;
     gap: 8px !important;
+  }
+  .return-card-header {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    gap: 6px !important;
+    flex-wrap: wrap !important;
   }
   .return-card-items {
     padding: 8px !important;
     font-size: 12px !important;
   }
   .return-card-footer {
-    display: grid !important;
-    grid-template-columns: 1fr 1fr !important;
-    gap: 8px !important;
+    display: flex !important;
+    gap: 6px !important;
+    flex-wrap: wrap !important;
+    padding-top: 4px !important;
   }
   .return-card-footer .btn {
-    width: 100% !important;
+    flex: 1 1 auto !important;
+    min-height: 36px !important;
+    padding: 8px 12px !important;
     font-size: 12px !important;
-    padding: 10px !important;
-    min-height: 40px !important;
   }
-  .return-card-footer .btn-green { grid-column: 1 / -1 !important; }
 
   /* ── SERIAL SEARCH ── */
   .serial-search-page { padding: 12px !important; }
@@ -608,7 +776,68 @@
 
   /* ── SHIFT HISTORY ── */
   .shift-history-page { padding: 10px !important; }
-  .shift-history-page .stats { grid-template-columns: repeat(2, 1fr) !important; }
+  .shift-cards-wrap {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+  }
+  .shift-card {
+    background: var(--card) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 12px !important;
+    padding: 12px 14px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+  }
+  .shift-card-head {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: flex-start !important;
+    gap: 8px !important;
+  }
+  .shift-card-id {
+    font-family: 'Inter', monospace !important;
+    font-size: 14px !important;
+    color: var(--primary) !important;
+  }
+  .shift-card-meta {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 3px !important;
+    font-size: 11.5px !important;
+    padding: 8px 10px !important;
+    background: rgba(0, 0, 0, 0.2) !important;
+    border-radius: 8px !important;
+    border: 1px solid rgba(255, 255, 255, 0.04) !important;
+  }
+  .shift-card-grid {
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 6px !important;
+    padding-top: 4px !important;
+  }
+  .sc-stat {
+    display: flex !important;
+    flex-direction: column !important;
+    min-width: 0 !important;
+  }
+  .sc-stat small {
+    font-size: 9.5px !important;
+    color: var(--muted) !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+  .sc-stat b {
+    font-size: 12px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    font-family: 'Inter', sans-serif !important;
+  }
   .shift-history-page table.shifts-table thead { display: none !important; }
   .shift-history-page table.shifts-table tbody {
     display: flex !important;
@@ -783,9 +1012,15 @@
   /* ── HIDE DESKTOP-ONLY, SHOW MOBILE-ONLY ── */
   .desktop-only { display: none !important; }
   .mobile-only { display: block !important; }
+  .pos-cards-wrap { display: flex !important; }
+  .shift-cards-wrap { display: flex !important; }
+  .returns-cards-wrap { display: flex !important; }
 }
 
 @media (min-width: 821px) {
   .mobile-only { display: none !important; }
   .desktop-only { display: block !important; }
+  .pos-cards-wrap { display: none !important; }
+  .shift-cards-wrap { display: none !important; }
+  .returns-cards-wrap { display: none !important; }
 }

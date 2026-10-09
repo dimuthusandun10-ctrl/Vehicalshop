@@ -2,7 +2,7 @@
    service-worker.js - PWA Offline App Shell & Runtime Cache
    ========================================================= */
 
-const CACHE_VERSION = 'v2.3.4';
+const CACHE_VERSION = 'v2.4.0';
 const CACHE_NAME = 'autoparts-pos-' + CACHE_VERSION;
 const RUNTIME_CACHE = 'autoparts-runtime-' + CACHE_VERSION;
 
@@ -19,7 +19,8 @@ const APP_SHELL = [
   '/partials/overlays.html',
   '/partials/date-picker.html',
 
-  // CSS
+  // CSS Bundled & Core
+  '/css/app-combined.css',
   '/css/base.css',
   '/css/components.css',
   '/css/checkout.css',
@@ -171,18 +172,23 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Network-first for scripts and stylesheets so app code updates immediately
+  // Cache-first with background revalidation (Stale-While-Revalidate) for scripts and stylesheets
   if (req.destination === 'script' || req.destination === 'style' || url.pathname.endsWith('.js') || url.pathname.endsWith('.css')) {
     event.respondWith(
-      fetch(req)
-        .then(response => {
-          if (response && response.status === 200) {
-            const clone = response.clone();
-            caches.open(RUNTIME_CACHE).then(cache => cache.put(req, clone));
-          }
-          return response;
-        })
-        .catch(() => caches.match(req, { ignoreSearch: true }))
+      caches.match(req, { ignoreSearch: true }).then(cached => {
+        const fetchPromise = fetch(req)
+          .then(response => {
+            if (response && response.status === 200) {
+              const clone = response.clone();
+              caches.open(RUNTIME_CACHE).then(cache => cache.put(req, clone));
+            }
+            return response;
+          })
+          .catch(() => null);
+
+        // Instant response from cache if available, fallback to network
+        return cached || fetchPromise;
+      })
     );
     return;
   }

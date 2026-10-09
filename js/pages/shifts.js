@@ -38,7 +38,9 @@ function pgShifts(){
     <div class="card-h">
       <h3>📜 Cashier Shift ඉතිහාසය<small>Shift History</small></h3>
     </div>
-    <div class="tbl-wrap">
+    
+    <!-- Desktop Table View -->
+    <div class="desktop-only tbl-wrap">
     <table class="shifts-table">
       <thead><tr>
         <th>ID</th><th>කැෂියර්</th><th>ආරම්භය</th><th>අවසානය</th>
@@ -78,8 +80,65 @@ function pgShifts(){
       </tbody>
     </table>
     </div>
+
+    <!-- Mobile Cards View -->
+    <div class="mobile-only shift-cards-wrap">
+      ${shifts.map(s => renderShiftCard(s, db)).join('') || '<div class="empty" style="padding:40px 20px;text-align:center">Shift වාර්තා නැත</div>'}
+    </div>
   </div>
   </div>`;
+}
+
+function renderShiftCard(s, db){
+  const v = s.variance || 0;
+  const vClass = Math.abs(v) < 0.01 ? 'ok' : v > 0 ? 'warn' : 'bad';
+  const expected = s.summary ? s.summary.expected : 0;
+  const invCount = s.summary ? s.summary.invoices : (s.status==='open' ? (db.sales||[]).filter(x=>x.shiftId===s.id).length : '—');
+  const openedStr = new Date(s.openedAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+  const closedStr = s.closedAt
+    ? new Date(s.closedAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+    : '🟢 සක්‍රීයයි (Active)';
+
+  return `
+    <div class="shift-card">
+      <div class="shift-card-head">
+        <div>
+          <b class="shift-card-id">${esc(s.id)}</b>
+          <div style="font-size:12px;color:var(--txt);margin-top:2px">👤 <b>${esc(s.cashierName)}</b></div>
+        </div>
+        <div>
+          ${s.status === 'open'
+            ? '<span class="pill warn">🔓 විවෘත</span>'
+            : '<span class="pill ok">🔒 අවසන්</span>'}
+        </div>
+      </div>
+
+      <div class="shift-card-meta">
+        <div><small style="color:var(--muted)">ආරම්භය:</small> <span>${openedStr}</span></div>
+        <div><small style="color:var(--muted)">අවසානය:</small> <span>${closedStr}</span></div>
+        <div><small style="color:var(--muted)">බිල්පත්:</small> <span class="pill mute" style="font-size:10px;padding:1px 6px">${invCount} bills</span></div>
+      </div>
+
+      <div class="shift-card-grid">
+        <div class="sc-stat">
+          <small>ආරම්භක</small>
+          <b>${money(s.openingFloat)}</b>
+        </div>
+        <div class="sc-stat">
+          <small>අපේක්ෂිත</small>
+          <b style="color:var(--primary)">${s.status === 'closed' ? money(expected) : '—'}</b>
+        </div>
+        <div class="sc-stat">
+          <small>ගණන් කළ</small>
+          <b>${s.closingCount != null ? money(s.closingCount) : '—'}</b>
+        </div>
+        <div class="sc-stat">
+          <small>වෙනස්කම</small>
+          <b>${s.status === 'closed' ? `<span class="pill ${vClass}" style="padding:2px 6px;font-size:11px">${v > 0 ? '+' : ''}${money(v)}</span>` : '—'}</b>
+        </div>
+      </div>
+    </div>
+  `;
 }
 
 window.pgShifts = pgShifts;

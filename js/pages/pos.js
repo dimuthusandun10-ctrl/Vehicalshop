@@ -96,6 +96,48 @@ function methodBadge(m){
   return `<span class="pill ${cls}">${label}</span>`;
 }
 
+function renderPosInvoiceCard(s){
+  const timeStr = new Date(s.date).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  const dateStr = new Date(s.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+  const itemCount = Array.isArray(s.items) ? s.items.length : 0;
+
+  return `
+    <div class="pos-card" onclick="viewSale('${s.id}')">
+      <div class="pos-card-head">
+        <div class="pos-card-no-wrap">
+          <b class="pos-card-no">${esc(s.no)}</b>
+          <span class="pos-card-time">🕒 ${timeStr} · ${dateStr}</span>
+        </div>
+        <div class="pos-card-badges">
+          ${methodBadge(s.method)}
+        </div>
+      </div>
+
+      <div class="pos-card-body">
+        <div class="pos-card-cust">
+          <span class="pos-card-cust-name">👤 ${esc(s.customer || 'Walk-in Customer')}</span>
+          ${s.vehicle ? `<span class="pos-card-cust-veh">🚗 ${esc(s.vehicle)}</span>` : ''}
+        </div>
+        <div class="pos-card-cashier">
+          <small style="color:var(--muted)">🧑‍💼 ${esc(s.cashier || '—')} ${itemCount ? `· අයිතම ${itemCount}` : ''}</small>
+        </div>
+      </div>
+
+      <div class="pos-card-foot">
+        <div class="pos-card-amt-wrap">
+          <span class="pos-card-amt-lbl">මුළු එකතුව:</span>
+          <b class="pos-card-amt">${money(s.total)}</b>
+          ${s.disc > 0 ? `<small class="pos-card-disc">−${money(s.disc)} වට්ටම</small>` : ''}
+        </div>
+        <div class="pos-card-actions" onclick="event.stopPropagation()">
+          <button type="button" class="btn btn-sm btn-subtle" onclick="viewSale('${s.id}')" title="බලන්න">👁️ බලන්න</button>
+          <button type="button" class="btn btn-sm btn-primary" onclick="printSale('${s.id}')" title="මුද්‍රණය">🖨️ මුද්‍රණය</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 function pgPos(){
   const list = filteredSales();
   const stats = salesStats(list);
@@ -195,7 +237,8 @@ function pgPos(){
     </div>
 
     ${list.length ? `
-    <div class="tbl-wrap">
+    <!-- Desktop Table View -->
+    <div class="desktop-only tbl-wrap">
     <table class="invoice-table">
       <thead><tr>
         <th>අංකය</th>
@@ -233,6 +276,11 @@ function pgPos(){
         </tr>`).join('')}
       </tbody>
     </table>
+    </div>
+
+    <!-- Mobile Cards View -->
+    <div class="mobile-only pos-cards-wrap" id="posInvoiceCards">
+      ${list.map(s => renderPosInvoiceCard(s)).join('')}
     </div>` : `
     <div class="empty" style="padding:60px 20px">
       <div class="e">🧾</div>

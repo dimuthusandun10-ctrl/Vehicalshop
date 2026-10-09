@@ -79,7 +79,8 @@ function pgReturnsCashier(){
       <div class="card-h">
         <h3>📋 මගේ ඉල්ලීම් ලැයිස්තුව <small>Submitted Requests (${myReturns.length})</small></h3>
       </div>
-      <div class="tbl-wrap">
+      <!-- Desktop Table View -->
+      <div class="desktop-only tbl-wrap">
         <table>
           <thead>
             <tr>
@@ -114,6 +115,11 @@ function pgReturnsCashier(){
             `).join('') || `<tr><td colspan="7" class="empty" style="text-align:center;padding:26px">ආපසු ඉල්ලීම් නැත (No return requests yet)</td></tr>`}
           </tbody>
         </table>
+      </div>
+
+      <!-- Mobile Cards View -->
+      <div class="mobile-only returns-cards-wrap">
+        ${myReturns.slice().reverse().map(r => renderCashierReturnCard(r)).join('') || `<div class="empty" style="text-align:center;padding:26px">ආපසු ඉල්ලීම් නැත (No return requests yet)</div>`}
       </div>
     </div>
 
@@ -312,7 +318,8 @@ function renderAdminAllTab(allReturns){
       </div>
     </div>
 
-    <div class="tbl-wrap">
+    <!-- Desktop Table View -->
+    <div class="desktop-only tbl-wrap">
       <table>
         <thead>
           <tr>
@@ -352,6 +359,11 @@ function renderAdminAllTab(allReturns){
           `).join('') || `<tr><td colspan="9" class="empty" style="text-align:center;padding:26px">ගැලපෙන ආපසු ඉල්ලීම් හමු නොවීය</td></tr>`}
         </tbody>
       </table>
+    </div>
+
+    <!-- Mobile Cards View -->
+    <div class="mobile-only returns-cards-wrap">
+      ${list.map(r => renderAdminReturnRowCard(r)).join('') || `<div class="empty" style="text-align:center;padding:26px">ගැලපෙන ආපසු ඉල්ලීම් හමු නොවීය</div>`}
     </div>
   </div>`;
 }
@@ -1245,4 +1257,66 @@ window.newReturn = returnsOpenNewRequest;
 window.approveReturn = returnsApproveModal;
 window.rejectReturn = returnsRejectModal;
 window.submitReturn = returnsSubmitRequest;
+
+function renderCashierReturnCard(r){
+  return `
+    <div class="return-card">
+      <div class="return-card-header">
+        <span class="return-card-no">${esc(r.no)}</span>
+        <span class="return-card-time">${esc(r.date)}</span>
+        ${renderStatusBadge(r.status)}
+      </div>
+      <div class="return-card-meta">
+        <div>🧾 බිල් අංකය: <b>${esc(r.invoice)}</b></div>
+        ${r.customer ? `<div>👥 පාරිභෝගික: <b>${esc(r.customer)}</b></div>` : ''}
+        <div>📦 භාණ්ඩ: <span>${(r.items || []).map(i => `${esc(i.name)} × ${i.qty}`).join(', ')}</span></div>
+      </div>
+      <div class="return-card-total" style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px dashed var(--border);border-bottom:1px dashed var(--border);margin:8px 0">
+        <span style="font-size:12px;color:var(--muted)">මුළු මුදල:</span>
+        <b style="font-size:15px;color:var(--primary);font-family:'Inter',sans-serif">${money(r.amount)}</b>
+      </div>
+      <div class="return-card-footer" style="display:flex;gap:6px;flex-wrap:wrap">
+        <button type="button" class="btn btn-sm" onclick="returnsViewDetails('${r.id}')" title="විස්තර බලන්න">👁️ විස්තර</button>
+        ${r.status === 'pending' ? `
+          <button type="button" class="btn btn-sm btn-red" onclick="returnsCancelRequest('${r.id}')" title="අවලංගු කරන්න">✕ අවලංගු</button>
+        ` : ''}
+        ${r.status === 'approved' && r.customerId ? `
+          <button type="button" class="btn btn-sm btn-blue" onclick="createBillFromReturn('${r.id}')" title="නව බිලක් සාදන්න">🔄 නව බිලක්</button>
+        ` : ''}
+      </div>
+    </div>
+  `;
+}
+
+function renderAdminReturnRowCard(r){
+  return `
+    <div class="return-card">
+      <div class="return-card-header">
+        <span class="return-card-no">${esc(r.no)}</span>
+        <span class="return-card-time">${esc(r.date)}</span>
+        ${renderStatusBadge(r.status)}
+      </div>
+      <div class="return-card-meta">
+        <div>👤 කැෂියර්: <b>${esc(r.requestedBy || 'නොදනී')}</b></div>
+        <div>🧾 බිල් අංකය: <b>${esc(r.invoice)}</b></div>
+        <div>👥 පාරිභෝගික: <b>${esc(r.customer || 'වෝක්-ඉන්')}</b></div>
+        <div>📦 භාණ්ඩ: <span>${(r.items || []).map(i => `${esc(i.name)} × ${i.qty}`).join(', ')}</span></div>
+      </div>
+      <div class="return-card-total" style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px dashed var(--border);border-bottom:1px dashed var(--border);margin:8px 0">
+        <span style="font-size:12px;color:var(--muted)">මුළු එකතුව:</span>
+        <b style="font-size:15px;color:var(--primary);font-family:'Inter',sans-serif">${money(r.amount)}</b>
+      </div>
+      <div class="return-card-footer" style="display:flex;gap:6px;flex-wrap:wrap">
+        <button type="button" class="btn btn-sm" onclick="returnsViewDetails('${r.id}')" title="විස්තර">👁️ විස්තර</button>
+        ${r.status === 'pending' ? `
+          <button type="button" class="btn btn-sm btn-green" onclick="returnsApproveModal('${r.id}')" title="අනුමත">✅ අනුමත</button>
+          <button type="button" class="btn btn-sm btn-red" onclick="returnsRejectModal('${r.id}')" title="ප්‍රතික්ෂේප">❌ ප්‍රතික්ෂේප</button>
+        ` : ''}
+        ${r.status === 'approved' && r.customerId ? `
+          <button type="button" class="btn btn-sm btn-blue" onclick="createBillFromReturn('${r.id}')" title="නව බිලක් සාදන්න">🔄 නව බිලක්</button>
+        ` : ''}
+      </div>
+    </div>
+  `;
+}
 
