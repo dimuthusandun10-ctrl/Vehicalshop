@@ -114,23 +114,29 @@ window.updateApp = updateApp;
 /* =========================================================
    Custom PWA Install Prompt (Chrome / Edge / Android)
    ========================================================= */
-let deferredPrompt = null;
+window.deferredPrompt = window.deferredPrompt || null;
+var deferredPrompt = window.deferredPrompt;
 
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  deferredPrompt = e;
+if(!window._pwaPromptListenerAttached){
+  window._pwaPromptListenerAttached = true;
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    window.deferredPrompt = e;
+    deferredPrompt = e;
 
-  if(localStorage.getItem('pos.installPromptDismissed')){
-    return;
-  }
+    if(localStorage.getItem('pos.installPromptDismissed')){
+      return;
+    }
 
-  setTimeout(() => {
-    showInstallBanner();
-  }, 30000);
-});
+    setTimeout(() => {
+      showInstallBanner();
+    }, 30000);
+  });
+}
 
 function showInstallBanner(){
-  if(!deferredPrompt || document.getElementById('installBanner')) return;
+  const promptEvt = window.deferredPrompt || deferredPrompt;
+  if(!promptEvt || document.getElementById('installBanner')) return;
 
   const banner = document.createElement('div');
   banner.className = 'install-banner';
@@ -148,10 +154,12 @@ function showInstallBanner(){
 }
 
 async function installPWA(){
-  if(!deferredPrompt) return;
-  deferredPrompt.prompt();
-  const { outcome } = await deferredPrompt.userChoice;
+  const promptEvt = window.deferredPrompt || deferredPrompt;
+  if(!promptEvt) return;
+  promptEvt.prompt();
+  const { outcome } = await promptEvt.userChoice;
   console.log('Install outcome:', outcome);
+  window.deferredPrompt = null;
   deferredPrompt = null;
   document.getElementById('installBanner')?.remove();
 
@@ -171,8 +179,8 @@ window.dismissInstall = dismissInstall;
 /* =========================================================
    iOS Safari Manual Install Hint
    ========================================================= */
-const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-const isStandalone = (window.navigator.standalone === true) || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+var isStandalone = (window.navigator.standalone === true) || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
 
 if(isIOS && !isStandalone && !localStorage.getItem('pos.iosHintDismissed')){
   setTimeout(() => showIOSInstallHint(), 30000);

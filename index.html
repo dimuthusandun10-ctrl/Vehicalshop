@@ -98,6 +98,14 @@
   window.showForgotHelp = window.showForgotHelp || function() {
     alert('කරුණාකර පරිපාලක (Admin) අමතන්න.');
   };
+  // BootLoader safety dismissal timeout (prevents infinite stuck loading screen)
+  setTimeout(function() {
+    var bl = document.getElementById('bootLoader');
+    if (bl && !bl.classList.contains('hidden')) {
+      bl.classList.add('hidden');
+      setTimeout(function() { if (bl.parentNode) bl.parentNode.removeChild(bl); }, 400);
+    }
+  }, 2500);
 </script>
 <body>
 
