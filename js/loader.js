@@ -3,7 +3,7 @@
    ========================================================= */
 
 (async function boot() {
-  const APP_VERSION = '2.2.0';
+  const APP_VERSION = '2.3.0';
   /* 1. Scripts in strict dependency sequence */
   const SCRIPTS = [
     'js/bcrypt.min.js',

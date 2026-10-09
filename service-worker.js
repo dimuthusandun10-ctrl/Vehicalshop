@@ -2,7 +2,7 @@
    service-worker.js - PWA Offline App Shell & Runtime Cache
    ========================================================= */
 
-const CACHE_VERSION = 'v1.0.0';
+const CACHE_VERSION = 'v2.3.0';
 const CACHE_NAME = 'autoparts-pos-' + CACHE_VERSION;
 const RUNTIME_CACHE = 'autoparts-runtime-' + CACHE_VERSION;
 
@@ -17,6 +17,7 @@ const APP_SHELL = [
   '/partials/sidebar.html',
   '/partials/topbar.html',
   '/partials/overlays.html',
+  '/partials/date-picker.html',
 
   // CSS
   '/css/base.css',
@@ -35,6 +36,8 @@ const APP_SHELL = [
   '/css/autoparts.css',
   '/css/offline.css',
   '/css/pwa.css',
+  '/css/date-picker.css',
+  '/css/reports.css',
 
   // JS Core
   '/js/bcrypt.min.js',
@@ -47,6 +50,7 @@ const APP_SHELL = [
   '/js/db-service.js',
   '/js/shift.js',
   '/js/auth.js',
+  '/js/date-picker.js',
   '/js/router.js',
   '/js/app.js',
   '/js/loader.js',
@@ -162,7 +166,23 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Cache-first for static assets
+  // Network-first for scripts and stylesheets so app code updates immediately
+  if (req.destination === 'script' || req.destination === 'style' || url.pathname.endsWith('.js') || url.pathname.endsWith('.css')) {
+    event.respondWith(
+      fetch(req)
+        .then(response => {
+          if (response && response.status === 200) {
+            const clone = response.clone();
+            caches.open(RUNTIME_CACHE).then(cache => cache.put(req, clone));
+          }
+          return response;
+        })
+        .catch(() => caches.match(req, { ignoreSearch: true }))
+    );
+    return;
+  }
+
+  // Cache-first for other static assets (images, icons, fonts)
   event.respondWith(
     caches.match(req, { ignoreSearch: true }).then(cached => {
       if (cached) return cached;

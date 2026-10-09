@@ -5,6 +5,7 @@
 /* filters state */
 state.posFilters = state.posFilters || {
   range: 'today',
+  customDate: '',
   method: 'all',
   search: '',
   sort: 'newest'
@@ -58,6 +59,11 @@ function pgPos(){
         ].map(([v,l])=>`
           <button class="${state.posFilters.range===v?'active':''}"
                   onclick="setPosFilter('range','${v}')">${l}</button>`).join('')}
+        <button class="${state.posFilters.range==='custom'?'active':''}"
+                onclick="openPosDatePicker()"
+                title="දිනය තෝරන්න (Calendar)">
+          ${state.posFilters.range==='custom' && state.posFilters.customDate ? '📅 ' + state.posFilters.customDate : '📅 දින දසුන'}
+        </button>
       </div>
 
       <div class="pos-inv-search-wrap">
@@ -167,6 +173,7 @@ function setPosFilter(key, value){
 }
 
 function rangeLabel(r){
+  if(r === 'custom') return state.posFilters.customDate || 'තෝරාගත් දිනය';
   return {today:'අද',yesterday:'ඊයේ',week:'අවසන් දින 7',month:'මෙම මාසය',all:'සියල්ල'}[r] || r;
 }
 
@@ -188,6 +195,15 @@ function filteredSales(){
   } else if(f.range === 'month'){
     const d = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0,10);
     list = list.filter(s => (s.date||'').slice(0,10) >= d);
+  } else if(f.range === 'custom' && f.customDate){
+    const q = f.customDate.trim();
+    if(q.length === 10){
+      list = list.filter(s => (s.date||'').slice(0,10) === q);
+    } else if(q.length === 7){
+      list = list.filter(s => (s.date||'').slice(0,7) === q);
+    } else if(q.length === 4){
+      list = list.filter(s => (s.date||'').slice(0,4) === q);
+    }
   }
 
   /* method */
@@ -267,11 +283,29 @@ function printSale(id){
   setTimeout(() => window.print(), 400);
 }
 
+/* ---------- date picker integration ---------- */
+function openPosDatePicker(){
+  if(typeof openDatePicker !== 'function'){
+    if(typeof toast === 'function') toast('දින දසුන සක්‍රීය නැත', 'err');
+    return;
+  }
+  openDatePicker('posDate', {
+    value: state.posFilters.customDate || today(),
+    onConfirm: (val) => {
+      state.posFilters.range = 'custom';
+      state.posFilters.customDate = val;
+      render();
+    }
+  });
+}
+
 window.pgPos = pgPos;
 window.methodBadge = methodBadge;
 window.setPosFilter = setPosFilter;
+window.openPosDatePicker = openPosDatePicker;
 window.filteredSales = filteredSales;
 window.salesStats = salesStats;
 window.exportSalesCSV = exportSalesCSV;
 window.viewSale = viewSale;
 window.printSale = printSale;
+
