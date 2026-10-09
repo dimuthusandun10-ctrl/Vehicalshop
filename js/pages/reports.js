@@ -31,10 +31,20 @@ function pgReports(){
   return `
   <div class="card" style="margin-bottom:14px">
     <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
-      <div style="width:170px"><label style="font-size:11.5px;color:var(--muted);font-weight:600">සිට / From</label>
-        <input type="date" value="${from}" onchange="state.repFrom=this.value;render()"></div>
-      <div style="width:170px"><label style="font-size:11.5px;color:var(--muted);font-weight:600">දක්වා / To</label>
-        <input type="date" value="${to}" onchange="state.repTo=this.value;render()"></div>
+      <div style="min-width:160px;flex:1"><label style="font-size:11.5px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">සිට / From</label>
+        <button type="button" class="date-picker-trigger" onclick="openReportsDatePicker('from')">
+          <span class="dp-icon">📅</span>
+          <span class="dp-value" id="dateFromLabel">${from}</span>
+          <span class="dp-chevron">▾</span>
+        </button>
+      </div>
+      <div style="min-width:160px;flex:1"><label style="font-size:11.5px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">දක්වා / To</label>
+        <button type="button" class="date-picker-trigger" onclick="openReportsDatePicker('to')">
+          <span class="dp-icon">📅</span>
+          <span class="dp-value" id="dateToLabel">${to}</span>
+          <span class="dp-chevron">▾</span>
+        </button>
+      </div>
       <button class="btn btn-sm" onclick="state.repFrom='${today()}';state.repTo='${today()}';render()">අද</button>
       <button class="btn btn-sm" onclick="window.print()">🖨️ මුද්‍රණය</button>
     </div>
@@ -89,4 +99,27 @@ function pgReports(){
   </div>`;
 }
 
+function openReportsDatePicker(target){
+  const value = target === 'from' ? state.repFrom : state.repTo;
+  if(typeof openDatePicker !== 'function'){
+    console.warn('DatePicker component not loaded');
+    return;
+  }
+  openDatePicker(target, {
+    value,
+    onConfirm: (newValue, rangeEnd) => {
+      if(rangeEnd){
+        state.repFrom = newValue;
+        state.repTo = rangeEnd;
+      } else {
+        if(target === 'from') state.repFrom = newValue;
+        else state.repTo = newValue;
+      }
+      if(typeof render === 'function') render();
+      else if(typeof go === 'function') go('reports');
+    }
+  });
+}
+
 window.pgReports = pgReports;
+window.openReportsDatePicker = openReportsDatePicker;

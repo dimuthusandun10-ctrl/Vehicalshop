@@ -16,6 +16,7 @@
     'js/db-service.js',
     'js/shift.js',
     'js/auth.js',
+    'js/date-picker.js',
     'js/pages/credit.js',
     'js/pages/dashboard.js',
     'js/pages/billing.js',
