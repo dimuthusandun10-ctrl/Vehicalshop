@@ -3,8 +3,10 @@
    ========================================================= */
 
 (async function boot() {
+  const APP_VERSION = '2.2.0';
   /* 1. Scripts to load in strict dependency sequence */
   const SCRIPTS = [
+    'js/bcrypt.min.js',
     'js/security.js',
     'js/firebase.js',
     'js/seed.js',
@@ -35,7 +37,7 @@
   function loadScript(src) {
     return new Promise((resolve) => {
       const script = document.createElement('script');
-      script.src = src;
+      script.src = src + (src.includes('?') ? '&' : '?') + 'v=' + APP_VERSION;
       script.async = false;
       script.onload = () => resolve(src);
       script.onerror = () => {
