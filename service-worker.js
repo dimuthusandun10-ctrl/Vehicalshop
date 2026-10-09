@@ -2,7 +2,7 @@
    service-worker.js - PWA Offline App Shell & Runtime Cache
    ========================================================= */
 
-const CACHE_VERSION = 'v2.4.0';
+const CACHE_VERSION = 'v2.4.1';
 const CACHE_NAME = 'autoparts-pos-' + CACHE_VERSION;
 const RUNTIME_CACHE = 'autoparts-runtime-' + CACHE_VERSION;
 
@@ -141,7 +141,26 @@ self.addEventListener('activate', event => {
 // ============ FETCH ============
 self.addEventListener('fetch', event => {
   const req = event.request;
-  const url = new URL(req.url);
+  const rawUrl = req.url || '';
+
+  // ⭐ Skip non-http(s) requests (chrome-extension://, moz-extension://, safari-extension://, etc.)
+  if (!rawUrl.startsWith('http://') && !rawUrl.startsWith('https://')) {
+    return; // Let browser handle normally
+  }
+
+  // Also skip requests from browser extensions
+  if (rawUrl.startsWith('chrome-extension://') || 
+      rawUrl.startsWith('moz-extension://') ||
+      rawUrl.startsWith('safari-extension://')) {
+    return;
+  }
+
+  let url;
+  try {
+    url = new URL(rawUrl);
+  } catch (_) {
+    return;
+  }
 
   // Skip non-GET requests and cloud backends
   if (req.method !== 'GET' ||
@@ -153,14 +172,23 @@ self.addEventListener('fetch', event => {
     return;
   }
 
+  // Safe helper to cache responses without throwing on unsupported schemes
+  const safePut = (request, response) => {
+    if (!request.url.startsWith('http://') && !request.url.startsWith('https://')) return;
+    caches.open(RUNTIME_CACHE).then(cache => {
+      cache.put(request, response).catch(err => {
+        console.warn('Cache put notice:', err.message);
+      });
+    }).catch(() => {});
+  };
+
   // Network-first for HTML document navigation (always get fresh version if online)
   if (req.destination === 'document' || req.mode === 'navigate') {
     event.respondWith(
       fetch(req)
         .then(response => {
           if (response && response.status === 200) {
-            const clone = response.clone();
-            caches.open(RUNTIME_CACHE).then(cache => cache.put(req, clone));
+            safePut(req, response.clone());
           }
           return response;
         })
@@ -179,8 +207,7 @@ self.addEventListener('fetch', event => {
         const fetchPromise = fetch(req)
           .then(response => {
             if (response && response.status === 200) {
-              const clone = response.clone();
-              caches.open(RUNTIME_CACHE).then(cache => cache.put(req, clone));
+              safePut(req, response.clone());
             }
             return response;
           })
@@ -202,8 +229,7 @@ self.addEventListener('fetch', event => {
         if (!response || response.status !== 200 || response.type === 'opaque') {
           return response;
         }
-        const clone = response.clone();
-        caches.open(RUNTIME_CACHE).then(cache => cache.put(req, clone));
+        safePut(req, response.clone());
         return response;
       }).catch(err => {
         console.warn('Fetch failed for:', req.url, err.message);
