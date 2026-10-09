@@ -31,7 +31,7 @@ function pgReports(){
   return `
   <div class="reports-page">
     <div class="card" style="margin-bottom:14px">
-      <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+      <div class="reports-date-range" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
         <div style="min-width:160px;flex:1"><label style="font-size:11.5px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">සිට / From</label>
           <button type="button" class="date-picker-trigger" onclick="openReportsDatePicker('from')">
             <span class="dp-icon">📅</span>
@@ -66,7 +66,7 @@ function pgReports(){
       <div class="card">
         <div class="card-h"><h3>🏆 වැඩිපුර විකුණු භාණ්ඩ<small>Top Selling Products</small></h3></div>
         <div class="tbl-wrap">
-        <table class="reports-table reports-top-products"><thead><tr><th>#</th><th>භාණ්ඩය</th><th style="text-align:center">ප්‍රමාණය</th><th style="text-align:right">ආදායම</th></tr></thead><tbody>
+        <table class="report-table reports-table reports-top-products"><thead><tr><th>#</th><th>භාණ්ඩය</th><th style="text-align:center">ප්‍රමාණය</th><th style="text-align:right">ආදායම</th></tr></thead><tbody>
         ${top.map((p,i)=>`<tr>
           <td data-label="#">${i+1}</td>
           <td data-label="භාණ්ඩය">${esc(p.name)}<small>${p.code}</small></td>
@@ -79,7 +79,7 @@ function pgReports(){
       <div class="card">
         <div class="card-h"><h3>📄 බිල්පත් ලැයිස්තුව<small>Invoice List</small></h3></div>
         <div class="tbl-wrap">
-        <table class="reports-table reports-invoices"><thead><tr><th>අංකය</th><th>දිනය</th><th>ක්‍රමය</th><th>කැෂියර්</th><th style="text-align:right">මුදල</th></tr></thead><tbody>
+        <table class="report-table reports-table reports-invoices"><thead><tr><th>අංකය</th><th>දිනය</th><th>ක්‍රමය</th><th>කැෂියර්</th><th style="text-align:right">මුදල</th></tr></thead><tbody>
         ${list.slice().reverse().map(s=>`<tr>
           <td data-label="අංකය"><b>${s.no}</b></td>
           <td data-label="දිනය"><small>${new Date(s.date).toLocaleDateString('en-GB')}</small></td>

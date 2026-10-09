@@ -6,10 +6,85 @@
 state.posFilters = state.posFilters || {
   range: 'today',
   customDate: '',
+  customFrom: '',
+  customTo: '',
+  customType: '',
   method: 'all',
   search: '',
   sort: 'newest'
 };
+
+function getCurrentDateLabel(){
+  const f = state.posFilters || {};
+  const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const fullMonths = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+  function fmtD(isoStr){
+    if(!isoStr) return '';
+    const parts = String(isoStr).trim().split('-');
+    if(parts.length === 3){
+      const day = parseInt(parts[2], 10);
+      const mIdx = parseInt(parts[1], 10) - 1;
+      const yr = parts[0];
+      return `${String(day).padStart(2, '0')} ${monthNames[mIdx] || ''} ${yr}`;
+    }
+    return isoStr;
+  }
+
+  if(f.range === 'custom'){
+    if(f.customType === 'year' && f.customDate){
+      return f.customDate;
+    }
+    if(f.customType === 'month' && f.customDate){
+      const parts = f.customDate.split('-');
+      if(parts.length >= 2){
+        const mIdx = parseInt(parts[1], 10) - 1;
+        return `${fullMonths[mIdx] || parts[1]} ${parts[0]}`;
+      }
+      return f.customDate;
+    }
+    if(f.customFrom && f.customTo && f.customFrom !== f.customTo){
+      return `${fmtD(f.customFrom)} – ${fmtD(f.customTo)}`;
+    }
+    if(f.customDate){
+      return fmtD(f.customDate);
+    }
+    if(f.customFrom){
+      return fmtD(f.customFrom);
+    }
+    return 'තෝරාගත් දිනය';
+  }
+
+  if(f.range === 'today') {
+    const t = typeof today === 'function' ? today() : new Date().toISOString().slice(0,10);
+    return `${fmtD(t)} (අද)`;
+  }
+  if(f.range === 'yesterday') {
+    const y = new Date(Date.now() - 86400000).toISOString().slice(0,10);
+    return `${fmtD(y)} (ඊයේ)`;
+  }
+  if(f.range === 'week') return 'අවසන් දින 7';
+  if(f.range === 'month') {
+    const d = new Date();
+    return `${fullMonths[d.getMonth()]} ${d.getFullYear()}`;
+  }
+  if(f.range === 'all') return 'සියලු බිල්පත්';
+
+  return 'දිනය තෝරන්න';
+}
+
+function getPosDateFilterIcon(){
+  const f = state.posFilters || {};
+  if(f.range === 'custom'){
+    if(f.customType === 'year') return '🗓️';
+    if(f.customType === 'month') return '📆';
+    return '📅';
+  }
+  if(f.range === 'month') return '📆';
+  if(f.range === 'week') return '📆';
+  if(f.range === 'all') return '📜';
+  return '📅';
+}
 
 function methodBadge(m){
   const map = {
@@ -49,7 +124,8 @@ function pgPos(){
   <!-- ============ FILTER BAR ============ -->
   <div class="card pos-inv-filter-card" style="margin-bottom:14px;padding:12px">
     <div class="pos-inv-filter-bar">
-      <div class="range-tabs pos-range-tabs">
+      <!-- Desktop only range tabs -->
+      <div class="range-tabs pos-range-tabs desktop-only">
         ${[
           ['today','📅 අද'],
           ['yesterday','⏪ ඊයේ'],
@@ -60,11 +136,21 @@ function pgPos(){
           <button class="${state.posFilters.range===v?'active':''}"
                   onclick="setPosFilter('range','${v}')">${l}</button>`).join('')}
         <button class="${state.posFilters.range==='custom'?'active':''}"
-                onclick="openPosDatePicker()"
+                onclick="openPosDateFilter()"
                 title="දිනය තෝරන්න (Calendar)">
           ${state.posFilters.range==='custom' && state.posFilters.customDate ? '📅 ' + state.posFilters.customDate : '📅 දින දසුන'}
         </button>
       </div>
+
+      <!-- Mobile only: Single Calendar Button -->
+      <button class="mobile-only date-filter-btn"
+              onclick="openPosDateFilter()"
+              type="button"
+              title="දිනය තෝරන්න (Select Date)">
+        <span class="df-icon">${getPosDateFilterIcon()}</span>
+        <span class="df-label">${getCurrentDateLabel()}</span>
+        <span class="df-arrow">▾</span>
+      </button>
 
       <div class="pos-inv-search-wrap">
         <input id="posSearchInv"
@@ -161,6 +247,12 @@ function pgPos(){
 /* ---------- filters ---------- */
 function setPosFilter(key, value){
   state.posFilters[key] = value;
+  if(key === 'range' && value !== 'custom'){
+    state.posFilters.customDate = '';
+    state.posFilters.customFrom = '';
+    state.posFilters.customTo = '';
+    state.posFilters.customType = '';
+  }
   render();
   if(key === 'search'){
     const inp = document.getElementById('posSearchInv');
@@ -173,7 +265,7 @@ function setPosFilter(key, value){
 }
 
 function rangeLabel(r){
-  if(r === 'custom') return state.posFilters.customDate || 'තෝරාගත් දිනය';
+  if(r === 'custom') return getCurrentDateLabel();
   return {today:'අද',yesterday:'ඊයේ',week:'අවසන් දින 7',month:'මෙම මාසය',all:'සියල්ල'}[r] || r;
 }
 
@@ -195,14 +287,21 @@ function filteredSales(){
   } else if(f.range === 'month'){
     const d = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0,10);
     list = list.filter(s => (s.date||'').slice(0,10) >= d);
-  } else if(f.range === 'custom' && f.customDate){
-    const q = f.customDate.trim();
-    if(q.length === 10){
-      list = list.filter(s => (s.date||'').slice(0,10) === q);
-    } else if(q.length === 7){
-      list = list.filter(s => (s.date||'').slice(0,7) === q);
-    } else if(q.length === 4){
-      list = list.filter(s => (s.date||'').slice(0,4) === q);
+  } else if(f.range === 'custom'){
+    if(f.customFrom && f.customTo){
+      list = list.filter(s => {
+        const sd = (s.date||'').slice(0,10);
+        return sd >= f.customFrom && sd <= f.customTo;
+      });
+    } else if(f.customDate){
+      const q = f.customDate.trim();
+      if(q.length === 10){
+        list = list.filter(s => (s.date||'').slice(0,10) === q);
+      } else if(q.length === 7){
+        list = list.filter(s => (s.date||'').slice(0,7) === q);
+      } else if(q.length === 4){
+        list = list.filter(s => (s.date||'').slice(0,4) === q);
+      }
     }
   }
 
@@ -284,25 +383,73 @@ function printSale(id){
 }
 
 /* ---------- date picker integration ---------- */
-function openPosDatePicker(){
+function openPosDateFilter(){
   if(typeof openDatePicker !== 'function'){
     if(typeof toast === 'function') toast('දින දසුන සක්‍රීය නැත', 'err');
     return;
   }
+  const f = state.posFilters;
+  const initialVal = f.customDate || (typeof today === 'function' ? today() : new Date().toISOString().slice(0,10));
+
   openDatePicker('posDate', {
-    value: state.posFilters.customDate || today(),
-    onConfirm: (val) => {
+    value: initialVal,
+    onConfirm: (val, toVal) => {
       state.posFilters.range = 'custom';
-      state.posFilters.customDate = val;
+
+      if(toVal){
+        state.posFilters.customFrom = val;
+        state.posFilters.customTo = toVal;
+        state.posFilters.customDate = val === toVal ? val : `${val} to ${toVal}`;
+        state.posFilters.customType = 'range';
+        render();
+        return;
+      }
+
+      const str = String(val).trim();
+      const parts = str.split('-');
+
+      if(parts.length === 3){
+        state.posFilters.customDate = str;
+        state.posFilters.customFrom = str;
+        state.posFilters.customTo = str;
+        state.posFilters.customType = 'day';
+      } else if(parts.length === 2){
+        const y = parseInt(parts[0], 10);
+        const m = parseInt(parts[1], 10);
+        const lastDay = new Date(y, m, 0).getDate();
+        const padM = String(m).padStart(2, '0');
+        state.posFilters.customDate = str;
+        state.posFilters.customFrom = `${y}-${padM}-01`;
+        state.posFilters.customTo = `${y}-${padM}-${String(lastDay).padStart(2, '0')}`;
+        state.posFilters.customType = 'month';
+      } else if(parts.length === 1 && /^\d{4}$/.test(parts[0])){
+        const y = parts[0];
+        state.posFilters.customDate = str;
+        state.posFilters.customFrom = `${y}-01-01`;
+        state.posFilters.customTo = `${y}-12-31`;
+        state.posFilters.customType = 'year';
+      } else {
+        state.posFilters.customDate = str;
+        state.posFilters.customFrom = str;
+        state.posFilters.customTo = str;
+        state.posFilters.customType = 'day';
+      }
       render();
     }
   });
+}
+
+function openPosDatePicker(){
+  openPosDateFilter();
 }
 
 window.pgPos = pgPos;
 window.methodBadge = methodBadge;
 window.setPosFilter = setPosFilter;
 window.openPosDatePicker = openPosDatePicker;
+window.openPosDateFilter = openPosDateFilter;
+window.getCurrentDateLabel = getCurrentDateLabel;
+window.getPosDateFilterIcon = getPosDateFilterIcon;
 window.filteredSales = filteredSales;
 window.salesStats = salesStats;
 window.exportSalesCSV = exportSalesCSV;

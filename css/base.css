@@ -639,23 +639,26 @@ select optgroup {
   }
 
   /* Allow parent containers to grow and document to scroll */
-  body.page-scroll-natural .main,
-  body:has(.scroll-natural) .main {
+  body:has(.content.scroll-natural) .main,
+  body:has(.scroll-natural) .main,
+  body.page-scroll-natural .main {
     overflow: visible !important;
     height: auto !important;
     min-height: 100vh !important;
   }
 
-  body.page-scroll-natural .app,
-  body:has(.scroll-natural) .app {
+  body:has(.content.scroll-natural) .app,
+  body:has(.scroll-natural) .app,
+  body.page-scroll-natural .app {
     overflow: visible !important;
     height: auto !important;
     min-height: 100vh !important;
   }
 
   /* Allow document to scroll naturally on content pages */
-  body.page-scroll-natural,
-  body:has(.scroll-natural) {
+  body:has(.content.scroll-natural),
+  body:has(.scroll-natural),
+  body.page-scroll-natural {
     overflow-y: auto !important;
     overflow-x: hidden !important;
     height: auto !important;

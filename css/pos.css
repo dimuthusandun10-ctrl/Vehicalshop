@@ -41,6 +41,23 @@
 .pos-inv-filter-group { display: flex; gap: 8px; align-items: center; }
 .pos-inv-btn-group { display: flex; gap: 8px; align-items: center; }
 
+/* Desktop: ensure range tabs stay inline-flex and mobile date button is hidden */
+.date-filter-btn,
+.date-filter-btn.mobile-only {
+  display: none !important;
+}
+
+@media (min-width: 821px) {
+  .pos-range-tabs.desktop-only,
+  .range-tabs.desktop-only {
+    display: inline-flex !important;
+  }
+  .date-filter-btn,
+  .date-filter-btn.mobile-only {
+    display: none !important;
+  }
+}
+
 /* --- Clean Text-Only Product Card --- */
 .product-card-new {
   position: relative;
@@ -573,38 +590,60 @@
     width: 100% !important;
   }
 
-  /* Range tabs (Invoice history filter tabs): smooth horizontal touch scroll without clipping */
-  .pos-range-tabs,
-  .range-tabs {
-    display: flex !important;
-    flex-wrap: nowrap !important;
-    overflow-x: auto !important;
-    overflow-y: hidden !important;
-    gap: 4px !important;
-    padding: 3px !important;
-    margin: 0 !important;
-    scrollbar-width: none !important;
-    -webkit-overflow-scrolling: touch !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    box-sizing: border-box !important;
-  }
-
-  .pos-range-tabs::-webkit-scrollbar,
-  .range-tabs::-webkit-scrollbar {
+  /* Hide preset range tabs on mobile */
+  .pos-range-tabs.desktop-only,
+  .range-tabs.desktop-only {
     display: none !important;
   }
 
-  .pos-range-tabs button,
-  .range-tabs button {
-    flex: 1 0 auto !important;
-    min-width: max-content !important;
-    text-align: center !important;
+  /* Single Calendar Date Filter Button (Mobile) */
+  .date-filter-btn,
+  .date-filter-btn.mobile-only {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    padding: 10px 14px !important;
+    background: #0f172a !important;
+    border: 1px solid var(--line) !important;
+    border-radius: 8px !important;
+    color: var(--txt) !important;
+    font-size: 13.5px !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    min-height: 42px !important;
+    transition: all 0.15s ease !important;
+  }
+
+  .date-filter-btn:active,
+  .date-filter-btn:hover {
+    background: #1e293b !important;
+    border-color: var(--primary) !important;
+  }
+
+  .date-filter-btn .df-icon {
+    font-size: 16px !important;
+    line-height: 1 !important;
+    margin-right: 8px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .date-filter-btn .df-label {
+    flex: 1 1 auto !important;
+    text-align: left !important;
     white-space: nowrap !important;
-    font-size: 11.5px !important;
-    padding: 7px 10px !important;
-    border-radius: 6px !important;
-    min-height: 34px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    font-size: 13px !important;
+    color: var(--txt) !important;
+  }
+
+  .date-filter-btn .df-arrow {
+    font-size: 13px !important;
+    color: var(--muted) !important;
+    flex-shrink: 0 !important;
+    margin-left: 8px !important;
   }
 
   /* Invoices Search Input: 100% width, single icon, clean placeholder */

@@ -73,14 +73,16 @@ function render(){
   if(!c) return;
 
   // ⭐ Page-specific classes for proper scrolling
-  c.className = 'content page-' + state.page;
-  if(state.page === 'billing'){
-    c.classList.add('scroll-inner');   // Billing: internal scroll
+  c.className = 'content';
+  c.classList.add('page-' + state.page);
+  if(state.page === 'billing' || state.page === 'grn'){
+    c.classList.add('scroll-inner');   // Billing & GRN: internal scroll
   } else {
-    c.classList.add('scroll-natural'); // Others: natural page scroll
+    c.classList.add('scroll-natural'); // Others: natural document scroll
   }
   document.body.classList.toggle('page-billing', state.page === 'billing');
-  document.body.classList.toggle('page-scroll-natural', state.page !== 'billing');
+  document.body.classList.toggle('page-grn', state.page === 'grn');
+  document.body.classList.toggle('page-scroll-natural', state.page !== 'billing' && state.page !== 'grn');
 
   const map = {
     dashboard: pgDashboard,

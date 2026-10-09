@@ -1,36 +1,76 @@
 /* =========================================================
    css/reports.css - Reports Page Responsive & Mobile Card Layout
+   Comprehensive styles for all report tabs, tables, charts, & metrics
    ========================================================= */
 
 /* Base / Container */
 .reports-page {
+  display: block;
   height: auto;
   overflow: visible;
   min-height: 0;
 }
 
+/* Base tabs row (Desktop) */
+.reports-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.reports-tab {
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.reports-tab:hover {
+  color: var(--txt);
+  background: var(--panel2);
+}
+
+.reports-tab.active {
+  background: var(--primary) !important;
+  color: #1a1206 !important;
+  border-color: var(--primary) !important;
+}
+
 @media (max-width: 820px) {
-  /* Container & padding for sticky / safe-area */
+
+  /* ═══════════════════════════════════════════════════════
+     PART 2 — REPORTS PAGE CONTAINER
+     ═══════════════════════════════════════════════════════ */
   .reports-page,
   .content.page-reports {
-    padding: 10px !important;
-    padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px)) !important;
+    display: block !important;
     height: auto !important;
     overflow: visible !important;
+    padding: 10px !important;
+    padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px)) !important;
     min-height: 0 !important;
   }
-
-  /* Prevent last card from hiding behind bottom edge or home bar */
-  .reports-page > .card:last-child,
-  .content.page-reports .card:last-child {
-    margin-bottom: 40px !important;
-  }
-
-  /* Card spacing & headers */
+  
   .reports-page .card {
     margin-bottom: 12px !important;
     padding: 12px !important;
-    overflow: hidden !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
+  
+  /* Last card needs extra bottom space so nothing is cut off */
+  .reports-page > .card:last-child,
+  .reports-page .card:last-of-type,
+  .content.page-reports .card:last-child {
+    margin-bottom: 60px !important;
   }
 
   .reports-page .card-h {
@@ -47,7 +87,7 @@
     font-size: 10px !important;
   }
 
-  /* Table wrappers inside reports cards: no vertical scroll traps */
+  /* Table wrappers inside reports cards: horizontal scroll only, no vertical scroll trap */
   .reports-page .tbl-wrap {
     overflow-x: auto !important;
     overflow-y: visible !important;
@@ -63,47 +103,78 @@
     overflow-wrap: normal !important;
   }
 
-  .reports-page td[data-label="අංකය"],
-  .invoice-no-cell {
-    white-space: nowrap !important;
+  /* ═══════════════════════════════════════════════════════
+     PART 3 — TABS ROW (HORIZONTAL SCROLL)
+     ═══════════════════════════════════════════════════════ */
+  .reports-tabs {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    gap: 6px !important;
+    padding: 4px 12px 8px !important;
+    margin: 0 -10px 12px -10px !important;      /* edge bleed */
+    scrollbar-width: none !important;
+    -webkit-overflow-scrolling: touch !important;
+    scroll-snap-type: x proximity;
+    box-sizing: border-box !important;
   }
-
-  .reports-page td[data-label="මුදල"],
-  .reports-page td[data-label="ආදායම"],
-  .amount-cell {
-    white-space: nowrap !important;
-  }
-
-  .reports-page td[data-label="දිනය"],
-  .date-cell {
-    white-space: nowrap !important;
-  }
-
-  /* ============ MOBILE CARD LAYOUT FOR REPORTS TABLES ============ */
-  .reports-table thead {
+  
+  .reports-tabs::-webkit-scrollbar {
     display: none !important;
   }
+  
+  .reports-tab {
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+    font-size: 12px !important;
+    padding: 8px 12px !important;
+    scroll-snap-align: start;
+    min-height: 36px !important;
+    border-radius: 8px !important;
+  }
+  
+  .reports-tab.active {
+    background: var(--primary) !important;
+    color: #1a1206 !important;
+    font-weight: 700 !important;
+  }
 
-  .reports-table tbody {
+  /* ═══════════════════════════════════════════════════════
+     PART 4 — TABLE -> CARD CONVERSION (ALL REPORTS)
+     ═══════════════════════════════════════════════════════ */
+  .reports-page table.report-table,
+  .reports-page table.reports-table {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+  
+  .reports-page table.report-table thead,
+  .reports-page table.reports-table thead {
+    display: none !important;
+  }
+  
+  .reports-page table.report-table tbody,
+  .reports-page table.reports-table tbody {
     display: flex !important;
     flex-direction: column !important;
     gap: 8px !important;
   }
-
-  /* Each row becomes a card */
-  .reports-table tbody tr {
+  
+  .reports-page table.report-table tbody tr,
+  .reports-page table.reports-table tbody tr {
     display: grid !important;
-    grid-template-columns: 1fr auto !important;
-    gap: 4px 10px !important;
+    grid-template-columns: 1fr !important;
+    gap: 4px !important;
     background: #0b1220 !important;
     border: 1px solid var(--line) !important;
     border-radius: 10px !important;
     padding: 10px 12px !important;
     position: relative !important;
   }
-
-  /* Each cell: label + value on same row */
-  .reports-table td {
+  
+  .reports-page table.report-table td,
+  .reports-page table.reports-table td {
     display: flex !important;
     justify-content: space-between !important;
     align-items: center !important;
@@ -113,10 +184,11 @@
     white-space: nowrap !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
+    min-width: 0 !important;
   }
-
-  /* Label from data-label */
-  .reports-table td::before {
+  
+  .reports-page table.report-table td::before,
+  .reports-page table.reports-table td::before {
     content: attr(data-label);
     color: var(--muted) !important;
     font-size: 11px !important;
@@ -124,13 +196,54 @@
     margin-right: 8px !important;
     flex-shrink: 0 !important;
   }
-
-  /* ⭐ TOP PRODUCTS specific */
-  .reports-top-products tbody tr {
-    grid-template-columns: auto 1fr !important;
+  
+  /* If no data-label, cells stack naturally */
+  .reports-page table.report-table td:not([data-label])::before,
+  .reports-page table.reports-table td:not([data-label])::before {
+    display: none !important;
+  }
+  
+  /* Amount cells — orange, right */
+  .reports-page table td.amount,
+  .reports-page table td[data-label*="මුදල"],
+  .reports-page table td[data-label*="ආදායම"],
+  .reports-page table td[data-label*="Total"],
+  .reports-page table td[data-label*="එකතුව"],
+  .amount-cell {
+    color: var(--primary) !important;
+    font-weight: 700 !important;
+    font-family: 'Inter', sans-serif !important;
+    justify-content: flex-end !important;
+    margin-top: 6px !important;
+    padding-top: 6px !important;
+    border-top: 1px dashed rgba(255,255,255,0.08) !important;
+    white-space: nowrap !important;
+  }
+  
+  /* Number/date cells — muted, compact */
+  .reports-page table td.date-cell,
+  .reports-page table td[data-label="දිනය"],
+  .reports-page table td[data-label*="Date"],
+  .date-cell {
+    font-size: 11.5px !important;
+    color: var(--muted) !important;
+    white-space: nowrap !important;
   }
 
-  /* # column — small badge */
+  .reports-page td[data-label="අංකය"],
+  .invoice-no-cell {
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    font-family: 'Inter', monospace !important;
+    white-space: nowrap !important;
+  }
+
+  /* Specific: Top Selling Products Card Layout */
+  .reports-top-products tbody tr {
+    grid-template-columns: auto 1fr !important;
+    gap: 4px 10px !important;
+  }
+
   .reports-top-products td[data-label="#"] {
     background: rgba(245,158,11,0.15) !important;
     color: var(--primary) !important;
@@ -148,7 +261,6 @@
     display: none !important;
   }
 
-  /* Product name — full row, bold */
   .reports-top-products td[data-label="භාණ්ඩය"] {
     grid-column: 2 !important;
     display: block !important;
@@ -165,10 +277,8 @@
     font-family: 'Inter', monospace !important;
   }
 
-  /* Qty + Amount — inline small labels */
   .reports-top-products td[data-label="ප්‍රමාණය"],
-  .reports-top-products td[data-label="ප්රමාණය"],
-  .reports-top-products td[data-label="ආදායම"] {
+  .reports-top-products td[data-label="ප්රමාණය"] {
     grid-column: 2 !important;
     font-size: 11.5px !important;
     color: var(--muted) !important;
@@ -176,60 +286,12 @@
     justify-content: space-between !important;
   }
 
-  .reports-top-products td[data-label="ආදායම"] {
-    color: var(--primary) !important;
-    font-weight: 700 !important;
-    font-family: 'Inter', sans-serif !important;
-  }
-
-  /* ⭐ INVOICE LIST specific */
-  .reports-invoices tbody tr {
-    grid-template-columns: 1fr !important;
-    gap: 3px !important;
-  }
-
-  /* Invoice # — first, bold, larger */
-  .reports-invoices td[data-label="අංකය"] {
-    font-size: 13.5px !important;
-    font-weight: 700 !important;
-    color: var(--txt) !important;
-    font-family: 'Inter', monospace !important;
-    border-bottom: 1px solid rgba(255,255,255,0.05) !important;
-    padding-bottom: 6px !important;
-    margin-bottom: 4px !important;
-    white-space: nowrap !important;
-  }
+  /* Specific: Invoices List Card Layout */
   .reports-invoices td[data-label="අංකය"]::before {
     content: '' !important;
     display: none !important;
   }
 
-  /* Date + Cashier — inline, muted */
-  .reports-invoices td[data-label="දිනය"],
-  .reports-invoices td[data-label="කැෂියර්"] {
-    font-size: 11.5px !important;
-    color: var(--muted) !important;
-    padding: 1px 0 !important;
-  }
-
-  /* Method — colored pill */
-  .reports-invoices td[data-label="ක්‍රමය"],
-  .reports-invoices td[data-label="ක්රමය"] {
-    font-size: 11px !important;
-  }
-
-  /* Amount — big, right-aligned, orange */
-  .reports-invoices td[data-label="මුදල"] {
-    font-size: 14px !important;
-    font-weight: 700 !important;
-    color: var(--primary) !important;
-    font-family: 'Inter', sans-serif !important;
-    justify-content: flex-end !important;
-    margin-top: 4px !important;
-    padding-top: 6px !important;
-    border-top: 1px dashed rgba(255,255,255,0.08) !important;
-    white-space: nowrap !important;
-  }
   .reports-invoices td[data-label="මුදල"]::before {
     content: 'මුළු එකතුව: ' !important;
     color: var(--muted) !important;
@@ -237,51 +299,135 @@
     font-size: 11px !important;
   }
 
-  /* ============ FINANCIAL SUMMARY: PROPER SPACING ============ */
+  /* ═══════════════════════════════════════════════════════
+     PART 5 — METRIC CARDS (2-COLUMN GRID)
+     ═══════════════════════════════════════════════════════ */
+  .report-metrics,
+  .reports-page .stats {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
+    margin-bottom: 12px !important;
+  }
+  
+  .report-metric,
+  .reports-page .stat {
+    padding: 12px !important;
+    min-height: auto !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+  }
+  
+  .report-metric b,
+  .reports-page .stat b {
+    font-size: 15px !important;
+    display: block !important;
+  }
+  
+  .report-metric span,
+  .reports-page .stat span {
+    font-size: 10.5px !important;
+    line-height: 1.2 !important;
+  }
+
+  /* ═══════════════════════════════════════════════════════
+     PART 6 — CHARTS RESPONSIVE
+     ═══════════════════════════════════════════════════════ */
+  .report-chart,
+  .reports-page .chart {
+    width: 100% !important;
+    height: 130px !important;
+    padding: 8px 0 !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    box-sizing: border-box !important;
+  }
+  
+  .report-chart .chart-bar,
+  .reports-page .chart .chart-bar {
+    min-width: 26px !important;
+  }
+  
+  .chart-bar .bar-val {
+    font-size: 9px !important;
+  }
+  
+  .chart-bar .bar-lbl {
+    font-size: 9.5px !important;
+  }
+
+  /* ═══════════════════════════════════════════════════════
+     PART 7 — DATE RANGE PICKER
+     ═══════════════════════════════════════════════════════ */
+  .reports-date-range,
+  .reports-date-row {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+  
+  .reports-date-range > div,
+  .reports-date-range .date-picker-trigger,
+  .reports-date-range input {
+    width: 100% !important;
+    font-size: 13px !important;
+    box-sizing: border-box !important;
+  }
+  
+  .reports-date-range .btn {
+    width: 100% !important;
+    min-height: 40px !important;
+  }
+
+  /* ═══════════════════════════════════════════════════════
+     PART 8 — FINANCIAL SUMMARY: PROPER SPACING
+     ═══════════════════════════════════════════════════════ */
   .report-summary,
   .financial-summary {
     padding: 14px !important;
-    margin-bottom: 24px !important;
+    margin-bottom: 60px !important;
   }
-
+  
   .report-summary .srow,
   .financial-summary .srow {
     font-size: 13px !important;
-    padding: 10px 0 !important;
+    padding: 8px 0 !important;
     display: flex !important;
     justify-content: space-between !important;
     gap: 12px !important;
     align-items: baseline !important;
   }
-
+  
   .report-summary .srow span:first-child,
   .financial-summary .srow span:first-child {
     flex: 1 1 auto !important;
     min-width: 0 !important;
     white-space: normal !important;
   }
-
+  
   .report-summary .srow span:last-child,
   .report-summary .srow b,
   .financial-summary .srow span:last-child,
   .financial-summary .srow b {
-    flex-shrink: 0 !important;
     white-space: nowrap !important;
+    flex-shrink: 0 !important;
     font-family: 'Inter', sans-serif !important;
   }
-
+  
   .report-summary .srow.total,
   .financial-summary .srow.total {
-    padding-top: 14px !important;
-    margin-top: 8px !important;
+    font-size: 15px !important;
+    padding-top: 12px !important;
+    margin-top: 6px !important;
     border-top: 1px dashed var(--line) !important;
-    font-size: 16px !important;
     font-weight: 700 !important;
   }
 
   .report-summary .srow.total span:last-child,
   .financial-summary .srow.total span:last-child {
     color: var(--primary) !important;
-    font-size: 18px !important;
+    font-size: 17px !important;
   }
 }
