@@ -101,6 +101,7 @@ function pgPos(){
   const stats = salesStats(list);
 
   return `
+  <div class="pos-terminal">
   <!-- ============ STAT CARDS ============ -->
   <div class="stats">
     <div class="stat">
@@ -195,7 +196,7 @@ function pgPos(){
 
     ${list.length ? `
     <div class="tbl-wrap">
-    <table>
+    <table class="invoice-table">
       <thead><tr>
         <th>අංකය</th>
         <th>වේලාව</th>
@@ -208,24 +209,24 @@ function pgPos(){
       <tbody>
       ${list.map(s => `
         <tr class="invoice-row" onclick="viewSale('${s.id}')">
-          <td><b>${s.no}</b></td>
-          <td>
+          <td data-label="අංකය"><b>${s.no}</b></td>
+          <td data-label="වේලාව">
             <div style="font-size:12.5px">${new Date(s.date).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</div>
             <small style="color:var(--muted)">${new Date(s.date).toLocaleDateString('en-GB',{day:'2-digit',month:'short'})}</small>
           </td>
-          <td>
+          <td data-label="පාරිභෝගිකයා">
             ${esc(s.customer)}
             ${s.vehicle ? `<br><small style="color:var(--muted)">🚗 ${esc(s.vehicle)}</small>` : ''}
           </td>
-          <td><small>${esc(s.cashier)}</small></td>
-          <td>
+          <td data-label="කැෂියර්"><small>${esc(s.cashier)}</small></td>
+          <td data-label="ගෙවීම් ක්‍රමය">
             ${methodBadge(s.method)}
           </td>
-          <td style="text-align:right">
+          <td data-label="මුදල" class="amount" style="text-align:right">
             <b style="color:var(--primary);font-family:'Inter',sans-serif;font-size:13px">${money(s.total)}</b>
             ${s.disc > 0 ? `<br><small style="color:var(--red);font-size:10px">−${money(s.disc)} වට්ටම</small>` : ''}
           </td>
-          <td style="text-align:center;white-space:nowrap">
+          <td data-label="" style="text-align:center;white-space:nowrap">
             <button class="btn btn-sm" onclick="event.stopPropagation();viewSale('${s.id}')" title="බලන්න">👁️</button>
             <button class="btn btn-sm" onclick="event.stopPropagation();printSale('${s.id}')" title="මුද්‍රණය">🖨️</button>
           </td>
@@ -241,6 +242,7 @@ function pgPos(){
         <button class="btn btn-primary btn-sm" onclick="go('billing')">+ නව බිල</button>
       </div>
     </div>`}
+  </div>
   </div>`;
 }
 

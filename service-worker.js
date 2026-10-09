@@ -41,6 +41,7 @@ const APP_SHELL = [
   '/css/inventory.css',
   '/css/customers.css',
   '/css/lowstock.css',
+  '/css/mobile-system.css',
 
 
   // JS Core

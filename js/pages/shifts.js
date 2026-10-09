@@ -14,6 +14,7 @@ function pgShifts(){
   const totalVar = shifts.filter(s => s.status === 'closed').reduce((a,s) => a + (s.variance||0), 0);
 
   return `
+  <div class="shift-history-page">
   <div class="stats">
     <div class="stat">
       <div class="ic ic-lg" style="background:rgba(16,185,129,.15);color:#6ee7b7">🔓</div>
@@ -38,7 +39,7 @@ function pgShifts(){
       <h3>📜 Cashier Shift ඉතිහාසය<small>Shift History</small></h3>
     </div>
     <div class="tbl-wrap">
-    <table>
+    <table class="shifts-table">
       <thead><tr>
         <th>ID</th><th>කැෂියර්</th><th>ආරම්භය</th><th>අවසානය</th>
         <th style="text-align:center">බිල්පත්</th>
@@ -54,22 +55,22 @@ function pgShifts(){
         const vClass = Math.abs(v) < 0.01 ? 'ok' : v > 0 ? 'warn' : 'bad';
         const expected = s.summary ? s.summary.expected : 0;
         return `<tr>
-          <td><b>${s.id}</b></td>
-          <td>${esc(s.cashierName)}</td>
-          <td><small>${new Date(s.openedAt).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</small></td>
-          <td>${s.closedAt
+          <td data-label="ID"><b>${s.id}</b></td>
+          <td data-label="කැෂියර්">${esc(s.cashierName)}</td>
+          <td data-label="ආරම්භය"><small>${new Date(s.openedAt).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</small></td>
+          <td data-label="අවසානය">${s.closedAt
               ? `<small>${new Date(s.closedAt).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</small>`
               : '<small style="color:var(--green)">සක්‍රීය</small>'}</td>
-          <td style="text-align:center">${s.summary ? s.summary.invoices : (s.status==='open' ? (db.sales||[]).filter(x=>x.shiftId===s.id).length : '—')}</td>
-          <td style="text-align:right">${money(s.openingFloat)}</td>
-          <td style="text-align:right;color:var(--primary)">${s.status === 'closed' ? money(expected) : '—'}</td>
-          <td style="text-align:right">${s.closingCount != null ? money(s.closingCount) : '—'}</td>
-          <td style="text-align:right">
+          <td data-label="බිල්පත්" style="text-align:center">${s.summary ? s.summary.invoices : (s.status==='open' ? (db.sales||[]).filter(x=>x.shiftId===s.id).length : '—')}</td>
+          <td data-label="ආරම්භක" class="amount" style="text-align:right">${money(s.openingFloat)}</td>
+          <td data-label="අපේක්ෂිත" class="amount" style="text-align:right;color:var(--primary)">${s.status === 'closed' ? money(expected) : '—'}</td>
+          <td data-label="ගණන් කළ" class="amount" style="text-align:right">${s.closingCount != null ? money(s.closingCount) : '—'}</td>
+          <td data-label="වෙනස්කම" style="text-align:right">
             ${s.status === 'closed'
               ? `<span class="pill ${vClass}">${v > 0 ? '+' : ''}${money(v)}</span>`
               : '—'}
           </td>
-          <td>${s.status === 'open'
+          <td data-label="තත්ත්වය">${s.status === 'open'
                 ? '<span class="pill warn">🔓 විවෘත</span>'
                 : '<span class="pill ok">🔒 අවසන්</span>'}</td>
         </tr>`;
@@ -77,6 +78,7 @@ function pgShifts(){
       </tbody>
     </table>
     </div>
+  </div>
   </div>`;
 }
 

@@ -54,6 +54,7 @@ function pgSerialSearch(){
   });
 
   return `
+  <div class="serial-search-page">
   <div class="serial-search-hero">
     <div class="card-h" style="margin-bottom:8px">
       <h3>🛡️ Serial අංකය සහ වගකීම් සොයන්න<small>Warranty & Serial Number Lookup</small></h3>
@@ -73,6 +74,7 @@ function pgSerialSearch(){
 
   <div id="serialResultsContainer">
     ${renderSerialResultsHtml(records, q)}
+  </div>
   </div>`;
 }
 

@@ -58,7 +58,7 @@ function pgShops(){
   const shops = db.shops || [];
 
   return `
-  <div class="shops-wrap">
+  <div class="shops-wrap shops-page">
 
     <!-- Top Action Banner -->
     <div class="card" style="margin-bottom:0">

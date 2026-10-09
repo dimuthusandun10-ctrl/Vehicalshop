@@ -78,7 +78,7 @@ function pgProfile(){
   const isAdminOrSuper = u.role === 'admin' || u.role === 'superadmin';
 
   return `
-  <div class="profile-wrap">
+  <div class="profile-wrap profile-page">
 
     <!-- 1. Hero Profile Card -->
     <div class="profile-hero">

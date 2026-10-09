@@ -7,10 +7,11 @@ function pgSettings(){
   const db = window.DB || {};
 
   return `
+  <div class="settings-page">
   <div class="card">
     <div class="card-h">
       <h3>🛠️ සැකසුම්<small>Settings</small></h3>
-      <div style="display:flex;gap:7px">
+      <div class="settings-tabs" style="display:flex;gap:7px">
         <button class="btn btn-sm ${tab==='shop'?'btn-primary':''}" onclick="state.settingsTab='shop';render()">🏪 සාප්පු තොරතුරු</button>
         ${state.user.role==='superadmin'?`<button class="btn btn-sm ${tab==='users'?'btn-primary':''}" onclick="state.settingsTab='users';render()">👤 පරිශීලකයන්</button>`:''}
         <button class="btn btn-sm ${tab==='backup'?'btn-primary':''}" onclick="state.settingsTab='backup';render()">💾 දත්ත Backup</button>
@@ -63,17 +64,21 @@ function pgSettings(){
         <button class="btn btn-primary btn-sm" onclick="editUser()">+ නව පරිශීලකයෙක්</button>
       </div>
       <div class="tbl-wrap">
-      <table><thead><tr><th>නම</th><th>පරිශීලක නාමය</th><th>තනතුර</th><th>තත්ත්වය</th><th></th></tr></thead><tbody>
-      ${(db.users||[]).map(u=>`<tr>
-        <td><b>${esc(u.name)}</b></td>
-        <td><code>${esc(u.username)}</code></td>
-        <td><span class="badge ${u.role}">${ROLE_EN[u.role]||u.role}</span></td>
-        <td><span class="pill ${u.active?'ok':'bad'}">${u.active?'ක්‍රියාකාරී':'අක්‍රිය'}</span></td>
-        <td style="white-space:nowrap">
-          <button class="btn btn-sm" onclick="editUser('${u.id}')">✏️</button>
-          ${u.id!==state.user.id?`<button class="btn btn-sm btn-red" onclick="delUser('${u.id}')">🗑️</button>`:''}
-        </td></tr>`).join('')}
-      </tbody></table></div>
+      <table class="users-table">
+        <thead><tr><th>නම</th><th>පරිශීලක නාමය</th><th>තනතුර</th><th>තත්ත්වය</th><th></th></tr></thead>
+        <tbody>
+        ${(db.users||[]).map(u=>`<tr>
+          <td data-label="නම"><b>${esc(u.name)}</b></td>
+          <td data-label="පරිශීලක නාමය"><code>${esc(u.username)}</code></td>
+          <td data-label="තනතුර"><span class="badge ${u.role}">${ROLE_EN[u.role]||u.role}</span></td>
+          <td data-label="තත්ත්වය"><span class="pill ${u.active?'ok':'bad'}">${u.active?'ක්‍රියාකාරී':'අක්‍රිය'}</span></td>
+          <td data-label="" style="white-space:nowrap">
+            <button class="btn btn-sm" onclick="editUser('${u.id}')">✏️</button>
+            ${u.id!==state.user.id?`<button class="btn btn-sm btn-red" onclick="delUser('${u.id}')">🗑️</button>`:''}
+          </td></tr>`).join('')}
+        </tbody>
+      </table>
+      </div>
     </div>` : ''}
 
     ${tab==='backup' ? `
@@ -99,6 +104,7 @@ function pgSettings(){
       </div>
     </div>` : ''}
 
+  </div>
   </div>`;
 }
 
