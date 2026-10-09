@@ -98,10 +98,11 @@
       <button class="btn btn-sm" onclick="doLogout()" title="පිටවීම">⏻</button>
     </div>
   </aside>
+  <div class="sidebar-backdrop" id="sidebarBackdrop" onclick="closeMobileSidebar()"></div>
   <main class="main">
     <div id="topbarSlot">
       <header class="topbar">
-        <button class="menu-btn" onclick="document.getElementById('sidebarSlot').classList.toggle('open')">☰</button>
+        <button class="menu-btn" onclick="toggleMobileSidebar()" aria-label="මෙනුව">☰</button>
         <h2 id="pgTitle">—<small id="pgSub">—</small></h2>
         <div id="topbarShopSwitcherSlot" class="topbar-shop-slot" style="display:none"></div>
         <span id="shiftIndicator" class="shift-badge" style="display:none" onclick="if(typeof openShiftMenu==='function')openShiftMenu();else go('shifts')"></span>

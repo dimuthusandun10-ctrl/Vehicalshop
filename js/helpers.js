@@ -365,3 +365,67 @@ window.PERMISSION_PRESETS = PERMISSION_PRESETS;
 window.getDefaultPermissionsForRole = getDefaultPermissionsForRole;
 window.hasPermission = hasPermission;
 window.can = can;
+
+/* =========================================================
+   MOBILE SIDEBAR DRAWER & BACKDROP HANDLERS
+   ========================================================= */
+function openMobileSidebar(){
+  const sidebar = document.getElementById('sidebarSlot') 
+               || document.querySelector('.sidebar');
+  const backdrop = document.getElementById('sidebarBackdrop');
+  
+  if(sidebar) sidebar.classList.add('open');
+  if(backdrop) backdrop.classList.add('open');
+  document.body.classList.add('sidebar-open');
+  
+  // Focus first menu item for accessibility
+  setTimeout(() => {
+    const firstItem = sidebar?.querySelector('.nav-item');
+    if(firstItem) firstItem.focus();
+  }, 350);
+}
+
+function closeMobileSidebar(){
+  const sidebar = document.getElementById('sidebarSlot') 
+               || document.querySelector('.sidebar');
+  const backdrop = document.getElementById('sidebarBackdrop');
+  
+  if(sidebar) sidebar.classList.remove('open');
+  if(backdrop) backdrop.classList.remove('open');
+  document.body.classList.remove('sidebar-open');
+}
+
+function toggleMobileSidebar(){
+  const sidebar = document.getElementById('sidebarSlot') 
+               || document.querySelector('.sidebar');
+  if(!sidebar) return;
+  if(sidebar.classList.contains('open')){
+    closeMobileSidebar();
+  } else {
+    openMobileSidebar();
+  }
+}
+
+// Auto-close on window resize to desktop
+window.addEventListener('resize', () => {
+  if(window.innerWidth > 820){
+    closeMobileSidebar();
+  }
+});
+
+// Close on ESC key
+document.addEventListener('keydown', (e) => {
+  if(e.key === 'Escape'){
+    const sidebar = document.getElementById('sidebarSlot') 
+                 || document.querySelector('.sidebar');
+    if(sidebar?.classList.contains('open')){
+      closeMobileSidebar();
+    }
+  }
+});
+
+// Export globally
+window.openMobileSidebar = openMobileSidebar;
+window.closeMobileSidebar = closeMobileSidebar;
+window.toggleMobileSidebar = toggleMobileSidebar;
+

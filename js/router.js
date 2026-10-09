@@ -40,8 +40,20 @@ function go(page){
     return;
   }
   state.page = page;
-  const sb = document.getElementById('sidebarSlot') || document.getElementById('sidebar');
+
+  // Close mobile sidebar when navigating
+  if(typeof closeMobileSidebar === 'function'){
+    closeMobileSidebar();
+  }
+
+  // Fallback: direct class removal
+  const sb = document.getElementById('sidebarSlot') || document.getElementById('sidebar') || document.querySelector('.sidebar');
   if(sb) sb.classList.remove('open');
+  const backdrop = document.getElementById('sidebarBackdrop');
+  if(backdrop) backdrop.classList.remove('open');
+  document.body.classList.remove('sidebar-open');
+
+  if(typeof startPageListeners === 'function') startPageListeners(page);
   renderNav();
   render();
 }
