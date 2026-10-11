@@ -104,6 +104,7 @@ function render(){
     shops: typeof pgShops !== 'undefined' ? pgShops : null,
     profile: typeof pgProfile !== 'undefined' ? pgProfile : null,
     settings: typeof pgSettings !== 'undefined' ? pgSettings : null,
+    labels: typeof pgLabels !== 'undefined' ? pgLabels : null,
     credit: typeof pgCredit !== 'undefined' ? pgCredit : null
   };
 

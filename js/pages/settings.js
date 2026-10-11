@@ -14,6 +14,7 @@ function pgSettings(){
       <div class="settings-tabs" style="display:flex;gap:7px">
         <button class="btn btn-sm ${tab==='shop'?'btn-primary':''}" onclick="state.settingsTab='shop';render()">🏪 සාප්පු තොරතුරු</button>
         ${state.user.role==='superadmin'?`<button class="btn btn-sm ${tab==='users'?'btn-primary':''}" onclick="state.settingsTab='users';render()">👤 පරිශීලකයන්</button>`:''}
+        <button class="btn btn-sm ${tab==='hardware'?'btn-primary':''}" onclick="state.settingsTab='hardware';render()">🖨️ Hardware & Printer</button>
         <button class="btn btn-sm ${tab==='backup'?'btn-primary':''}" onclick="state.settingsTab='backup';render()">💾 දත්ත Backup</button>
       </div>
     </div>
@@ -107,6 +108,97 @@ function pgSettings(){
         <button class="btn btn-red btn-sm" onclick="resetToDemo()">🔄 Reset Data</button>
       </div>
     </div>` : ''}
+
+    ${tab==='hardware' ? (() => {
+      const isConnected = Boolean(window.Printer && window.Printer.isConnected);
+      const printerName = (window.Printer && window.Printer.printerName) || localStorage.getItem('pos.printer.name') || 'Bluetooth Thermal Printer';
+      const paperWidth = (window.Printer && window.Printer.paperWidth) || localStorage.getItem('pos.printerWidth') || '58';
+      const autoPrint = (window.Printer && window.Printer.autoPrint) ?? (localStorage.getItem('pos.printer.autoprint') !== 'false');
+      const autoDrawer = (window.Printer && window.Printer.autoDrawer) ?? (localStorage.getItem('pos.printer.autodrawer') !== 'false');
+
+      return `
+      <div style="margin-top:14px;display:flex;flex-direction:column;gap:16px">
+        <!-- 1. Bluetooth Thermal Printer Section -->
+        <div class="card" style="background:#111c30;border:1px solid var(--line);border-radius:12px;padding:16px">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px">
+            <div>
+              <h4 style="margin:0 0 4px 0;font-size:15px;display:flex;align-items:center;gap:8px">
+                🖨️ Bluetooth Thermal Printer (ESC/POS)
+                <span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:12px;background:${isConnected ? 'rgba(16,185,129,0.15)' : 'rgba(100,116,139,0.15)'};color:${isConnected ? '#34d399' : '#94a3b8'}">
+                  <span style="width:7px;height:7px;border-radius:50%;background:${isConnected ? '#10b981' : '#64748b'}"></span>
+                  ${isConnected ? ('සම්බන්ධයි: ' + esc(printerName)) : 'සම්බන්ධ කර නොමැත (Disconnected)'}
+                </span>
+              </h4>
+              <p style="color:var(--muted);font-size:12px;margin:0">58mm හෝ 80mm බ්ලූටූත් රිසිට්පත් මුද්‍රණ යන්ත්‍ර Web Bluetooth මඟින් සම්බන්ධ කරන්න.</p>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              ${isConnected ? `
+                <button class="btn btn-sm btn-green" onclick="testPrintHardware()">🖨️ Test Print</button>
+                <button class="btn btn-sm" onclick="kickCashDrawer()">💵 Open Drawer</button>
+                <button class="btn btn-sm btn-red" onclick="disconnectHardwarePrinter()">🔌 Disconnect</button>
+              ` : `
+                <button class="btn btn-primary btn-sm" onclick="connectHardwarePrinter()">🔵 Connect Printer</button>
+              `}
+            </div>
+          </div>
+
+          <!-- Configuration Controls -->
+          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:14px;background:rgba(15,23,42,0.6);padding:14px;border-radius:10px;border:1px solid rgba(255,255,255,0.06)">
+            <div>
+              <label style="font-size:12px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">කඩදාසි ප්‍රමාණය / Paper Width</label>
+              <select id="hwPaperWidth" onchange="setHwPaperWidth(this.value)" style="width:100%">
+                <option value="58" ${paperWidth === '58' ? 'selected' : ''}>58mm (2-inch Mobile / Portable)</option>
+                <option value="80" ${paperWidth === '80' ? 'selected' : ''}>80mm (3-inch Standard POS)</option>
+              </select>
+            </div>
+
+            <div style="display:flex;flex-direction:column;justify-content:center;gap:8px">
+              <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;cursor:pointer;user-select:none">
+                <input type="checkbox" id="hwAutoPrint" ${autoPrint ? 'checked' : ''} onchange="setHwAutoPrint(this.checked)" style="width:16px;height:16px">
+                <span>ස්වයංක්‍රීය Print (Auto-Print on checkout)</span>
+              </label>
+
+              <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;cursor:pointer;user-select:none">
+                <input type="checkbox" id="hwAutoDrawer" ${autoDrawer ? 'checked' : ''} onchange="setHwAutoDrawer(this.checked)" style="width:16px;height:16px">
+                <span>මුදල් ලාච්චුව විවෘත කරන්න (Auto-open Cash Drawer)</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Camera Barcode Scanner Section -->
+        <div class="card" style="background:#111c30;border:1px solid var(--line);border-radius:12px;padding:16px">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+            <div>
+              <h4 style="margin:0 0 4px 0;font-size:15px">📷 Phone Camera Barcode Scanner</h4>
+              <p style="color:var(--muted);font-size:12px;margin:0">ස්මාර්ට්ෆෝන් කැමරාවෙන් හෝ වෙබ්කැමරාවෙන් භාණ්ඩ Barcode / QR ස්කෑන් කිරීම.</p>
+              <small style="color:#38bdf8;font-size:11px">සහය දක්වන කේත: EAN-13, EAN-8, Code-128, Code-39, UPC-A, UPC-E, QR Code</small>
+            </div>
+            <div>
+              <button class="btn btn-blue btn-sm" onclick="if(window.BarcodeScanner) BarcodeScanner.open(); else toast('Scanner සූදානම් නැත','warn');">
+                📷 Scanner එක පරීක්ෂා කරන්න (Test Camera)
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Barcode Label Generator Section -->
+        <div class="card" style="background:#111c30;border:1px solid var(--line);border-radius:12px;padding:16px">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+            <div>
+              <h4 style="margin:0 0 4px 0;font-size:15px">🏷️ Barcode Labels Printing (ලේබල් මුද්‍රණය)</h4>
+              <p style="color:var(--muted);font-size:12px;margin:0">භාණ්ඩ හෝ GRN සඳහා Thermal Stickers / ලේබල් මුද්‍රණය කිරීමට ලේබල් අංශය විවෘත කරන්න.</p>
+            </div>
+            <div>
+              <button class="btn btn-primary btn-sm" onclick="go('labels')">
+                🏷️ Barcode ලේබල් පිටුවට යන්න
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      `;
+    })() : ''}
 
   </div>
   </div>`;
@@ -312,6 +404,53 @@ function resetToDemo(){
   location.reload();
 }
 
+async function connectHardwarePrinter(){
+  if(!window.Printer){
+    toast('Printer module load වී නොමැත', 'err');
+    return;
+  }
+  const ok = await window.Printer.connect();
+  if(ok && typeof render === 'function') render();
+}
+
+async function disconnectHardwarePrinter(){
+  if(!window.Printer) return;
+  await window.Printer.disconnect();
+  if(typeof render === 'function') render();
+}
+
+async function testPrintHardware(){
+  if(!window.Printer || !window.Printer.isConnected){
+    toast('කරුණාකර පළමුව Bluetooth Printer එක සම්බන්ධ කරන්න', 'warn');
+    return;
+  }
+  await window.Printer.testPrint();
+}
+
+async function kickCashDrawer(){
+  if(!window.Printer || !window.Printer.isConnected){
+    toast('කරුණාකර පළමුව Bluetooth Printer එක සම්බන්ධ කරන්න', 'warn');
+    return;
+  }
+  const ok = await window.Printer.openCashDrawer();
+  if(ok) toast('💵 Cash Drawer විවෘත කරන ලදී!', 'ok');
+}
+
+function setHwPaperWidth(val){
+  localStorage.setItem('pos.printerWidth', val);
+  toast(`ප්‍රමාණය ${val}mm ලෙස සුරකින ලදී`, 'ok');
+}
+
+function setHwAutoPrint(val){
+  localStorage.setItem('pos.printer.autoprint', val ? 'true' : 'false');
+  toast(val ? 'ස්වයංක්‍රීය Print ක්‍රියාත්මකයි' : 'ස්වයංක්‍රීය Print අක්‍රියයි', 'ok');
+}
+
+function setHwAutoDrawer(val){
+  localStorage.setItem('pos.printer.autodrawer', val ? 'true' : 'false');
+  toast(val ? 'ස්වයංක්‍රීය Drawer kick ක්‍රියාත්මකයි' : 'ස්වයංක්‍රීය Drawer kick අක්‍රියයි', 'ok');
+}
+
 window.pgSettings = pgSettings;
 window.saveShopSettings = saveShopSettings;
 window.saveShop = saveShopSettings;
@@ -322,3 +461,10 @@ window.downloadBackup = downloadBackup;
 window.exportDatabaseBackup = downloadBackup;
 window.restoreBackup = restoreBackup;
 window.resetToDemo = resetToDemo;
+window.connectHardwarePrinter = connectHardwarePrinter;
+window.disconnectHardwarePrinter = disconnectHardwarePrinter;
+window.testPrintHardware = testPrintHardware;
+window.kickCashDrawer = kickCashDrawer;
+window.setHwPaperWidth = setHwPaperWidth;
+window.setHwAutoPrint = setHwAutoPrint;
+window.setHwAutoDrawer = setHwAutoDrawer;

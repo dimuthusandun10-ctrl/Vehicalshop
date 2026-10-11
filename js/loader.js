@@ -9,19 +9,20 @@
 
   // Page-specific modules (loaded on demand)
   const PAGE_SCRIPTS = {
-    billing: ['js/pages/billing.js', 'js/pages/pos.js', 'js/pages/credit.js'],
-    pos: ['js/pages/pos.js', 'js/pages/billing.js', 'js/pages/credit.js'],
+    billing: ['js/pages/billing.js', 'js/pages/pos.js', 'js/pages/credit.js', 'js/printer.js', 'js/barcode-scanner.js'],
+    pos: ['js/pages/pos.js', 'js/pages/billing.js', 'js/pages/credit.js', 'js/printer.js', 'js/barcode-scanner.js'],
     credit: ['js/pages/credit.js', 'js/pages/billing.js'],
     dashboard: ['js/pages/dashboard.js'],
     inventory: ['js/pages/inventory.js'],
     customers: ['js/pages/customers.js'],
     lowstock: ['js/pages/lowstock.js'],
     grn: ['js/pages/grn.js'],
+    labels: ['js/pages/labels.js'],
     returns: ['js/pages/returns.js'],
     shifts: ['js/pages/shifts.js'],
     reports: ['js/pages/reports.js'],
     shops: ['js/pages/shops.js'],
-    settings: ['js/pages/settings.js'],
+    settings: ['js/pages/settings.js', 'js/printer.js', 'js/barcode-scanner.js'],
     'serial-search': ['js/pages/serial-search.js'],
     profile: ['js/pages/profile.js']
   };

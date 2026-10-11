@@ -43,6 +43,7 @@
 <link rel="preload" href="css/app-combined.css?v=2.4.7" as="style">
 <link rel="stylesheet" href="css/app-combined.css?v=2.4.7">
 <link rel="stylesheet" href="css/mobile-system.css?v=2.4.7">
+<link rel="stylesheet" href="css/barcode-scanner.css?v=2.5.0">
 
 <!-- Google Fonts (Optimized: 400, 600, 700 only) -->
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Sinhala:wght@400;600;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
@@ -306,6 +307,15 @@
 <script defer src="js/pages/shops.js?v=2.5.0"></script>
 <script defer src="js/pages/profile.js?v=2.5.0"></script>
 <script defer src="js/pages/settings.js?v=2.5.0"></script>
+<script defer src="js/pages/labels.js?v=2.5.0"></script>
+
+<!-- ============ External Hardware & Barcode Libraries ============ -->
+<script defer src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<script defer src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
+
+<!-- ============ Hardware Modules (Bluetooth Thermal Printer & Camera Scanner) ============ -->
+<script defer src="js/printer.js?v=2.5.0"></script>
+<script defer src="js/barcode-scanner.js?v=2.5.0"></script>
 
 <!-- ============ Router, App & Loader ============ -->
 <script defer src="js/router.js?v=2.5.0"></script>

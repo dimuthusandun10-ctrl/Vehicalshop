@@ -176,7 +176,7 @@ function renderSearchControlsHtml(){
                oninput="debouncedProductSearch(this.value)"
                onkeydown="if(event.key==='Enter')handleBarcodeScan(this.value)"
                style="padding-left:35px;padding-right:38px;">
-        <span class="barcode-icon barcode-btn" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); color:var(--muted); font-size:16px; cursor:pointer;" title="බාර්කෝඩ් ස්කෑනරය (F2)" onclick="focusSearch()">📷</span>
+        <span class="barcode-icon barcode-btn" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); color:var(--muted); font-size:16px; cursor:pointer;" title="Camera Barcode ස්කෑනරය (F2)" onclick="if(window.BarcodeScanner) BarcodeScanner.open(); else focusSearch();">📷</span>
       </div>`;
   } else if(searchMode === 'vehicle'){
     const vf = window._vehicleFilter;
@@ -213,7 +213,7 @@ function renderSearchControlsHtml(){
                oninput="debouncedProductSearch(this.value)"
                onkeydown="if(event.key==='Enter')handleOemScan(this.value)"
                style="padding-left:35px;padding-right:38px;">
-        <span class="barcode-icon barcode-btn" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); color:var(--muted); font-size:16px; cursor:pointer;" title="බාර්කෝඩ් ස්කෑනරය (Enter)" onclick="$('#posSearchOem')?.focus()">📷</span>
+        <span class="barcode-icon barcode-btn" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); color:var(--muted); font-size:16px; cursor:pointer;" title="Camera Barcode ස්කෑනරය (Enter)" onclick="if(window.BarcodeScanner) BarcodeScanner.open(); else $('#posSearchOem')?.focus();">📷</span>
       </div>`;
   }
 }
@@ -252,15 +252,31 @@ function handleBarcodeScan(val){
   const exact = (db.products || []).find(p =>
     (p.code || '').toLowerCase() === q ||
     (p.oemNo || '').toLowerCase() === q ||
-    (p.barcode || '').toLowerCase() === q
+    (p.barcode || '').toLowerCase() === q ||
+    (Array.isArray(p.altNos) && p.altNos.some(a => String(a).toLowerCase() === q))
   );
   if(exact){
     addToCart(exact.id);
     state.search = '';
-    const inp = $('#posSearch');
+    const inp = $('#posSearch') || $('#posSearchOem');
     if(inp) inp.value = '';
     renderGrid();
+    if(typeof toast === 'function') toast(`✅ ${exact.name || exact.nameEn} Cart එකට එකතු කරන ලදී`, 'ok');
+  } else {
+    state.search = (val || '').trim();
+    const inp = $('#posSearch') || $('#posSearchOem');
+    if(inp) inp.value = state.search;
+    renderGrid();
   }
+}
+
+if(typeof window !== 'undefined' && !window._barcodeScannedListenerAttached){
+  window.addEventListener('barcodeScanned', (e) => {
+    if(e && e.detail && e.detail.code){
+      handleBarcodeScan(e.detail.code);
+    }
+  });
+  window._barcodeScannedListenerAttached = true;
 }
 
 function handleOemScan(val){
@@ -1758,8 +1774,21 @@ async function executeSaleRecord(total, method, paid, change, cardRef='', notes=
   /* 10. Show receipt */
   showReceipt(finalSale);
 
-  /* 11. Thermal Print if enabled */
-  if(doPrint){
+  /* 11. Hardware: Cash Drawer & Thermal Print */
+  if(window.Printer && window.Printer.isConnected){
+    // Auto-open cash drawer on cash sales if enabled
+    if(method === 'cash' && window.Printer.autoDrawer){
+      window.Printer.openCashDrawer().catch(err => console.warn('Cash drawer kickout error:', err));
+    }
+    // Auto-print receipt directly over Bluetooth ESC/POS
+    if(doPrint && window.Printer.autoPrint){
+      window.Printer.printReceipt(finalSale).catch(err => {
+        console.error('Bluetooth thermal print error, falling back to browser print:', err);
+        window.print();
+      });
+    }
+  } else if(doPrint){
+    // Fallback to browser print dialog
     setTimeout(() => {
       window.print();
     }, 400);
@@ -1772,7 +1801,17 @@ async function executeSaleRecord(total, method, paid, change, cardRef='', notes=
   toast('බිල්පත ' + finalSale.no + ' සම්පූර්ණ විය ✅');
 }
 
+function reprintCurrentReceipt(){
+  if(window._lastReceiptSale && window.Printer && window.Printer.isConnected){
+    window.Printer.printReceipt(window._lastReceiptSale);
+  } else {
+    window.print();
+  }
+}
+window.reprintCurrentReceipt = reprintCurrentReceipt;
+
 function showReceipt(s){
+  window._lastReceiptSale = s;
   const db = DB || {};
   const shop = db.shop || { name: 'Auto Parts Lanka', addr: '', phone: '', footer: '' };
   const hasWarrantyInfo = s.itemSerials && Object.keys(s.itemSerials).length > 0;
@@ -1849,7 +1888,7 @@ function showReceipt(s){
   </div>`;
 
   openModal('🧾 බිල්පත','Receipt — ' + s.no, body,
-    `<button class="btn btn-primary" onclick="window.print()" style="flex:1.2;font-weight:700">🖨️ Thermal Print</button>
+    `<button class="btn btn-primary" onclick="reprintCurrentReceipt()" style="flex:1.2;font-weight:700">🖨️ Print Receipt</button>
      <button class="btn" onclick="closeModal()" style="flex:1">වසන්න</button>`);
 }
 
