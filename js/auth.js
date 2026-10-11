@@ -18,14 +18,14 @@ window.saveNewPassword = saveNewPassword;
    One-time Cache Invalidation for Auth Migration (FIX 2)
    ========================================================= */
 (function clearOldUserCache(){
-  if(localStorage.getItem('pos.authMigrationDone') !== 'v1'){
+  if(localStorage.getItem('pos.authMigrationDone') !== 'v2'){
     Object.keys(localStorage).forEach(k => {
       if(k.startsWith('pos.localDB.') || k === 'autoparts_pos_db'){
         localStorage.removeItem(k);
       }
     });
-    localStorage.setItem('pos.authMigrationDone', 'v1');
-    console.log('🧹 Purged legacy user/localDB cache for Firebase Auth migration.');
+    localStorage.setItem('pos.authMigrationDone', 'v2');
+    console.log('🧹 Purged legacy user/localDB cache for Firebase Auth migration (v2).');
   }
 })();
 
@@ -146,6 +146,21 @@ function showForgotHelp(){
 function initLoginEnhancements(){
   const pass = document.getElementById('lPass');
   const userInp = document.getElementById('lUser');
+  const errEl = document.getElementById('lErr');
+
+  // Immediately clear error when typing
+  if(userInp && !userInp.dataset.boundInput){
+    userInp.dataset.boundInput = '1';
+    userInp.addEventListener('input', () => {
+      if(errEl) errEl.textContent = '';
+    });
+  }
+  if(pass && !pass.dataset.boundInput){
+    pass.dataset.boundInput = '1';
+    pass.addEventListener('input', () => {
+      if(errEl) errEl.textContent = '';
+    });
+  }
 
   if(userInp && !userInp.dataset.boundEnter){
     userInp.dataset.boundEnter = '1';
@@ -196,9 +211,9 @@ async function doLogin(){
   const txt = document.getElementById('loginBtnText');
   const spn = document.getElementById('loginBtnSpinner');
 
-  const uInp = $('#lUser');
-  const pInp = $('#lPass');
-  const errEl = $('#lErr');
+  const uInp = document.getElementById('lUser');
+  const pInp = document.getElementById('lPass');
+  const errEl = document.getElementById('lErr');
 
   const u = uInp ? uInp.value.trim() : '';
   const p = pInp ? pInp.value.trim() : '';
@@ -222,15 +237,35 @@ async function doLogin(){
     }
 
     // 2. Resolve user email for Firebase Auth
-    let email = u.includes('@') ? u.toLowerCase() : `${u.toLowerCase()}@autoparts.local`;
+    function isSuperAdminIdentifier(identifier){
+      if(!identifier) return false;
+      const s = String(identifier).trim().toLowerCase();
+      return (
+        s === 'info.dimuthudishan2002@gmail.com' ||
+        s === 'superadmin' ||
+        s === 'superadmin@autoparts.local' ||
+        s === 'superadmin@autoparts.lk' ||
+        s === 'dimuthu'
+      );
+    }
+
+    const normalized = u.toLowerCase();
+    let email = normalized;
+    if(isSuperAdminIdentifier(normalized)){
+      email = 'info.dimuthudishan2002@gmail.com';
+    } else if(!normalized.includes('@')){
+      email = `${normalized}@autoparts.local`;
+    }
+
     const db = window.DB || {};
     let localUser = (db.users || []).find(x => 
       !x.deleted && (
-        (x.username && x.username.toLowerCase() === u.toLowerCase()) ||
-        (x.email && x.email.toLowerCase() === u.toLowerCase())
+        (x.username && x.username.toLowerCase() === normalized) ||
+        (x.email && x.email.toLowerCase() === email) ||
+        (isSuperAdminIdentifier(normalized) && (x.role === 'superadmin' || x.username === 'superadmin'))
       )
     );
-    if(localUser && localUser.email){
+    if(localUser && localUser.email && !isSuperAdminIdentifier(normalized) && !u.includes('@')){
       email = localUser.email;
     }
 
@@ -276,6 +311,8 @@ async function doLogin(){
       window.Security.clearAttempts(u);
     }
 
+    const isSuper = isSuperAdminIdentifier(normalized) || isSuperAdminIdentifier(email) || (localUser && localUser.role === 'superadmin');
+
     // 6. Locate User Document (by Firebase Auth UID)
     let user = (db.users || []).find(x => x.id === authUid || x.authUid === authUid);
     if(!user && window.FB.fbGetDirect){
@@ -289,23 +326,74 @@ async function doLogin(){
       } catch(e){}
     }
     if(!user && localUser){
-      user = { ...localUser, id: authUid, authUid: authUid };
+      user = { ...localUser, id: authUid, authUid: authUid, email: email };
     }
     if(!user){
       user = {
         id: authUid,
         authUid: authUid,
-        username: u,
-        role: (u.toLowerCase().includes('super') ? 'superadmin' : (u.toLowerCase().includes('admin') ? 'admin' : 'cashier')),
-        name: u,
-        shopId: 'SHOP-001'
+        username: isSuper ? 'superadmin' : u,
+        email: email,
+        role: isSuper ? 'superadmin' : (normalized.includes('admin') ? 'admin' : 'cashier'),
+        name: isSuper ? 'ඩිමුතු දිශාන් (Super Admin)' : u,
+        shopId: isSuper ? null : 'SHOP-001'
       };
     }
 
-    if(!user.permissions || !Array.isArray(user.permissions)){
+    // ⭐ Strict Super Admin Enforcement:
+    if(isSuper || email === 'info.dimuthudishan2002@gmail.com' || (user && user.email === 'info.dimuthudishan2002@gmail.com')){
+      user.role = 'superadmin';
+      user.shopId = null;
+      user.email = 'info.dimuthudishan2002@gmail.com';
+      user.username = 'superadmin';
+      user.name = 'ඩිමුතු දිශාන් (Super Admin)';
+      user.active = true;
+      user.locked = false;
+      user.permissions = [
+        'billing', 'dashboard', 'pos', 'inventory', 'customers', 'lowstock',
+        'grn', 'returns', 'serial-search', 'shifts', 'reports', 'shops',
+        'profile', 'settings', 'staff', 'credit', 'discounts',
+        'price-override', 'void-sale', 'delete-product'
+      ];
+    } else if(!user.permissions || !Array.isArray(user.permissions)){
       user.permissions = (typeof getDefaultPermissionsForRole === 'function')
         ? getDefaultPermissionsForRole(user.role)
         : ['billing','dashboard','customers','lowstock','profile'];
+    }
+
+    // ⭐ Auto-sync user document to Firestore users/{authUid}
+    if(window.FB && typeof window.FB.fbSetDirect === 'function'){
+      try {
+        await window.FB.fbSetDirect('users', authUid, {
+          id: authUid,
+          authUid: authUid,
+          name: user.name,
+          username: user.username,
+          email: user.email,
+          role: user.role,
+          permissions: user.permissions,
+          shopId: user.shopId,
+          active: true,
+          locked: false,
+          updatedAt: new Date().toISOString()
+        });
+        console.log('✅ Synchronized user profile with Firestore users/' + authUid);
+      } catch(syncErr){
+        console.warn('⚠️ Could not sync user doc to Firestore:', syncErr);
+      }
+    }
+
+    // Update in-memory db.users
+    if(db.users && Array.isArray(db.users)){
+      const existingIdx = db.users.findIndex(x => x.id === authUid || x.authUid === authUid || (isSuper && x.role === 'superadmin'));
+      if(existingIdx >= 0){
+        db.users[existingIdx] = { ...db.users[existingIdx], ...user };
+      } else {
+        db.users.push(user);
+      }
+      if(window.DB && typeof window.DB.saveToLocal === 'function'){
+        window.DB.saveToLocal('users');
+      }
     }
 
     state.user = user;
@@ -630,6 +718,10 @@ if(window._pendingQuick){
   quick(pendingRole);
 } else if(window._pendingLogin){
   window._pendingLogin = false;
-  doLogin();
+  const curU = document.getElementById('lUser') ? document.getElementById('lUser').value.trim() : '';
+  const curP = document.getElementById('lPass') ? document.getElementById('lPass').value.trim() : '';
+  if(curU && curP){
+    doLogin();
+  }
 }
 

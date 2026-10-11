@@ -426,8 +426,9 @@ async function submitAssignAdmin(shopId){
     if(!db.users) db.users = [];
     db.users.push(newAdmin);
 
+    const targetId = newAdmin.authUid || newAdmin.id;
     if(window.FB && window.FB.fbSet){
-      await window.FB.fbSet(window.FB.COL.users, newAdmin.id, newAdmin);
+      await window.FB.fbSet(window.FB.COL.users, targetId, newAdmin);
     }
   } else {
     const adminId = $('#selExistingAdmin')?.value;
@@ -436,11 +437,12 @@ async function submitAssignAdmin(shopId){
       return;
     }
 
-    const u = (db.users || []).find(x => x.id === adminId);
+    const u = (db.users || []).find(x => x.id === adminId || x.authUid === adminId);
     if(u){
       u.shopId = shopId;
+      const uid = u.authUid || u.id;
       if(window.FB && window.FB.fbUpdate){
-        await window.FB.fbUpdate(window.FB.COL.users, u.id, { shopId: shopId });
+        await window.FB.fbUpdate(window.FB.COL.users, uid, { shopId: shopId });
       }
     }
   }
@@ -722,8 +724,9 @@ async function submitAddStaffForShop(shopId){
   if(!db.users) db.users = [];
   db.users.push(newUser);
 
+  const targetId = newUser.authUid || newUser.id;
   if(window.FB && window.FB.fbSet){
-    await window.FB.fbSet(window.FB.COL.users, newUser.id, newUser);
+    await window.FB.fbSet(window.FB.COL.users, targetId, newUser);
   }
   if(typeof saveDB === 'function') saveDB();
 

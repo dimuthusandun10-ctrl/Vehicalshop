@@ -16,6 +16,23 @@ const Offline = {
       this.queue = [];
     }
 
+    // One-time cleanup for legacy user ID queue items (e.g. U2, U3)
+    if(localStorage.getItem('pos.uidMigrationDone') !== 'v1'){
+      const oldIdPattern = /^U\d+$/;
+      const initialLen = this.queue.length;
+      this.queue = this.queue.filter(item => {
+        if(item.collection === 'users' && oldIdPattern.test(item.docId)){
+          return false;
+        }
+        return true;
+      });
+      if(this.queue.length !== initialLen){
+        this.persist();
+        console.log(`🧹 Dropped ${initialLen - this.queue.length} stale user queue items`);
+      }
+      localStorage.setItem('pos.uidMigrationDone', 'v1');
+    }
+
     // 2. Listen to browser network state transitions
     if(typeof window !== 'undefined'){
       window.addEventListener('online', () => this.onOnline());
@@ -172,10 +189,19 @@ const Offline = {
           this.queue = this.queue.filter(q => q.id !== item.id);
         }
       } catch(e) {
+        // If permission-denied on 'users' collection — drop silently
+        if((e.code === 'permission-denied' || (e.message && e.message.toLowerCase().includes('permission'))) && item.collection === 'users'){
+          console.warn('🗑️ Dropping denied user update:', item.docId);
+          this.queue = this.queue.filter(q => q.id !== item.id);
+          this.persist();
+          continue; // don't count as failure, move on
+        }
+
         item.attempts = (item.attempts || 0) + 1;
         console.warn(`Sync attempt ${item.attempts} failed for ${item.collection}:`, e.message);
         if(item.attempts >= 5){
-          console.error('❌ Max attempts reached for queue item:', item);
+          console.warn('❌ Max attempts reached, dropping queue item:', item.id);
+          this.queue = this.queue.filter(q => q.id !== item.id);
           failed.push(item);
         }
       }

@@ -124,7 +124,7 @@ var INITIAL_SHOPS = [
 var INITIAL_USERS = [
   {
     id:          'U1',
-    name:        'සුපිරි පරිපාලක',
+    name:        'ඩිමුතු දිශාන් (Super Admin)',
     username:    'superadmin',
     password:    '$2a$10$c2b5qGhR4T0syGShhjaAzurwj8IuUUHPw5Mo2Kn/N.qRYN7./7Eh.',
     role:        'superadmin',
@@ -136,7 +136,7 @@ var INITIAL_USERS = [
     lockedBy:    null,
     lockedAt:    null,
     phone:       '0770000001',
-    email:       'superadmin@autoparts.lk',
+    email:       'info.dimuthudishan2002@gmail.com',
     createdAt:   '2026-01-01T00:00:00.000Z',
     createdBy:   'system'
   },

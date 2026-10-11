@@ -45,6 +45,19 @@ function initApp(){
     }
   } catch(e){}
 
+  // One-time cleanup for legacy user ID queue items (e.g. U2, U3)
+  if(localStorage.getItem('pos.uidMigrationDone') !== 'v1'){
+    try {
+      const q = JSON.parse(localStorage.getItem('pos.syncQueue') || '[]');
+      const cleaned = q.filter(item => !(item.collection === 'users' && /^U\d+$/.test(item.docId)));
+      if(cleaned.length !== q.length){
+        localStorage.setItem('pos.syncQueue', JSON.stringify(cleaned));
+        console.log(`🧹 Dropped ${q.length - cleaned.length} stale user queue items`);
+      }
+    } catch(e){}
+    localStorage.setItem('pos.uidMigrationDone', 'v1');
+  }
+
   if(window.Offline && typeof window.Offline.init === 'function'){
     window.Offline.init();
   }

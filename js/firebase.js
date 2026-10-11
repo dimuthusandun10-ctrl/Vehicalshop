@@ -72,7 +72,9 @@ async function initFirebase(){
 async function fbSignIn(email, password){
   if(!_fbReady) await initFirebase();
   if(!_fbAuth || !_fbModules?.authMod) throw new Error('Firebase Auth unavailable');
-  return await _fbModules.authMod.signInWithEmailAndPassword(_fbAuth, email, password);
+  const res = await _fbModules.authMod.signInWithEmailAndPassword(_fbAuth, email, password);
+  _fbPermissionDenied = false;
+  return res;
 }
 
 async function fbSignOut(){
@@ -416,6 +418,7 @@ window.FB = {
   fbDeleteDirect,
   fbWatch,
   isPermissionDenied,
+  resetPermissionDenied: () => { _fbPermissionDenied = false; },
   currentShopId,
   shopQuery,
   shopAdd,

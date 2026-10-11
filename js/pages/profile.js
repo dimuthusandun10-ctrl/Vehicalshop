@@ -306,7 +306,7 @@ function renderStaffControlSection(){
               </td>
               <td style="text-align:right">
                 <div class="staff-actions" style="justify-content:flex-end">
-                  <button class="btn btn-sm" onclick="openUserActionsMenu('${u.id}')" title="ක්‍රියා (Actions)" style="font-weight:700;font-size:16px;padding:3px 10px;line-height:1">⋯</button>
+                  <button class="btn btn-sm" onclick="openUserActionsMenu('${u.authUid || u.id}')" title="ක්‍රියා (Actions)" style="font-weight:700;font-size:16px;padding:3px 10px;line-height:1">⋯</button>
                 </div>
               </td>
             </tr>`;
@@ -441,11 +441,12 @@ async function submitChangePassword(){
   const hashed = window.Security ? await window.Security.hashPassword(newP) : newP;
 
   const db = window.DB || {};
-  const user = (db.users || []).find(u => u.id === state.user.id);
+  const user = (db.users || []).find(u => u.id === state.user.id || u.authUid === state.user.authUid);
   if(user){
     user.password = hashed;
+    const uid = user.authUid || user.id;
     if(window.FB && window.FB.fbUpdate){
-      await window.FB.fbUpdate(window.FB.COL.users, user.id, { password: hashed });
+      await window.FB.fbUpdate(window.FB.COL.users, uid, { password: hashed });
     }
     if(typeof saveDB === 'function') saveDB();
   }
@@ -493,13 +494,14 @@ async function saveEditProfile(){
   if(!name){ toast('කරුණාකර නම ඇතුළත් කරන්න', 'err'); return; }
 
   const db = window.DB || {};
-  const user = (db.users || []).find(u => u.id === state.user.id);
+  const user = (db.users || []).find(u => u.id === state.user.id || u.authUid === state.user.authUid);
   if(user){
     user.name = name;
     user.phone = phone;
     user.email = email;
+    const uid = user.authUid || user.id;
     if(window.FB && window.FB.fbUpdate){
-      await window.FB.fbUpdate(window.FB.COL.users, user.id, { name, phone, email });
+      await window.FB.fbUpdate(window.FB.COL.users, uid, { name, phone, email });
     }
     if(typeof saveDB === 'function') saveDB();
   }
@@ -876,10 +878,10 @@ async function saveNewUser(){
    ========================================================= */
 function openEditUserModal(userId){
   const db = window.DB || {};
-  const u = (db.users || []).find(x => x.id === userId);
+  const u = (db.users || []).find(x => x.id === userId || x.authUid === userId);
   if(!u) return;
 
-  const isSelf = u.id === state.user.id;
+  const isSelf = u.id === state.user.id || u.authUid === state.user.authUid;
   const isSuper = state.user.role === 'superadmin';
   const canEditRole = isSuper && !isSelf;
 
@@ -921,7 +923,7 @@ function openEditUserModal(userId){
      ${permHtml}
    </div>`,
   `<button class="btn" onclick="closeModal()">අවලංගු</button>
-   <button class="btn btn-primary" onclick="saveEditedUser('${u.id}')">💾 සුරකින්න</button>`,
+   <button class="btn btn-primary" onclick="saveEditedUser('${u.authUid || u.id}')">💾 සුරකින්න</button>`,
   true);
   setTimeout(updatePermCountBadge, 50);
 }
@@ -942,8 +944,8 @@ async function saveEditedUser(userId){
     return;
   }
 
-  const isSelf = userId === state.user.id;
-  const u = (db.users || []).find(x => x.id === userId);
+  const isSelf = userId === state.user.id || userId === state.user.authUid;
+  const u = (db.users || []).find(x => x.id === userId || x.authUid === userId);
   if(u){
     u.name = name;
     u.username = username;
@@ -967,8 +969,9 @@ async function saveEditedUser(userId){
       updatePayload.permissions = newPerms;
     }
 
+    const uid = u.authUid || u.id;
     if(window.FB && window.FB.fbUpdate){
-      await window.FB.fbUpdate(window.FB.COL.users, u.id, updatePayload);
+      await window.FB.fbUpdate(window.FB.COL.users, uid, updatePayload);
     }
     if(typeof saveDB === 'function') saveDB();
   }
@@ -1043,8 +1046,9 @@ function canDeleteUser(targetUser){
 
 function openUserActionsMenu(userId){
   const db = window.DB || {};
-  const target = (db.users || []).find(u => u.id === userId);
+  const target = (db.users || []).find(u => u.id === userId || u.authUid === userId);
   if(!target) return;
+  const uid = target.authUid || target.id;
   
   const canEdit = canEditUser(target);
   const canLock = canLockUser(target);
@@ -1058,26 +1062,26 @@ function openUserActionsMenu(userId){
     'Actions',
   `<div class="action-menu">
      ${canEdit ? `
-       <button class="action-item" onclick="closeModal();openEditUserModal('${userId}')">
+       <button class="action-item" onclick="closeModal();openEditUserModal('${uid}')">
          <span class="ai">✏️</span>
          <div><b>සංස්කරණය කරන්න</b><small>Edit user details</small></div>
        </button>` : ''}
      
      ${canReset ? `
-       <button class="action-item" onclick="closeModal();openResetPasswordModal('${userId}')">
+       <button class="action-item" onclick="closeModal();openResetPasswordModal('${uid}')">
          <span class="ai">🔑</span>
          <div><b>මුරපදය Reset කරන්න</b><small>Reset password</small></div>
        </button>` : ''}
      
      ${canLock ? `
-       <button class="action-item" onclick="closeModal();${isLocked ? `unlockUser('${userId}')` : `openLockUserModal('${userId}')`}">
+       <button class="action-item" onclick="closeModal();${isLocked ? `unlockUser('${uid}')` : `openLockUserModal('${uid}')`}">
          <span class="ai">${isLocked ? '🔓' : '🔒'}</span>
          <div><b>${isLocked ? 'Unlock කරන්න' : 'Lock කරන්න'}</b>
          <small>${isLocked ? 'Unlock user account' : 'Lock user account'}</small></div>
        </button>` : ''}
      
      ${canDel ? `
-       <button class="action-item danger" onclick="closeModal();deleteUser('${userId}')">
+       <button class="action-item danger" onclick="closeModal();deleteUser('${uid}')">
          <span class="ai">🗑️</span>
          <div><b>මකා දමන්න</b><small>Delete user</small></div>
        </button>` : ''}
@@ -1091,7 +1095,7 @@ function openUserActionsMenu(userId){
 
 function openResetPasswordModal(userId){
   const db = window.DB || {};
-  const targetUser = (db.users || []).find(u => u.id === userId);
+  const targetUser = (db.users || []).find(u => u.id === userId || u.authUid === userId);
   if(!targetUser) return;
   
   // Permission check
@@ -1246,7 +1250,8 @@ async function confirmResetPassword(userId){
   const usersCol = (window.FB && window.FB.COL && window.FB.COL.users) ? window.FB.COL.users : 'users';
   if(updateFn){
     try {
-      await updateFn(usersCol, userId, { 
+      const uid = targetUser ? (targetUser.authUid || targetUser.id) : userId;
+      await updateFn(usersCol, uid, { 
         password: hashed,
         passwordResetAt: nowIso,
         passwordResetBy: currentUserId
@@ -1305,13 +1310,13 @@ async function logActivity(type, data){
    LOCK / UNLOCK USER WITH MESSAGE (STAFF CONTROL)
    ========================================================= */
 function openLockUserModal(userId){
-  if(userId === state.user.id){
+  if(userId === state.user.id || userId === state.user.authUid){
     toast('⚠️ ඔබට ඔබගේම ගිණුම අගුළු දැමිය නොහැක (Cannot lock self)', 'warn');
     return;
   }
 
   const db = window.DB || {};
-  const u = (db.users || []).find(x => x.id === userId);
+  const u = (db.users || []).find(x => x.id === userId || x.authUid === userId);
   if(!u) return;
 
   // Security: Admin cannot lock another admin or superadmin
@@ -1397,8 +1402,9 @@ async function submitLockUser(userId){
   u.lockedBy = lockerName;
   u.lockedAt = nowIso;
 
+  const uid = u.authUid || u.id;
   if(window.FB && window.FB.fbUpdate){
-    await window.FB.fbUpdate(window.FB.COL.users, u.id, {
+    await window.FB.fbUpdate(window.FB.COL.users, uid, {
       locked: true,
       active: false,
       lockMessage: msg,
@@ -1415,7 +1421,7 @@ async function submitLockUser(userId){
 
 async function unlockUser(userId){
   const db = window.DB || {};
-  const u = (db.users || []).find(x => x.id === userId);
+  const u = (db.users || []).find(x => x.id === userId || x.authUid === userId);
   if(!u) return;
 
   u.locked = false;
@@ -1424,8 +1430,9 @@ async function unlockUser(userId){
   u.lockedBy = null;
   u.lockedAt = null;
 
+  const uid = u.authUid || u.id;
   if(window.FB && window.FB.fbUpdate){
-    await window.FB.fbUpdate(window.FB.COL.users, u.id, {
+    await window.FB.fbUpdate(window.FB.COL.users, uid, {
       locked: false,
       active: true,
       lockMessage: '',
@@ -1459,13 +1466,13 @@ function deleteUser(userId){
     toast('පරිශීලකයන් මැකීමට අවසර ඇත්තේ Super Admin ට පමණි', 'err');
     return;
   }
-  if(userId === state.user.id){
+  if(userId === state.user.id || userId === state.user.authUid){
     toast('ඔබට ඔබගේම ගිණුම මැකිය නොහැක', 'err');
     return;
   }
 
   const db = window.DB || {};
-  const u = (db.users || []).find(x => x.id === userId);
+  const u = (db.users || []).find(x => x.id === userId || x.authUid === userId);
   if(!u) return;
 
   if(u.role === 'superadmin'){
@@ -1487,18 +1494,19 @@ function deleteUser(userId){
      </p>
    </div>`,
   `<button class="btn" onclick="closeModal()">අවලංගු</button>
-   <button class="btn btn-red" onclick="confirmDeleteUser('${u.id}')">🗑️ ඔව්, මකන්න</button>`,
+   <button class="btn btn-red" onclick="confirmDeleteUser('${u.authUid || u.id}')">🗑️ ඔව්, මකන්න</button>`,
   false);
 }
 
 async function confirmDeleteUser(userId){
   const db = window.DB || {};
-  const u = (db.users || []).find(x => x.id === userId);
+  const u = (db.users || []).find(x => x.id === userId || x.authUid === userId);
   if(u){
     u.deleted = true;
     u.active = false;
+    const uid = u.authUid || u.id;
     if(window.FB && window.FB.fbUpdate){
-      await window.FB.fbUpdate(window.FB.COL.users, u.id, { deleted: true, active: false });
+      await window.FB.fbUpdate(window.FB.COL.users, uid, { deleted: true, active: false });
     }
     if(typeof saveDB === 'function') saveDB();
   }

@@ -156,9 +156,13 @@ Object.assign(DB, {
       this.persistLocal();
     }
 
-    // ⭐ STEP 2: Try Firestore (Non-blocking on boot before login)
-    if(background || !window.state?.user){
-      setTimeout(() => this.syncRemote(shopId), 200);
+    // ⭐ STEP 2: Try Firestore (Non-blocking background sync)
+    if(!window.state?.user){
+      // Do not probe protected collections before authentication
+      return;
+    }
+    if(background){
+      setTimeout(() => this.syncRemote(shopId), 100);
       return;
     }
 
@@ -183,8 +187,8 @@ Object.assign(DB, {
         const shops = await window.FB.fbGetAll(window.FB.COL.shops);
         if(shops && shops.length) this.shops = shops;
 
-        // Users — filter by shop (except superadmin or before login)
-        if(window.state?.user?.role === 'superadmin' || !window.state?.user){
+        // Users — superadmin loads all users; others load their own shop
+        if(window.state?.user && window.state.user.role === 'superadmin'){
           const users = await window.FB.fbGetAll(window.FB.COL.users);
           if(users && users.length){
             this.users = users.map(u => {
@@ -210,6 +214,8 @@ Object.assign(DB, {
             });
           }
         }
+        console.log('📥 Loaded users:', this.users.length);
+        this.persistLocal();
 
         // All other collections — strictly filtered by shopId
         if(hasFs && shopId){

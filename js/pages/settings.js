@@ -67,15 +67,19 @@ function pgSettings(){
       <table class="users-table">
         <thead><tr><th>නම</th><th>පරිශීලක නාමය</th><th>තනතුර</th><th>තත්ත්වය</th><th></th></tr></thead>
         <tbody>
-        ${(db.users||[]).map(u=>`<tr>
+        ${(db.users||[]).map(u=>{
+          const uidVal = u.authUid || u.id;
+          const curUid = state.user ? (state.user.authUid || state.user.id) : '';
+          return `<tr>
           <td data-label="නම"><b>${esc(u.name)}</b></td>
           <td data-label="පරිශීලක නාමය"><code>${esc(u.username)}</code></td>
           <td data-label="තනතුර"><span class="badge ${u.role}">${ROLE_EN[u.role]||u.role}</span></td>
           <td data-label="තත්ත්වය"><span class="pill ${u.active?'ok':'bad'}">${u.active?'ක්‍රියාකාරී':'අක්‍රිය'}</span></td>
           <td data-label="" style="white-space:nowrap">
-            <button class="btn btn-sm" onclick="editUser('${u.id}')">✏️</button>
-            ${u.id!==state.user.id?`<button class="btn btn-sm btn-red" onclick="delUser('${u.id}')">🗑️</button>`:''}
-          </td></tr>`).join('')}
+            <button class="btn btn-sm" onclick="editUser('${uidVal}')">✏️</button>
+            ${uidVal!==curUid?`<button class="btn btn-sm btn-red" onclick="delUser('${uidVal}')">🗑️</button>`:''}
+          </td></tr>`;
+        }).join('')}
         </tbody>
       </table>
       </div>
@@ -184,7 +188,7 @@ function editUser(id){
     return openAddUserModal();
   }
   const db = window.DB || {};
-  const u = id ? (db.users||[]).find(x => x.id === id) : { name:'', username:'', password:'', role:'cashier', active:true };
+  const u = id ? (db.users||[]).find(x => x.id === id || x.authUid === id) : { name:'', username:'', password:'', role:'cashier', active:true };
 
   openModal(id ? '✏️ පරිශීලකයා සංස්කරණය' : '➕ නව පරිශීලකයෙක්', 'User Profile',
   `<div class="grid2">
@@ -224,25 +228,27 @@ async function saveUser(id){
   const db = window.DB || {};
   if(!db.users) db.users = [];
 
-  const existing = db.users.find(x => x.username === username && x.id !== id);
+  const existing = db.users.find(x => x.username === username && x.id !== id && x.authUid !== id);
   if(existing){ toast('මෙම username එක දැනටමත් භාවිතයේ පවතී','err'); return; }
 
   if(id){
-    const u = db.users.find(x => x.id === id);
+    const u = db.users.find(x => x.id === id || x.authUid === id);
     if(u){
       let finalPass = u.password;
       if(password && password !== u.password){
         finalPass = window.Security ? await window.Security.hashPassword(password) : password;
       }
       Object.assign(u, {name, username, password: finalPass, role, active});
-      if(window.FB && window.FB.fbSet) await window.FB.fbSet(window.FB.COL.users, id, u);
+      const uid = u.authUid || u.id;
+      if(window.FB && window.FB.fbSet) await window.FB.fbSet(window.FB.COL.users, uid, u);
     }
   } else {
     const newId = uid('U');
     const finalPass = window.Security ? await window.Security.hashPassword(password) : password;
     const newUser = { id: newId, name, username, password: finalPass, role, active };
     db.users.push(newUser);
-    if(window.FB && window.FB.fbSet) await window.FB.fbSet(window.FB.COL.users, newId, newUser);
+    const targetId = newUser.authUid || newUser.id;
+    if(window.FB && window.FB.fbSet) await window.FB.fbSet(window.FB.COL.users, targetId, newUser);
   }
 
   if(typeof saveDB === 'function') saveDB();
@@ -254,10 +260,12 @@ async function saveUser(id){
 async function delUser(id){
   if(!confirm('මෙම පරිශීලකයා මකා දැමීමට අවශ්‍යද?')) return;
   const db = window.DB || {};
-  db.users = (db.users || []).filter(x => x.id !== id);
+  const target = (db.users || []).find(x => x.id === id || x.authUid === id);
+  const targetId = target ? (target.authUid || target.id) : id;
+  db.users = (db.users || []).filter(x => x.id !== id && x.authUid !== id);
 
   if(window.FB && window.FB.fbDelete){
-    await window.FB.fbDelete(window.FB.COL.users, id);
+    await window.FB.fbDelete(window.FB.COL.users, targetId);
   }
   if(typeof saveDB === 'function') saveDB();
 

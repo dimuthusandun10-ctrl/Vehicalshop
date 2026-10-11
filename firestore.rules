@@ -2,114 +2,220 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions
+    // ═══════════════════════════════════════════════
+    // HELPER FUNCTIONS
+    // ═══════════════════════════════════════════════
+    
     function isSignedIn() {
       return request.auth != null;
     }
 
-    function userDoc() {
+    function hasUserDoc() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+    
+    // User doc ID = request.auth.uid (migrated in Phase 1)
+    function currentUser() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
-
-    function role() {
-      return userDoc().role;
+    
+    function currentRole() {
+      return currentUser().role;
     }
-
-    function shopId() {
-      return userDoc().shopId;
+    
+    function currentShopId() {
+      return currentUser().shopId;
     }
-
-    function isSuper()   { return isSignedIn() && role() == 'superadmin'; }
-    function isAdmin()   { return isSignedIn() && role() == 'admin'; }
-    function isCashier() { return isSignedIn() && role() == 'cashier'; }
-    function isStaff()   { return isSignedIn() && role() in ['cashier','admin','superadmin']; }
-
-    function sameShop(resourceShopId){
-      return isSuper() || (isStaff() && shopId() == resourceShopId);
-    }
-
-    // ============ USERS ============
-    match /users/{uid} {
-      // Read: self, or admin of same shop, or super
-      allow read: if isSignedIn() && (
-        request.auth.uid == uid || 
-        isSuper() || 
-        (isAdmin() && shopId() == resource.data.shopId)
+    
+    function isSuper() {
+      return isSignedIn() && (
+        request.auth.token.email == 'info.dimuthudishan2002@gmail.com' ||
+        (hasUserDoc() && currentRole() == 'superadmin')
       );
+    }
+    
+    function isAdmin() {
+      return isSignedIn() && hasUserDoc() && currentRole() == 'admin';
+    }
+    
+    function isCashier() {
+      return isSignedIn() && hasUserDoc() && currentRole() == 'cashier';
+    }
+    
+    function isStaff() {
+      return isSignedIn() && (isSuper() || isAdmin() || isCashier());
+    }
+    
+    function sameShop(resourceShopId) {
+      return isSuper() || (hasUserDoc() && currentShopId() != null && currentShopId() == resourceShopId);
+    }
+    
+    function isActiveUser() {
+      return isSuper() || (isSignedIn() && hasUserDoc() && currentUser().active == true);
+    }
 
-      // Create: super can create any, admin can create in own shop
-      allow create: if isSuper() || (isAdmin() && request.resource.data.shopId == shopId());
-
-      // Update: super any, admin own shop cashiers, self can update own profile
-      allow update: if isSuper() 
-                 || (isAdmin() && resource.data.shopId == shopId())
-                 || (request.auth.uid == uid 
-                     && request.resource.data.role == resource.data.role  // no role change
-                     && request.resource.data.permissions == resource.data.permissions); // no perm change
-
-      // Delete: super only
+    // ═══════════════════════════════════════════════
+    // USERS COLLECTION
+    // ═══════════════════════════════════════════════
+    
+    match /users/{uid} {
+      // Read: self OR superadmin OR admin (own shop only)
+      allow read: if isSignedIn() && (
+        request.auth.uid == uid ||
+        isSuper() ||
+        (isAdmin() && resource.data.shopId == currentShopId())
+      );
+      
+      // Create: superadmin OR admin (own shop only)
+      allow create: if isSuper() ||
+        (isAdmin() && request.resource.data.shopId == currentShopId());
+      
+      // Update: superadmin any, admin own shop, user can update own profile 
+      // (but NOT change role/permissions)
+      allow update: if isSuper() ||
+        (isAdmin() && resource.data.shopId == currentShopId()) ||
+        (request.auth.uid == uid &&
+         request.resource.data.role == resource.data.role &&
+         request.resource.data.permissions == resource.data.permissions);
+      
+      // Delete: superadmin only
       allow delete: if isSuper();
     }
 
-    // ============ SHOPS ============
+    // ═══════════════════════════════════════════════
+    // SHOPS COLLECTION
+    // ═══════════════════════════════════════════════
+    
     match /shops/{shopId} {
       allow read: if isStaff();
-      allow create: if isSuper();
-      allow update: if isSuper() || (isAdmin() && request.auth.uid in resource.data.adminIds);
+      allow write: if isSuper();
+    }
+
+    // ═══════════════════════════════════════════════
+    // PRODUCTS
+    // ═══════════════════════════════════════════════
+    
+    match /products/{productId} {
+      allow read: if isStaff() && sameShop(resource.data.shopId);
+      allow create: if isSuper() ||
+        (isAdmin() && request.resource.data.shopId == currentShopId());
+      allow update: if isSuper() ||
+        (isAdmin() && sameShop(resource.data.shopId));
       allow delete: if isSuper();
     }
 
-    // ============ PRODUCTS ============
-    match /products/{id} {
+    // ═══════════════════════════════════════════════
+    // SALES
+    // ═══════════════════════════════════════════════
+    
+    match /sales/{saleId} {
       allow read: if isStaff() && sameShop(resource.data.shopId);
-      allow create: if isSuper() || (isAdmin() && sameShop(request.resource.data.shopId));
-      allow update: if isSuper() || (isAdmin() && sameShop(resource.data.shopId));
+      allow create: if isSuper() ||
+        (isStaff() && request.resource.data.shopId == currentShopId());
+      allow update, delete: if isSuper();
+    }
+
+    // ═══════════════════════════════════════════════
+    // CUSTOMERS
+    // ═══════════════════════════════════════════════
+    
+    match /customers/{customerId} {
+      allow read: if isStaff() && sameShop(resource.data.shopId);
+      allow create, update: if isStaff() &&
+        sameShop(request.resource.data.shopId);
+      allow delete: if isAdmin() || isSuper();
+    }
+
+    // ═══════════════════════════════════════════════
+    // GRNS (Goods Received Notes)
+    // ═══════════════════════════════════════════════
+    
+    match /grns/{grnId} {
+      allow read: if isStaff() && sameShop(resource.data.shopId);
+      allow create, update: if isSuper() ||
+        (isAdmin() && sameShop(request.resource.data.shopId));
       allow delete: if isSuper();
     }
 
-    // ============ SALES ============
-    match /sales/{id} {
+    // ═══════════════════════════════════════════════
+    // RETURNS
+    // ═══════════════════════════════════════════════
+    
+    match /returns/{returnId} {
       allow read: if isStaff() && sameShop(resource.data.shopId);
-      allow create: if isStaff() && sameShop(request.resource.data.shopId);
-      allow update: if isSuper() || (isAdmin() && sameShop(resource.data.shopId));
+      allow create, update: if isStaff() &&
+        sameShop(request.resource.data.shopId);
       allow delete: if isSuper();
     }
 
-    // ============ CUSTOMERS ============
-    match /customers/{id} {
+    // ═══════════════════════════════════════════════
+    // SHIFTS
+    // ═══════════════════════════════════════════════
+    
+    match /shifts/{shiftId} {
       allow read: if isStaff() && sameShop(resource.data.shopId);
-      allow create: if isSuper() || (isAdmin() && sameShop(request.resource.data.shopId));
-      allow update: if isSuper() || (isAdmin() && sameShop(resource.data.shopId));
+      allow create, update: if isStaff() &&
+        sameShop(request.resource.data.shopId);
       allow delete: if isSuper();
     }
 
-    // ============ RETURNS ============
-    match /returns/{id} {
+    // ═══════════════════════════════════════════════
+    // CASH MOVEMENTS
+    // ═══════════════════════════════════════════════
+    
+    match /cashMovements/{moveId} {
       allow read: if isStaff() && sameShop(resource.data.shopId);
-      allow create: if isStaff() && sameShop(request.resource.data.shopId);
-      allow update: if isSuper() || (isAdmin() && sameShop(resource.data.shopId));
+      allow create: if isSuper() ||
+        (isStaff() && request.resource.data.shopId == currentShopId());
+      allow delete: if isSuper();
     }
 
-    // ============ GRNS ============
-    match /grns/{id} {
+    // ═══════════════════════════════════════════════
+    // CREDIT PAYMENTS
+    // ═══════════════════════════════════════════════
+    
+    match /creditPayments/{paymentId} {
       allow read: if isStaff() && sameShop(resource.data.shopId);
-      allow create: if isSuper() || (isAdmin() && sameShop(request.resource.data.shopId));
+      allow create: if isSuper() ||
+        (isStaff() && request.resource.data.shopId == currentShopId());
+      allow delete: if isSuper();
     }
 
-    // ============ SHIFTS ============
-    match /shifts/{id} {
+    // ═══════════════════════════════════════════════
+    // SUPPLIERS
+    // ═══════════════════════════════════════════════
+    
+    match /suppliers/{supplierId} {
       allow read: if isStaff() && sameShop(resource.data.shopId);
-      allow create: if isStaff() && sameShop(request.resource.data.shopId);
-      allow update: if isStaff() && sameShop(resource.data.shopId);
+      allow create, update: if isSuper() ||
+        (isAdmin() && sameShop(request.resource.data.shopId));
+      allow delete: if isSuper();
     }
 
-    // ============ CASH MOVEMENTS ============
-    match /cashMovements/{id} {
-      allow read: if isStaff() && sameShop(resource.data.shopId);
-      allow create: if isStaff() && sameShop(request.resource.data.shopId);
+    // ═══════════════════════════════════════════════
+    // DAILY SUMMARY (aggregated data)
+    // ═══════════════════════════════════════════════
+    
+    match /dailySummary/{summaryId} {
+      allow read: if isStaff();
+      allow write: if isSuper() ||
+        (isStaff() && request.resource.data.shopId == currentShopId());
     }
 
-    // ============ DEFAULT DENY ============
+    // ═══════════════════════════════════════════════
+    // ACTIVITY LOG (audit trail)
+    // ═══════════════════════════════════════════════
+    
+    match /activityLog/{logId} {
+      allow read: if isSuper() || isAdmin();
+      allow create: if isStaff();
+      allow update, delete: if isSuper();
+    }
+
+    // ═══════════════════════════════════════════════
+    // DEFAULT DENY — catch-all for unknown paths
+    // ═══════════════════════════════════════════════
+    
     match /{document=**} {
       allow read, write: if false;
     }
