@@ -1190,7 +1190,7 @@ function openCheckout(){
   checkoutState.received = total;
   checkoutState.cardRef = '';
   checkoutState.notes = '';
-  checkoutState.orderNo = 'INV-' + pad(db?.counters?.invoice || 1);
+  checkoutState.orderNo = '';
 
   const printReceipt = localStorage.getItem('pos.printReceipt') !== 'false';
   const customers = db?.customers || [];
@@ -1374,7 +1374,7 @@ function openCheckout(){
   </div>`;
 
   const doOpenCheckoutModal = () => {
-    openModal('💳 ගෙවීම සම්පූර්ණ කරන්න', 'Complete Payment · ' + checkoutState.orderNo, bodyHtml, footerHtml);
+    openModal('💳 ගෙවීම සම්පූර්ණ කරන්න', 'Complete Payment', bodyHtml, footerHtml);
 
     // Setup Keyboard Shortcuts (Feature S1)
     removeCheckoutKeyHandler();
@@ -1620,19 +1620,27 @@ async function executeSaleRecord(total, method, paid, change, cardRef='', notes=
   const custId = checkoutState.custId;
   const cust = (db.customers || []).find(c => c.id === custId);
   const {sub, disc, coreDeduction, tax} = calcTotals();
-  const no = checkoutState.orderNo || ('INV-' + pad(db.counters.invoice = (db.counters.invoice || 0) + 1));
+  const shopId = (typeof currentShopId === 'function' && currentShopId()) ? currentShopId() : (window.state?.user?.shopId || 'SHOP-001');
+
+  // Prevent double-click race condition
+  if(window._isSubmittingSale) return;
+  window._isSubmittingSale = true;
+  const submitBtn = $('#coSubmitBtn');
+  if(submitBtn){
+    submitBtn.disabled = true;
+    submitBtn.textContent = '⏳ සුරකිමින්... (Processing...)';
+  }
 
   /* 1. Get active shift */
   const activeShift = (typeof Shift !== 'undefined' && state.user) ? Shift.getActive(state.user.id) : null;
 
-  /* 2 & 3. Build sale object */
+  /* 2. Build base sale object */
   const sale = {
     id: uid('S'),
-    no,
-    shopId: (typeof currentShopId === 'function' && currentShopId()) ? currentShopId() : (window.state?.user?.shopId || 'SHOP-001'),
+    shopId,
     date: new Date().toISOString(),
     cashier: state.user ? state.user.name : 'කැෂියර්',
-    customerId: checkoutState.custId || null,
+    customerId: custId || null,
     customer: cust?.name || 'වෝක්-ඉන්',
     vehicle: cust?.vehicle || '',
     items: JSON.parse(JSON.stringify(state.cart)),
@@ -1654,38 +1662,77 @@ async function executeSaleRecord(total, method, paid, change, cardRef='', notes=
     shiftId: activeShift ? activeShift.id : null
   };
 
-  /* 4. Reduce stock */
-  sale.items.forEach(it => {
-    const p = db.getProd ? db.getProd(it.pid) : (db.products || []).find(x => x.id === it.pid);
-    if(p){
-      p.qty = Math.max(0, p.qty - it.qty);
-      if(window.FB && window.FB.fbUpdate){
-        window.FB.fbUpdate(window.FB.COL.products, p.id, { qty: p.qty });
-      }
-    }
-  });
+  const customerUpdate = cust ? {
+    id: cust.id,
+    pointsEarned: Math.floor(total / 100),
+    creditAdded: (method === 'credit' ? total : 0)
+  } : null;
 
-  /* Loyalty points & customer credit balance update */
+  let txRes = null;
+  if(window.FB && typeof window.FB.executeSaleTransaction === 'function'){
+    txRes = await window.FB.executeSaleTransaction(sale, state.cart, customerUpdate);
+  } else {
+    const no = 'INV-' + pad(db.counters.invoice = (db.counters.invoice || 0) + 1);
+    sale.no = no;
+    txRes = { ok: true, invoiceNo: no, sale };
+  }
+
+  if(!txRes.ok){
+    window._isSubmittingSale = false;
+    if(submitBtn){
+      submitBtn.disabled = false;
+      submitBtn.textContent = '✅ බිල්පත සම්පූර්ණ කරන්න';
+    }
+
+    if(txRes.code === 'OUT_OF_STOCK'){
+      toast(txRes.message, 'err');
+      if(txRes.productId){
+        const prod = db.getProd ? db.getProd(txRes.productId) : (db.products || []).find(x => x.id === txRes.productId);
+        if(prod && txRes.availableQty != null){
+          prod.qty = txRes.availableQty;
+          if(window.DB && typeof window.DB.persistLocal === 'function') window.DB.persistLocal();
+        }
+      }
+      renderCart();
+      renderGrid();
+      return;
+    }
+
+    toast(`❌ බිල්පත සුරැකීම අසාර්ථක විය: ${txRes.message || 'Error'}`, 'err');
+    return;
+  }
+
+  // Transaction succeeded!
+  window._isSubmittingSale = false;
+  const finalSale = txRes.sale || sale;
+  finalSale.no = txRes.invoiceNo;
+
+  // 3. Update local in-memory products
+  if(txRes.updatedProducts && Array.isArray(txRes.updatedProducts)){
+    txRes.updatedProducts.forEach(u => {
+      const p = db.getProd ? db.getProd(u.id) : (db.products || []).find(x => x.id === u.id);
+      if(p) p.qty = u.newQty;
+    });
+  } else {
+    sale.items.forEach(it => {
+      const p = db.getProd ? db.getProd(it.pid) : (db.products || []).find(x => x.id === it.pid);
+      if(p) p.qty = Math.max(0, (p.qty || 0) - it.qty);
+    });
+  }
+
+  // 4. Update customer loyalty points & credit balance in local memory
   if(cust){
     cust.points = (cust.points || 0) + Math.floor(total / 100);
     if(method === 'credit'){
       cust.creditBalance = (cust.creditBalance || 0) + total;
     }
-    if(window.FB && window.FB.fbUpdate){
-      window.FB.fbUpdate(window.FB.COL.customers, cust.id, {
-        points: cust.points,
-        creditBalance: cust.creditBalance || 0
-      });
-    }
   }
 
-  /* 5. Save to Firestore (or DB fallback) */
+  // 5. Update local sales list & counters
   if(!db.sales) db.sales = [];
-  db.sales.push(sale);
+  db.sales.push(finalSale);
+  if(txRes.nextNum) db.counters.invoice = Math.max(db.counters.invoice || 0, txRes.nextNum);
 
-  if(window.FB && window.FB.fbAdd){
-    await (window.shopAdd ? window.shopAdd(window.FB.COL.sales, sale) : window.FB.fbAdd(window.FB.COL.sales, sale));
-  }
   if(typeof saveDB === 'function') saveDB(true);
   if(window.DB && typeof window.DB._persistLocalNow === 'function') window.DB._persistLocalNow();
 
@@ -1698,6 +1745,7 @@ async function executeSaleRecord(total, method, paid, change, cardRef='', notes=
   window._discVal = '';
   checkoutState.notes = '';
   checkoutState.cardRef = '';
+  checkoutState.orderNo = '';
 
   /* 8. Close modal & mobile cart */
   closeModal();
@@ -1708,7 +1756,7 @@ async function executeSaleRecord(total, method, paid, change, cardRef='', notes=
   renderGrid();
 
   /* 10. Show receipt */
-  showReceipt(sale);
+  showReceipt(finalSale);
 
   /* 11. Thermal Print if enabled */
   if(doPrint){
@@ -1721,7 +1769,7 @@ async function executeSaleRecord(total, method, paid, change, cardRef='', notes=
   if(typeof updateShiftIndicator === 'function') updateShiftIndicator();
 
   /* 13. Toast */
-  toast('බිල්පත ' + sale.no + ' සම්පූර්ණ විය ✅');
+  toast('බිල්පත ' + finalSale.no + ' සම්පූර්ණ විය ✅');
 }
 
 function showReceipt(s){

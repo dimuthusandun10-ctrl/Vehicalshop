@@ -23,7 +23,8 @@ const COL = {
   shifts:    'shifts',
   cashMoves: 'cashMovements',   /* Petty Cash */
   payments:  'creditPayments',  /* Store Credit settle */
-  settings:  'settings'
+  settings:  'settings',
+  counters:  'counters'
 };
 
 let _fbApp = null;
@@ -168,6 +169,239 @@ async function createUserWithoutLogout(email, password, userDoc){
 
 async function fbCreateUser(email, password, userDoc){
   return await createUserWithoutLogout(email, password, userDoc);
+}
+
+/* =====================================================
+   ATOMIC MULTI-DEVICE TRANSACTION: INVOICE COUNTER + STOCK DECREMENT
+   Phase 5: Concurrency Control (Zero Collisions + Zero Overselling)
+   ===================================================== */
+async function executeSaleTransaction(saleData, cartItems, customerUpdate = null){
+  if(!_fbReady) await initFirebase();
+
+  const isOnline = typeof navigator !== 'undefined' && navigator.onLine && _fbReady && _fbDb && _fbModules?.fsMod;
+  if(!isOnline){
+    return executeSaleOffline(saleData, cartItems, customerUpdate);
+  }
+
+  const { runTransaction, doc } = _fbModules.fsMod;
+  const shopId = saleData.shopId || (window.state?.user?.shopId || 'SHOP-001');
+
+  // Aggregate quantities by product ID in case cart contains duplicate line items
+  const itemMap = new Map();
+  for(const it of (cartItems || [])){
+    const pid = it.pid || it.id;
+    if(!pid) continue;
+    const prev = itemMap.get(pid);
+    if(prev){
+      prev.qty += Number(it.qty || 1);
+    } else {
+      itemMap.set(pid, { ...it, pid, qty: Number(it.qty || 1) });
+    }
+  }
+  const uniqueItems = Array.from(itemMap.values());
+
+  try {
+    const txResult = await runTransaction(_fbDb, async (transaction) => {
+      // ───────────────────────────────────────────────
+      // 1. ATOMIC READS (Firestore requires ALL reads first!)
+      // ───────────────────────────────────────────────
+
+      // 1.1 Read Atomic Invoice Counter for this shop
+      const counterRef = doc(_fbDb, 'counters', `invoices_${shopId}`);
+      const counterDoc = await transaction.get(counterRef);
+
+      let nextNum = 1;
+      if(counterDoc.exists()){
+        nextNum = (Number(counterDoc.data().current) || 0) + 1;
+      } else {
+        // Bootstrap counter from existing sales in local DB or highest invoice number
+        const localMax = (window.DB?.sales || [])
+          .filter(s => (s.shopId === shopId || !s.shopId) && s.no)
+          .map(s => {
+            const m = String(s.no).match(/\d+/);
+            return m ? parseInt(m[0], 10) : 0;
+          })
+          .reduce((m, n) => Math.max(m, n), 0);
+        const seedVal = Math.max(localMax, Number(window.DB?.counters?.invoice || 0));
+        nextNum = (seedVal || 0) + 1;
+      }
+
+      const invoiceNo = 'INV-' + String(nextNum).padStart(4, '0');
+
+      // 1.2 Read & Atomically Validate Product Stocks in Cloud
+      const productUpdates = [];
+      for(const it of uniqueItems){
+        const prodRef = doc(_fbDb, 'products', it.pid);
+        const prodSnap = await transaction.get(prodRef);
+        if(!prodSnap.exists()){
+          const err = new Error(`භාණ්ඩය Cloud Database තුළ හමු නොවීය (Product not found): ${it.name || it.pid}`);
+          err.code = 'PRODUCT_NOT_FOUND';
+          throw err;
+        }
+
+        const prodData = prodSnap.data();
+        const availableQty = Number(prodData.qty != null ? prodData.qty : 0);
+        const requestedQty = Number(it.qty || 1);
+
+        if(availableQty < requestedQty){
+          const err = new Error(
+            `තොග ප්‍රමාණවත් නොවේ (Insufficient stock)! "${prodData.name || it.name}" සඳහා Cloud හි ඉතිරිව ඇත්තේ ${availableQty}ක් පමණි (ඉල්ලූ ප්‍රමාණය: ${requestedQty}).`
+          );
+          err.code = 'OUT_OF_STOCK';
+          err.productId = it.pid;
+          err.productName = prodData.name || it.name;
+          err.availableQty = availableQty;
+          err.requestedQty = requestedQty;
+          throw err;
+        }
+
+        productUpdates.push({
+          ref: prodRef,
+          id: it.pid,
+          name: prodData.name || it.name,
+          currentQty: availableQty,
+          newQty: availableQty - requestedQty,
+          item: it
+        });
+      }
+
+      // 1.3 Read Customer Document if customer update required
+      let custSnap = null;
+      let custRef = null;
+      if(customerUpdate && customerUpdate.id){
+        custRef = doc(_fbDb, 'customers', customerUpdate.id);
+        custSnap = await transaction.get(custRef);
+      }
+
+      // ───────────────────────────────────────────────
+      // 2. ATOMIC WRITES (Execute writes after all reads)
+      // ───────────────────────────────────────────────
+
+      // 2.1 Update Counter in Firestore
+      transaction.set(counterRef, {
+        shopId: shopId,
+        current: nextNum,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+
+      // 2.2 Decrement Product Stock Atomically
+      for(const p of productUpdates){
+        transaction.update(p.ref, {
+          qty: p.newQty,
+          updatedAt: new Date().toISOString()
+        });
+      }
+
+      // 2.3 Write Sale Record
+      const finalSale = {
+        ...saleData,
+        id: saleData.id || ('S' + Date.now() + '_' + Math.random().toString(36).slice(2, 7)),
+        no: invoiceNo,
+        shopId,
+        createdAt: new Date().toISOString()
+      };
+      const saleRef = doc(_fbDb, 'sales', finalSale.id);
+      transaction.set(saleRef, finalSale);
+
+      // 2.4 Update Customer Loyalty & Credit if applicable
+      if(custRef && custSnap && custSnap.exists()){
+        const cData = custSnap.data();
+        const newPoints = (cData.points || 0) + (customerUpdate.pointsEarned || 0);
+        const newCredit = (cData.creditBalance || 0) + (customerUpdate.creditAdded || 0);
+        transaction.update(custRef, {
+          points: newPoints,
+          creditBalance: newCredit,
+          updatedAt: new Date().toISOString()
+        });
+      }
+
+      return {
+        ok: true,
+        invoiceNo,
+        nextNum,
+        sale: finalSale,
+        updatedProducts: productUpdates.map(p => ({ id: p.id, newQty: p.newQty })),
+        offline: false
+      };
+    });
+
+    return txResult;
+  } catch(err){
+    console.warn('❌ Sale Transaction failed / aborted:', err);
+    return {
+      ok: false,
+      code: err.code || 'TRANSACTION_FAILED',
+      message: err.message || 'ගනුදෙනුව අසාර්ථක විය',
+      productId: err.productId,
+      productName: err.productName,
+      availableQty: err.availableQty,
+      requestedQty: err.requestedQty
+    };
+  }
+}
+
+// Offline fallback for sales
+function executeSaleOffline(saleData, cartItems, customerUpdate = null){
+  const db = window.DB || {};
+  const shopId = saleData.shopId || (window.state?.user?.shopId || 'SHOP-001');
+
+  // Verify local stock
+  for(const it of (cartItems || [])){
+    const pid = it.pid || it.id;
+    const p = db.getProd ? db.getProd(pid) : (db.products || []).find(x => x.id === pid);
+    if(p && (p.qty || 0) < (it.qty || 1)){
+      return {
+        ok: false,
+        code: 'OUT_OF_STOCK',
+        message: `ලෝකල් තොග ප්‍රමාණවත් නොවේ: "${p.name || it.name}" ඉතිරිව ඇත්තේ ${p.qty || 0} පමණි.`,
+        productId: pid,
+        productName: p.name || it.name,
+        availableQty: p.qty || 0,
+        requestedQty: it.qty || 1
+      };
+    }
+  }
+
+  // Generate guaranteed unique offline invoice number
+  const randTag = Math.random().toString(36).substring(2, 6).toUpperCase();
+  const offlineNo = `INV-OFF-${shopId.replace('SHOP-','S')}-${Date.now().toString(36).toUpperCase()}-${randTag}`;
+
+  const finalSale = {
+    ...saleData,
+    id: saleData.id || ('S' + Date.now() + '_' + Math.random().toString(36).slice(2, 7)),
+    no: offlineNo,
+    shopId,
+    _offline: true,
+    createdAt: new Date().toISOString()
+  };
+
+  const updatedProducts = [];
+  // Decrement local stock
+  for(const it of (cartItems || [])){
+    const pid = it.pid || it.id;
+    const p = db.getProd ? db.getProd(pid) : (db.products || []).find(x => x.id === pid);
+    if(p){
+      p.qty = Math.max(0, (p.qty || 0) - (it.qty || 1));
+      updatedProducts.push({ id: p.id, newQty: p.qty });
+      if(window.Offline && typeof window.Offline.enqueue === 'function'){
+        window.Offline.enqueue('products', 'update', { qty: p.qty }, p.id);
+      }
+    }
+  }
+
+  // Enqueue sale
+  if(window.Offline && typeof window.Offline.enqueue === 'function'){
+    window.Offline.enqueue('sales', 'add', finalSale, finalSale.id);
+  }
+
+  return {
+    ok: true,
+    invoiceNo: offlineNo,
+    nextNum: (db.counters?.invoice || 0) + 1,
+    sale: finalSale,
+    updatedProducts,
+    offline: true
+  };
 }
 
 /* =====================================================
@@ -518,6 +752,10 @@ window.FB = {
   updatePassword: fbUpdateUserPassword,
   createUser: createUserWithoutLogout,
   createUserWithoutLogout: createUserWithoutLogout,
+  executeSaleTransaction,
+  executeSaleOffline,
   _getModules: () => _fbModules,
   _getDb: () => _fbDb
 };
+
+window.executeSaleTransaction = executeSaleTransaction;

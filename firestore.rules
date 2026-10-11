@@ -26,14 +26,11 @@ service cloud.firestore {
       return hasUserDoc() && ('shopId' in getUserData()) ? getUserData().shopId : null;
     }
     
-    // Superadmin identified EITHER by Firestore role OR root owner email:
+    // Superadmin identified EITHER by Firestore role OR single break-glass emergency email:
     function isSuper() {
       return isSignedIn() && (
         currentRole() == 'superadmin' ||
-        (request.auth.token.email in [
-          'info.dimuthudishan2002@gmail.com',
-          'info.dimuthushan200@gmail.com'
-        ])
+        request.auth.token.email == 'info.dimuthudishan2002@gmail.com'
       );
     }
     
@@ -120,7 +117,9 @@ service cloud.firestore {
       allow create: if isSuper() ||
         (isAdmin() && request.resource.data.shopId == currentShopId());
       // Staff (Cashiers & Admins) can update product stock on sale/return
-      allow update: if isStaff() && sameShop(resource.data.shopId);
+      // Prevent negative stock overselling at DB level:
+      allow update: if isStaff() && sameShop(resource.data.shopId) &&
+        (!('qty' in request.resource.data) || request.resource.data.qty >= 0);
       allow delete: if isSuper();
     }
 
@@ -233,7 +232,15 @@ service cloud.firestore {
     }
 
     // ═══════════════════════════════════════════════
-    // 15. DEFAULT DENY — catch-all for unknown paths
+    // 15. COUNTERS (Atomic Global Invoice Counters)
+    // ═══════════════════════════════════════════════
+    
+    match /counters/{counterId} {
+      allow read, write: if isStaff();
+    }
+
+    // ═══════════════════════════════════════════════
+    // 16. DEFAULT DENY — catch-all for unknown paths
     // ═══════════════════════════════════════════════
     
     match /{document=**} {
