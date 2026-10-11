@@ -663,7 +663,7 @@ function openAddCashierModal(){
         </div>
         <div>
           <label style="font-size:12px;color:var(--muted);font-weight:600">මුරපදය / Password *</label>
-          <input id="nuPass" value="1234" style="margin-top:4px">
+          <input id="nuPass" type="password" placeholder="මුරපදය (අවම අකුරු 6)" style="margin-top:4px">
         </div>
       </div>
       <div class="grid2">
@@ -772,7 +772,7 @@ function openAddUserModal(){
        </div>
        <div>
          <label style="font-size:12px;color:var(--muted);font-weight:600">මුරපදය / Password *</label>
-         <input id="nuPass" value="1234" style="margin-top:4px">
+         <input id="nuPass" type="password" placeholder="මුරපදය (අවම අකුරු 6)" style="margin-top:4px">
        </div>
      </div>
      <div class="grid2">

@@ -72,12 +72,22 @@
     var u = document.getElementById('lUser');
     var p = document.getElementById('lPass');
     if (u) u.value = role;
-    if (p) p.value = '1234';
-    if (typeof window.doLogin === 'function' && window.doLogin !== window._stubLogin) {
-      window.doLogin();
-    } else {
-      window._pendingQuick = role;
+    if (p) { p.value = ''; p.focus(); }
+  };
+  window.exportDatabaseBackup = function() {
+    if (typeof window.downloadBackup === 'function') {
+      return window.downloadBackup();
     }
+    var db = window.DB || {};
+    var blob = new Blob([JSON.stringify(db, null, 2)], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'autoparts_pos_backup_' + new Date().toISOString().slice(0, 10) + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
   window._stubLogin = function() {
     window._pendingLogin = true;
@@ -160,14 +170,6 @@
         </span>
       </button>
       <div id="lErr" style="color:#fca5a5;font-size:12px;margin-top:10px;text-align:center"></div>
-      <div class="quick">
-        <button onclick="quick('superadmin')">👑 Super Admin</button>
-        <button onclick="quick('admin')">🛡️ Admin</button>
-        <button onclick="quick('cashier')">💵 Cashier</button>
-      </div>
-      <p style="text-align:center;color:var(--muted);font-size:10.5px;margin-top:12px">
-        Demo මුරපදය: 1234
-      </p>
     </div>
   </div>
 </div>

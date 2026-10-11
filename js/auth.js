@@ -11,18 +11,29 @@ window.showLockedAccountModal = showLockedAccountModal;
 window.togglePasswordVisibility = togglePasswordVisibility;
 window.showForgotHelp = showForgotHelp;
 window.initLoginEnhancements = initLoginEnhancements;
+window.showChangePasswordModal = showChangePasswordModal;
+window.saveNewPassword = saveNewPassword;
+
+/* =========================================================
+   One-time Cache Invalidation for Auth Migration (FIX 2)
+   ========================================================= */
+(function clearOldUserCache(){
+  if(localStorage.getItem('pos.authMigrationDone') !== 'v1'){
+    Object.keys(localStorage).forEach(k => {
+      if(k.startsWith('pos.localDB.') || k === 'autoparts_pos_db'){
+        localStorage.removeItem(k);
+      }
+    });
+    localStorage.setItem('pos.authMigrationDone', 'v1');
+    console.log('🧹 Purged legacy user/localDB cache for Firebase Auth migration.');
+  }
+})();
 
 function quick(u){
   const uInp = (typeof $ === 'function' ? $('#lUser') : null) || document.getElementById('lUser');
   const pInp = (typeof $ === 'function' ? $('#lPass') : null) || document.getElementById('lPass');
   if(uInp) uInp.value = u;
-  if(pInp) pInp.value = '1234';
-  if(window.Security && typeof window.Security.clearAttempts === 'function'){
-    window.Security.clearAttempts(u);
-  }
-  const errEl = (typeof $ === 'function' ? $('#lErr') : null) || document.getElementById('lErr');
-  if(errEl) errEl.textContent = '';
-  doLogin();
+  if(pInp) { pInp.value = ''; pInp.focus(); }
 }
 
 function showLockedAccountModal(user){
@@ -203,98 +214,33 @@ async function doLogin(){
       return;
     }
 
-    // 1. Rate Limiting Check
+    // 1. Rate Limiting Check (no backdoor)
     if(window.Security && typeof window.Security.checkLockout === 'function'){
-      if(p === '1234' && u.toLowerCase() === 'superadmin'){
-        window.Security.clearAttempts('superadmin');
-      } else if(window.Security.checkLockout(u)){
+      if(window.Security.checkLockout(u)){
         return;
       }
     }
 
-    // 2. Locate User (Offline-first with local cache fallback)
-    let user = (DB.users || []).find(x => x.username.toLowerCase() === u.toLowerCase() && !x.deleted);
-
-    if(!user && window.DB && typeof window.DB.getLocalDB === 'function'){
-      const cached = window.DB.getLocalDB();
-      if(cached?.users?.length){
-        user = cached.users.find(x => x.username.toLowerCase() === u.toLowerCase() && !x.deleted && (x.active !== false));
-      }
+    // 2. Resolve user email for Firebase Auth
+    let email = u.includes('@') ? u.toLowerCase() : `${u.toLowerCase()}@autoparts.local`;
+    const db = window.DB || {};
+    let localUser = (db.users || []).find(x => 
+      !x.deleted && (
+        (x.username && x.username.toLowerCase() === u.toLowerCase()) ||
+        (x.email && x.email.toLowerCase() === u.toLowerCase())
+      )
+    );
+    if(localUser && localUser.email){
+      email = localUser.email;
     }
 
-    if(!user && window.INITIAL_USERS){
-      const initUser = window.INITIAL_USERS.find(x => x.username.toLowerCase() === u.toLowerCase() && !x.deleted);
-      if(initUser){
-        user = { ...initUser };
-        if(!DB.users) DB.users = [];
-        DB.users.push(user);
-        if(typeof saveDB === 'function') saveDB();
-      }
-    }
-
-    if(!user && typeof navigator !== 'undefined' && navigator.onLine && window.FB && window.FB.fbGetAll){
-      try {
-        const remoteUsers = await window.FB.fbGetAll(window.FB.COL.users);
-        if(remoteUsers && remoteUsers.length){
-          user = remoteUsers.find(x => x.username.toLowerCase() === u.toLowerCase() && !x.deleted);
-          if(user && DB.users){
-            DB.users.push(user);
-            if(typeof saveDB === 'function') saveDB();
-          }
-        }
-      } catch(e){}
-    }
-
-    if(!user){
-      if(typeof navigator !== 'undefined' && !navigator.onLine){
-        if(errEl) errEl.textContent = '🟡 Offline — cached user හමු නොවීය';
-      } else {
-        if(window.Security && typeof window.Security.recordFailedAttempt === 'function'){
-          window.Security.recordFailedAttempt(u);
-        }
-        if(errEl) errEl.textContent = '❌ වැරදි පරිශීලක නාමය හෝ මුරපදය';
-      }
-      return;
-    }
-
-    // 3. Verify Password (bcrypt + master system fallback)
-    let ok = false;
-    if(p === '1234' && (u.toLowerCase() === 'superadmin' || u.toLowerCase() === 'admin' || u.toLowerCase() === 'cashier')){
-      ok = true;
-    } else if(window.Security && typeof window.Security.verifyPassword === 'function'){
-      ok = await window.Security.verifyPassword(p, user.password);
-    } else {
-      ok = (user.password === p);
-    }
-
-    if(!ok){
-      if(window.Security && typeof window.Security.recordFailedAttempt === 'function'){
-        window.Security.recordFailedAttempt(u);
-      }
-      if(errEl) errEl.textContent = '❌ වැරදි පරිශීලක නාමය හෝ මුරපදය';
-      return;
-    }
-
-    // 4. Clear Rate Limiting Failures on successful authentication
-    if(window.Security && typeof window.Security.clearAttempts === 'function'){
-      window.Security.clearAttempts(u);
-    }
-
-    // Remember username logic
-    const remBox = document.getElementById('rememberUser');
-    if(remBox && remBox.checked){
-      localStorage.setItem('pos.lastUser', u);
-    } else {
-      localStorage.removeItem('pos.lastUser');
-    }
-
-    // 5. Check Inactive / Locked status (superadmin cannot be locked)
-    if(user.role !== 'superadmin' && user.locked === true){
-      showLockedAccountModal(user);
+    // 3. Status checks
+    if(localUser && localUser.role !== 'superadmin' && localUser.locked === true){
+      showLockedAccountModal(localUser);
       if(errEl) errEl.textContent = '🔒 ගිණුම අගුළු දමා ඇත (Account Locked)';
       return;
     }
-    if(user.role !== 'superadmin' && user.active === false){
+    if(localUser && localUser.role !== 'superadmin' && localUser.active === false){
       openModal(
         '⚠️ ගිණුම අක්‍රීයයි',
         'Account Inactive',
@@ -309,24 +255,53 @@ async function doLogin(){
       return;
     }
 
-    // 6. Transparently upgrade plain text password if still unhashed
-    if(user.password && (user.password.length < 20 || !user.password.startsWith('$2')) && window.Security){
-      try {
-        const hashed = await window.Security.hashPassword(p);
-        user.password = hashed;
-        if(window.FB && window.FB.fbUpdate){
-          await window.FB.fbUpdate(window.FB.COL.users, user.id, { password: hashed });
-        }
-        if(typeof saveDB === 'function') saveDB();
-      } catch(e){
-        console.warn('Auto password rehash notice:', e);
-      }
+    // 4. ⭐ Firebase Authentication (Strict, Zero Backdoors)
+    await window.FB.initFirebase();
+    const authMod = window.FB.getAuthModule();
+    const auth = window.FB.getAuth();
+
+    if(!auth || !authMod){
+      throw new Error('Firebase Authentication සේවාව සම්බන්ධ කළ නොහැක.');
     }
 
-    // 7. Migration: run full password migration when superadmin logs in
-    if(user.role === 'superadmin' && window.Security && typeof window.Security.migratePasswords === 'function'){
-      window.Security.migratePasswords().catch(e => console.warn('Migration warning:', e));
+    const credential = await authMod.signInWithEmailAndPassword(auth, email, p);
+    const authUid = credential.user.uid;
+
+    // 5. Token & Session Storage
+    const token = await credential.user.getIdToken();
+    sessionStorage.setItem('pos.authToken', token);
+
+    // Clear Rate Limiting Failures on successful authentication
+    if(window.Security && typeof window.Security.clearAttempts === 'function'){
+      window.Security.clearAttempts(u);
     }
+
+    // 6. Locate User Document (by Firebase Auth UID)
+    let user = (db.users || []).find(x => x.id === authUid || x.authUid === authUid);
+    if(!user && window.FB.fbGetDirect){
+      try {
+        user = await window.FB.fbGetDirect('users', authUid);
+      } catch(e){}
+    }
+    if(!user && window.FB.fbGet){
+      try {
+        user = await window.FB.fbGet('users', authUid);
+      } catch(e){}
+    }
+    if(!user && localUser){
+      user = { ...localUser, id: authUid, authUid: authUid };
+    }
+    if(!user){
+      user = {
+        id: authUid,
+        authUid: authUid,
+        username: u,
+        role: (u.toLowerCase().includes('super') ? 'superadmin' : (u.toLowerCase().includes('admin') ? 'admin' : 'cashier')),
+        name: u,
+        shopId: 'SHOP-001'
+      };
+    }
+
     if(!user.permissions || !Array.isArray(user.permissions)){
       user.permissions = (typeof getDefaultPermissionsForRole === 'function')
         ? getDefaultPermissionsForRole(user.role)
@@ -334,9 +309,17 @@ async function doLogin(){
     }
 
     state.user = user;
+    state.authUid = authUid;
+
+    // Remember username logic
+    const remBox = document.getElementById('rememberUser');
+    if(remBox && remBox.checked){
+      localStorage.setItem('pos.lastUser', u);
+    } else {
+      localStorage.removeItem('pos.lastUser');
+    }
 
     // Set active shop
-    const db = window.DB || {};
     const allShops = (db.shops && db.shops.length > 0) ? db.shops : (window.INITIAL_SHOPS || []);
     if(user.role === 'superadmin'){
       const savedShopId = localStorage.getItem('pos.activeShopId');
@@ -398,8 +381,15 @@ async function doLogin(){
 
   renderNav();
   render();
-  updateClock();
-  updateShiftIndicator();
+  if(typeof updateClock === 'function') updateClock();
+  if(typeof updateShiftIndicator === 'function') updateShiftIndicator();
+
+  // FIX 3: Prompt password change if flagged
+  if(user.needsPasswordChange){
+    setTimeout(() => {
+      if(typeof showChangePasswordModal === 'function') showChangePasswordModal(user);
+    }, 400);
+  }
 
   /* ⭐ Shift check: cashier = required, admin/superadmin = optional */
   const activeShift = (typeof Shift !== 'undefined') ? Shift.getActive(user.id) : null;
@@ -443,6 +433,18 @@ async function doLogin(){
       });
     } else if(typeof window.startPageListeners === 'function'){
       window.startPageListeners('billing');
+    }
+  } catch(err) {
+    console.error('Firebase Auth Login Error:', err.code, err.message);
+    if(window.Security && typeof window.Security.recordFailedAttempt === 'function'){
+      window.Security.recordFailedAttempt(u);
+    }
+    if(err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential'){
+      if(errEl) errEl.textContent = '❌ වැරදි පරිශීලක නාමය හෝ මුරපදය';
+    } else if(err.code === 'auth/too-many-requests'){
+      if(errEl) errEl.textContent = '⚠️ වැරදි උත්සාහයන් වැඩියි — මිනිත්තු කිහිපයක් රැඳී සිටින්න';
+    } else {
+      if(errEl) errEl.textContent = '❌ පද්ධතියට පිවිසිය නොහැක (' + (err.code || err.message) + ')';
     }
   } finally {
     resetLoginButton();
@@ -528,8 +530,79 @@ function performLogout(){
   const errEl = $('#lErr');
   if(errEl) errEl.textContent = '';
 
-  updateShiftIndicator();
+  try {
+    if(window.FB && typeof window.FB.signOut === 'function'){
+      window.FB.signOut().catch(e => console.warn('SignOut notice:', e));
+    }
+  } catch(e){}
+  sessionStorage.removeItem('pos.authToken');
+
+  if(typeof updateShiftIndicator === 'function') updateShiftIndicator();
   if(typeof initLoginEnhancements === 'function') initLoginEnhancements();
+}
+
+/* =========================================================
+   Change Password Modal (For migrated users / temp password)
+   ========================================================= */
+function showChangePasswordModal(user){
+  const bodyHtml = `
+    <div style="padding:10px 0">
+      <div style="font-size:38px;text-align:center;margin-bottom:10px">🔑</div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:14px;text-align:center;line-height:1.6">
+        ආරක්ෂාව තහවුරු කිරීම සඳහා කරුණාකර ඔබගේ තාවකාලික මුරපදය වෙනුවට නව ශක්තිමත් මුරපදයක් සකසන්න.
+      </p>
+      <div style="margin-bottom:12px">
+        <label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px">නව මුරපදය (New Password) *</label>
+        <input type="password" id="npNewPass" placeholder="අවම වශයෙන් අකුරු 6ක්" style="width:100%;padding:10px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--txt)">
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px">මුරපදය තහවුරු කරන්න (Confirm Password) *</label>
+        <input type="password" id="npConfirmPass" placeholder="නැවත ඇතුළත් කරන්න" style="width:100%;padding:10px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--txt)">
+      </div>
+      <div id="npErr" style="color:var(--red);font-size:12px;margin-top:6px"></div>
+    </div>
+  `;
+  const footerHtml = `
+    <button class="btn btn-primary" id="btnSaveNewPass" style="width:100%;padding:10px;font-weight:700" onclick="saveNewPassword()">✅ නව මුරපදය සුරකින්න</button>
+  `;
+  openModal('🔑 නව මුරපදයක් සකසන්න', 'Password Change Required', bodyHtml, footerHtml, false);
+}
+
+async function saveNewPassword(){
+  const p1 = document.getElementById('npNewPass')?.value;
+  const p2 = document.getElementById('npConfirmPass')?.value;
+  const err = document.getElementById('npErr');
+  const btn = document.getElementById('btnSaveNewPass');
+  if(!p1 || p1.length < 6){
+    if(err) err.textContent = '❌ මුරපදය අවම වශයෙන් අකුරු 6ක් විය යුතුය';
+    return;
+  }
+  if(p1 !== p2){
+    if(err) err.textContent = '❌ මුරපද දෙක එකිනෙකට නොගැලපේ';
+    return;
+  }
+
+  if(btn) btn.disabled = true;
+  if(err) err.textContent = '';
+
+  try {
+    if(window.FB && typeof window.FB.updatePassword === 'function'){
+      await window.FB.updatePassword(p1);
+    }
+    if(state.user){
+      state.user.needsPasswordChange = false;
+      if(window.FB && window.FB.fbUpdate){
+        await window.FB.fbUpdate('users', state.user.id, { needsPasswordChange: false });
+      }
+    }
+    toast('මුරපදය සාර්ථකව යාවත්කාලීන විය ✅', 'ok');
+    closeModal();
+  } catch(e){
+    console.error('Password update error:', e);
+    if(err) err.textContent = '❌ මුරපදය වෙනස් කිරීම අසාර්ථකයි: ' + (e.message || '');
+  } finally {
+    if(btn) btn.disabled = false;
+  }
 }
 
 function can(page){

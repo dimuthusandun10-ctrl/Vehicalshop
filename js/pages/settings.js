@@ -311,5 +311,6 @@ window.editUser = editUser;
 window.saveUser = saveUser;
 window.delUser = delUser;
 window.downloadBackup = downloadBackup;
+window.exportDatabaseBackup = downloadBackup;
 window.restoreBackup = restoreBackup;
 window.resetToDemo = resetToDemo;

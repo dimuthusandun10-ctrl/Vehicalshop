@@ -28,6 +28,7 @@ const COL = {
 
 let _fbApp = null;
 let _fbDb = null;
+let _fbAuth = null;
 let _fbReady = false;
 let _fbModules = null;
 let _fbPermissionDenied = false;
@@ -47,20 +48,49 @@ async function initFirebase(){
   if(_fbReady) return true;
   if(_fbPermissionDenied) return false;
   try {
-    const [appMod, fsMod] = await Promise.all([
+    const [appMod, fsMod, authMod] = await Promise.all([
       import("https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js"),
-      import("https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js")
+      import("https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js"),
+      import("https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js")
     ]);
     _fbApp = appMod.initializeApp(firebaseConfig);
     _fbDb = fsMod.getFirestore(_fbApp);
-    _fbModules = { appMod, fsMod };
+    _fbAuth = authMod.getAuth(_fbApp);
+    _fbModules = { appMod, fsMod, authMod };
     _fbReady = true;
     return true;
   } catch(e) {
     _fbPermissionDenied = true;
-    console.warn('Firebase network / CORS restriction detected (local mode active).');
+    console.warn('Firebase network / CORS restriction detected (local mode active).', e);
     return false;
   }
+}
+
+/* =====================================================
+   FIREBASE AUTH HELPERS
+   ===================================================== */
+async function fbSignIn(email, password){
+  if(!_fbReady) await initFirebase();
+  if(!_fbAuth || !_fbModules?.authMod) throw new Error('Firebase Auth unavailable');
+  return await _fbModules.authMod.signInWithEmailAndPassword(_fbAuth, email, password);
+}
+
+async function fbSignOut(){
+  if(!_fbReady) await initFirebase();
+  if(!_fbAuth || !_fbModules?.authMod) return;
+  return await _fbModules.authMod.signOut(_fbAuth);
+}
+
+async function fbUpdateUserPassword(newPassword){
+  if(!_fbReady) await initFirebase();
+  if(!_fbAuth || !_fbModules?.authMod || !_fbAuth.currentUser) throw new Error('No authenticated user session');
+  return await _fbModules.authMod.updatePassword(_fbAuth.currentUser, newPassword);
+}
+
+async function fbCreateUser(email, password){
+  if(!_fbReady) await initFirebase();
+  if(!_fbAuth || !_fbModules?.authMod) throw new Error('Firebase Auth unavailable');
+  return await _fbModules.authMod.createUserWithEmailAndPassword(_fbAuth, email, password);
 }
 
 /* =====================================================
@@ -366,6 +396,10 @@ window.fbAddDirect = fbAddDirect;
 window.fbSetDirect = fbSetDirect;
 window.fbUpdateDirect = fbUpdateDirect;
 window.fbDeleteDirect = fbDeleteDirect;
+window.fbSignIn = fbSignIn;
+window.fbSignOut = fbSignOut;
+window.fbUpdateUserPassword = fbUpdateUserPassword;
+window.fbCreateUser = fbCreateUser;
 
 window.FB = {
   COL,
@@ -386,6 +420,13 @@ window.FB = {
   shopQuery,
   shopAdd,
   shopUpdate,
+  getAuth: () => _fbAuth,
+  getAuthModule: () => _fbModules?.authMod,
+  auth: () => _fbAuth,
+  signIn: fbSignIn,
+  signOut: fbSignOut,
+  updatePassword: fbUpdateUserPassword,
+  createUser: fbCreateUser,
   _getModules: () => _fbModules,
   _getDb: () => _fbDb
 };

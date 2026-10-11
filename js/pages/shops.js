@@ -334,7 +334,7 @@ function openAssignAdminModal(shopId){
           </div>
           <div>
             <label style="font-size:12px;color:var(--muted);font-weight:600">මුරපදය / Password *</label>
-            <input id="naPass" value="1234" style="margin-top:4px">
+            <input id="naPass" type="password" placeholder="මුරපදය (අවම අකුරු 6)" style="margin-top:4px">
           </div>
         </div>
         <div class="grid2">
@@ -659,7 +659,7 @@ function openAddStaffForShopModal(shopId){
         </div>
         <div>
           <label style="font-size:12px;color:var(--muted);font-weight:600">මුරපදය / Password *</label>
-          <input id="nssPass" value="1234" style="margin-top:4px">
+          <input id="nssPass" type="password" placeholder="මුරපදය (අවම අකුරු 6)" style="margin-top:4px">
         </div>
       </div>
       <div class="grid2">
