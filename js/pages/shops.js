@@ -391,22 +391,26 @@ async function submitAssignAdmin(shopId){
     const username = $('#naUser')?.value.trim().toLowerCase();
     const password = $('#naPass')?.value.trim();
     const phone = $('#naPhone')?.value.trim();
-    const email = $('#naEmail')?.value.trim();
+    const inputEmail = $('#naEmail')?.value.trim();
+    const email = (inputEmail && inputEmail.includes('@')) ? inputEmail : `${username}@autoparts.local`;
 
     if(!name || !username || !password){
       toast('කරුණාකර නම, username සහ මුරපදය පුරවන්න (*)', 'err');
       return;
     }
+    if(password.length < 6){
+      toast('මුරපදය සඳහා අවම වශයෙන් අකුරු/ඉලක්කම් 6ක් අවශ්‍යයි (Minimum 6 characters)', 'warn');
+      return;
+    }
 
-    if((db.users || []).some(u => !u.deleted && u.username.toLowerCase() === username)){
+    if((db.users || []).some(u => !u.deleted && u.username && u.username.toLowerCase() === username)){
       toast('මෙම username දැනටමත් භාවිතා කර ඇත', 'warn');
       return;
     }
 
     const hashedPassword = window.Security ? await window.Security.hashPassword(password) : password;
 
-    const newAdmin = {
-      id: uid('U'),
+    const adminData = {
       name,
       username,
       password: hashedPassword,
@@ -418,17 +422,35 @@ async function submitAssignAdmin(shopId){
       lockedBy: null,
       lockedAt: null,
       phone,
-      email: email || `${username}@autoparts.lk`,
-      createdAt: new Date().toISOString(),
-      createdBy: state.user ? state.user.id : 'U1'
+      email,
+      permissions: [
+        'billing', 'dashboard', 'pos', 'inventory',
+        'customers', 'lowstock', 'grn', 'returns',
+        'shifts', 'serial-search', 'reports', 
+        'settings', 'profile'
+      ]
     };
 
-    if(!db.users) db.users = [];
-    db.users.push(newAdmin);
-
-    const targetId = newAdmin.authUid || newAdmin.id;
-    if(window.FB && window.FB.fbSet){
-      await window.FB.fbSet(window.FB.COL.users, targetId, newAdmin);
+    if(window.FB && typeof window.FB.createUser === 'function'){
+      const res = await window.FB.createUser(email, password, adminData);
+      if(!res.ok){
+        toast('❌ පරිපාලක ගිණුම සෑදීම අසාර්ථක විය: ' + (res.error?.message || 'Error'), 'err');
+        return;
+      }
+      if(shopId && window.FB.fbUpdate){
+        await window.FB.fbUpdate(window.FB.COL.shops, shopId, {
+          adminUid: res.uid,
+          adminName: name
+        });
+      }
+    } else {
+      const newAdmin = { id: uid('U'), ...adminData };
+      if(!db.users) db.users = [];
+      db.users.push(newAdmin);
+      const targetId = newAdmin.authUid || newAdmin.id;
+      if(window.FB && window.FB.fbSet){
+        await window.FB.fbSet(window.FB.COL.users, targetId, newAdmin);
+      }
     }
   } else {
     const adminId = $('#selExistingAdmin')?.value;
@@ -694,17 +716,21 @@ async function submitAddStaffForShop(shopId){
     toast('කරුණාකර සියලු අනිවාර්ය ක්ෂේත්‍ර පුරවන්න (*)', 'err');
     return;
   }
+  if(password.length < 6){
+    toast('මුරපදය සඳහා අවම වශයෙන් අකුරු/ඉලක්කම් 6ක් අවශ්‍යයි (Minimum 6 characters)', 'warn');
+    return;
+  }
 
   const db = window.DB || {};
-  if((db.users || []).some(u => !u.deleted && u.username.toLowerCase() === username)){
+  if((db.users || []).some(u => !u.deleted && u.username && u.username.toLowerCase() === username)){
     toast('මෙම username දැනටමත් පවතී', 'warn');
     return;
   }
 
   const hashedPassword = window.Security ? await window.Security.hashPassword(password) : password;
+  const email = `${username}@autoparts.local`;
 
-  const newUser = {
-    id: uid('U'),
+  const userData = {
     name,
     username,
     password: hashedPassword,
@@ -716,18 +742,28 @@ async function submitAddStaffForShop(shopId){
     lockedBy: null,
     lockedAt: null,
     phone,
-    email: `${username}@autoparts.lk`,
-    createdAt: new Date().toISOString(),
-    createdBy: state.user ? state.user.id : 'U1'
+    email,
+    permissions: (typeof getDefaultPermissionsForRole === 'function')
+      ? getDefaultPermissionsForRole(role)
+      : ['billing', 'dashboard', 'pos', 'customers', 'lowstock', 'profile']
   };
 
-  if(!db.users) db.users = [];
-  db.users.push(newUser);
-
-  const targetId = newUser.authUid || newUser.id;
-  if(window.FB && window.FB.fbSet){
-    await window.FB.fbSet(window.FB.COL.users, targetId, newUser);
+  if(window.FB && typeof window.FB.createUser === 'function'){
+    const res = await window.FB.createUser(email, password, userData);
+    if(!res.ok){
+      toast('❌ කාර්ය මණ්ඩල සාමාජිකයා සෑදීම අසාර්ථක විය: ' + (res.error?.message || 'Error'), 'err');
+      return;
+    }
+  } else {
+    const newUser = { id: uid('U'), ...userData };
+    if(!db.users) db.users = [];
+    db.users.push(newUser);
+    const targetId = newUser.authUid || newUser.id;
+    if(window.FB && window.FB.fbSet){
+      await window.FB.fbSet(window.FB.COL.users, targetId, newUser);
+    }
   }
+
   if(typeof saveDB === 'function') saveDB();
 
   closeModal();

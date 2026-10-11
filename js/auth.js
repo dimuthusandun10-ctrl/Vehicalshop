@@ -302,6 +302,10 @@ async function doLogin(){
     const credential = await authMod.signInWithEmailAndPassword(auth, email, p);
     const authUid = credential.user.uid;
 
+    if(window.FB && typeof window.FB.resetPermissionDenied === 'function'){
+      window.FB.resetPermissionDenied();
+    }
+
     // 5. Token & Session Storage
     const token = await credential.user.getIdToken();
     sessionStorage.setItem('pos.authToken', token);
@@ -315,40 +319,59 @@ async function doLogin(){
 
     // 6. Locate User Document (by Firebase Auth UID)
     let user = (db.users || []).find(x => x.id === authUid || x.authUid === authUid);
-    if(!user && window.FB.fbGetDirect){
+    if(!user && window.FB && typeof window.FB.fbGetDirect === 'function'){
       try {
         user = await window.FB.fbGetDirect('users', authUid);
       } catch(e){}
     }
-    if(!user && window.FB.fbGet){
+    if(!user && window.FB && typeof window.FB.fbGet === 'function'){
       try {
         user = await window.FB.fbGet('users', authUid);
       } catch(e){}
     }
-    if(!user && localUser){
+    if(!user && localUser && (localUser.authUid === authUid || localUser.id === authUid)){
       user = { ...localUser, id: authUid, authUid: authUid, email: email };
     }
+
+    // 7. Security Check: If user doc does not exist, reject unauthorized logins
     if(!user){
-      user = {
-        id: authUid,
-        authUid: authUid,
-        username: isSuper ? 'superadmin' : u,
-        email: email,
-        role: isSuper ? 'superadmin' : (normalized.includes('admin') ? 'admin' : 'cashier'),
-        name: isSuper ? 'ඩිමුතු දිශාන් (Super Admin)' : u,
-        shopId: isSuper ? null : 'SHOP-001'
-      };
+      if(isSuper){
+        // Initial Super Admin bootstrap profile
+        user = {
+          id: authUid,
+          authUid: authUid,
+          username: 'superadmin',
+          email: email,
+          role: 'superadmin',
+          name: 'ඩිමුතු දිශාන් (Super Admin)',
+          shopId: null,
+          active: true,
+          locked: false,
+          permissions: [
+            'billing', 'dashboard', 'pos', 'inventory', 'customers', 'lowstock',
+            'grn', 'returns', 'serial-search', 'shifts', 'reports', 'shops',
+            'profile', 'settings', 'staff', 'credit', 'discounts',
+            'price-override', 'void-sale', 'delete-product'
+          ]
+        };
+        if(window.FB && typeof window.FB.fbSetDirect === 'function'){
+          try {
+            await window.FB.fbSetDirect('users', authUid, user);
+            console.log('✅ Created Super Admin profile in Firestore users/' + authUid);
+          } catch(e){}
+        }
+      } else {
+        if(window.FB && typeof window.FB.signOut === 'function'){
+          await window.FB.signOut();
+        }
+        throw new Error('පද්ධතියේ සක්‍රීය කාර්ය මණ්ඩල පැතිකඩක් හමු නොවීය. කරුණාකර ප්‍රධාන පරිපාලක අමතන්න. (No active staff profile found for this account)');
+      }
     }
 
     // ⭐ Strict Super Admin Enforcement:
-    if(isSuper || email === 'info.dimuthudishan2002@gmail.com' || (user && user.email === 'info.dimuthudishan2002@gmail.com')){
+    if(isSuper || user.role === 'superadmin' || email === 'info.dimuthudishan2002@gmail.com'){
       user.role = 'superadmin';
       user.shopId = null;
-      user.email = 'info.dimuthudishan2002@gmail.com';
-      user.username = 'superadmin';
-      user.name = 'ඩිමුතු දිශාන් (Super Admin)';
-      user.active = true;
-      user.locked = false;
       user.permissions = [
         'billing', 'dashboard', 'pos', 'inventory', 'customers', 'lowstock',
         'grn', 'returns', 'serial-search', 'shifts', 'reports', 'shops',
@@ -361,26 +384,13 @@ async function doLogin(){
         : ['billing','dashboard','customers','lowstock','profile'];
     }
 
-    // ⭐ Auto-sync user document to Firestore users/{authUid}
-    if(window.FB && typeof window.FB.fbSetDirect === 'function'){
+    // Touch updatedAt timestamp (without changing role/shopId/permissions)
+    if(window.FB && typeof window.FB.fbUpdateDirect === 'function'){
       try {
-        await window.FB.fbSetDirect('users', authUid, {
-          id: authUid,
-          authUid: authUid,
-          name: user.name,
-          username: user.username,
-          email: user.email,
-          role: user.role,
-          permissions: user.permissions,
-          shopId: user.shopId,
-          active: true,
-          locked: false,
+        await window.FB.fbUpdateDirect('users', authUid, {
           updatedAt: new Date().toISOString()
         });
-        console.log('✅ Synchronized user profile with Firestore users/' + authUid);
-      } catch(syncErr){
-        console.warn('⚠️ Could not sync user doc to Firestore:', syncErr);
-      }
+      } catch(syncErr){}
     }
 
     // Update in-memory db.users

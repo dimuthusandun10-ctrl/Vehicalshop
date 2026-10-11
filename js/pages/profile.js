@@ -695,15 +695,20 @@ async function saveNewCashier(){
   const username = $('#nuUser')?.value.trim().toLowerCase();
   const password = $('#nuPass')?.value.trim();
   const phone = $('#nuPhone')?.value.trim();
-  const email = $('#nuEmail')?.value.trim();
+  const inputEmail = $('#nuEmail')?.value.trim();
+  const email = (inputEmail && inputEmail.includes('@')) ? inputEmail : `${username}@autoparts.local`;
 
   if(!name || !username || !password){
     toast('කරුණාකර සියලු අනිවාර්ය ක්ෂේත්‍ර පුරවන්න (*)', 'err');
     return;
   }
+  if(password.length < 6){
+    toast('මුරපදය සඳහා අවම වශයෙන් අකුරු/ඉලක්කම් 6ක් අවශ්‍යයි (Minimum 6 characters)', 'warn');
+    return;
+  }
 
   const db = window.DB || {};
-  if((db.users || []).some(u => !u.deleted && u.username.toLowerCase() === username)){
+  if((db.users || []).some(u => !u.deleted && u.username && u.username.toLowerCase() === username)){
     toast('මෙම පරිශීලක නාමය දැනටමත් භාවිතා කර ඇත (Username already exists)', 'warn');
     return;
   }
@@ -713,8 +718,7 @@ async function saveNewCashier(){
 
   const hashedPassword = window.Security ? await window.Security.hashPassword(password) : password;
 
-  const newCashier = {
-    id: uid('U'),
+  const cashierData = {
     name,
     username,
     password: hashedPassword,
@@ -722,24 +726,33 @@ async function saveNewCashier(){
     permissions,
     shopId: state.user.shopId || 'SHOP-001',
     phone,
-    email: email || `${username}@autoparts.lk`,
+    email,
     joined: today(),
-    createdAt: new Date().toISOString(),
-    createdBy: state.user.id,
-    active: true,
-    locked: false,
-    lockMessage: '',
-    lockedBy: null,
-    lockedAt: null,
     deleted: false
   };
 
-  if(!db.users) db.users = [];
-  db.users.push(newCashier);
-
-  if(window.FB && window.FB.fbSet){
-    await window.FB.fbSet(window.FB.COL.users, newCashier.id, newCashier);
+  if(window.FB && typeof window.FB.createUser === 'function'){
+    const res = await window.FB.createUser(email, password, cashierData);
+    if(!res.ok){
+      toast('❌ කැෂියර් ගිණුම සෑදීම අසාර්ථක විය: ' + (res.error?.message || 'Error'), 'err');
+      return;
+    }
+  } else {
+    const newCashier = {
+      id: uid('U'),
+      ...cashierData,
+      active: true,
+      locked: false,
+      createdAt: new Date().toISOString()
+    };
+    if(!db.users) db.users = [];
+    db.users.push(newCashier);
+    const targetId = newCashier.authUid || newCashier.id;
+    if(window.FB && window.FB.fbSet){
+      await window.FB.fbSet(window.FB.COL.users, targetId, newCashier);
+    }
   }
+
   if(typeof saveDB === 'function') saveDB();
 
   closeModal();
@@ -816,7 +829,8 @@ async function saveNewUser(){
   const username = $('#nuUser')?.value.trim().toLowerCase();
   const password = $('#nuPass')?.value.trim();
   const phone = $('#nuPhone')?.value.trim();
-  const email = $('#nuEmail')?.value.trim();
+  const inputEmail = $('#nuEmail')?.value.trim();
+  const email = (inputEmail && inputEmail.includes('@')) ? inputEmail : `${username}@autoparts.local`;
   const role = $('#nuRole')?.value || 'cashier';
   const shopId = $('#nuShop')?.value || (state.user ? state.user.shopId : null);
 
@@ -824,9 +838,13 @@ async function saveNewUser(){
     toast('කරුණාකර සියලු අනිවාර්ය ක්ෂේත්‍ර පුරවන්න (*)', 'err');
     return;
   }
+  if(password.length < 6){
+    toast('මුරපදය සඳහා අවම වශයෙන් අකුරු/ඉලක්කම් 6ක් අවශ්‍යයි (Minimum 6 characters)', 'warn');
+    return;
+  }
 
   const db = window.DB || {};
-  if((db.users || []).some(u => !u.deleted && u.username.toLowerCase() === username)){
+  if((db.users || []).some(u => !u.deleted && u.username && u.username.toLowerCase() === username)){
     toast('මෙම පරිශීලක නාමය දැනටමත් භාවිතා කර ඇත (Username already exists)', 'warn');
     return;
   }
@@ -839,8 +857,7 @@ async function saveNewUser(){
 
   const hashedPassword = window.Security ? await window.Security.hashPassword(password) : password;
 
-  const newUser = {
-    id: uid('U'),
+  const userData = {
     name,
     username,
     password: hashedPassword,
@@ -848,24 +865,33 @@ async function saveNewUser(){
     permissions,
     shopId,
     phone,
-    email: email || `${username}@autoparts.lk`,
+    email,
     joined: today(),
-    createdAt: new Date().toISOString(),
-    createdBy: state.user ? state.user.id : 'system',
-    active: true,
-    locked: false,
-    lockMessage: '',
-    lockedBy: null,
-    lockedAt: null,
     deleted: false
   };
 
-  if(!db.users) db.users = [];
-  db.users.push(newUser);
-
-  if(window.FB && window.FB.fbSet){
-    await window.FB.fbSet(window.FB.COL.users, newUser.id, newUser);
+  if(window.FB && typeof window.FB.createUser === 'function'){
+    const res = await window.FB.createUser(email, password, userData);
+    if(!res.ok){
+      toast('❌ පරිශීලක ගිණුම සෑදීම අසාර්ථක විය: ' + (res.error?.message || 'Error'), 'err');
+      return;
+    }
+  } else {
+    const newUser = {
+      id: uid('U'),
+      ...userData,
+      active: true,
+      locked: false,
+      createdAt: new Date().toISOString()
+    };
+    if(!db.users) db.users = [];
+    db.users.push(newUser);
+    const targetId = newUser.authUid || newUser.id;
+    if(window.FB && window.FB.fbSet){
+      await window.FB.fbSet(window.FB.COL.users, targetId, newUser);
+    }
   }
+
   if(typeof saveDB === 'function') saveDB();
 
   closeModal();

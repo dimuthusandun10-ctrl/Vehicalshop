@@ -3,7 +3,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // ═══════════════════════════════════════════════
-    // HELPER FUNCTIONS
+    // 1. HELPER FUNCTIONS (Single Source of Truth: /users/{uid})
     // ═══════════════════════════════════════════════
     
     function isSignedIn() {
@@ -14,98 +14,118 @@ service cloud.firestore {
       return exists(/databases/$(database)/documents/users/$(request.auth.uid));
     }
     
-    // User doc ID = request.auth.uid (migrated in Phase 1)
-    function currentUser() {
+    function getUserData() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
     
     function currentRole() {
-      return currentUser().role;
+      return hasUserDoc() && ('role' in getUserData()) ? getUserData().role : '';
     }
     
     function currentShopId() {
-      return currentUser().shopId;
+      return hasUserDoc() && ('shopId' in getUserData()) ? getUserData().shopId : null;
     }
     
+    // Superadmin identified EITHER by Firestore role OR root owner email:
     function isSuper() {
       return isSignedIn() && (
-        request.auth.token.email == 'info.dimuthudishan2002@gmail.com' ||
-        (hasUserDoc() && currentRole() == 'superadmin')
+        currentRole() == 'superadmin' ||
+        (request.auth.token.email in [
+          'info.dimuthudishan2002@gmail.com',
+          'info.dimuthushan200@gmail.com'
+        ])
       );
     }
     
     function isAdmin() {
-      return isSignedIn() && hasUserDoc() && currentRole() == 'admin';
+      return isSignedIn() && (currentRole() == 'admin' || isSuper());
     }
     
     function isCashier() {
-      return isSignedIn() && hasUserDoc() && currentRole() == 'cashier';
+      return isSignedIn() && currentRole() == 'cashier';
     }
     
     function isStaff() {
-      return isSignedIn() && (isSuper() || isAdmin() || isCashier());
+      return isSignedIn() && (isSuper() || (currentRole() in ['admin', 'cashier']));
     }
     
+    // Shop Scoped Isolation (Superadmin has multi-shop access; others scoped to own shop)
     function sameShop(resourceShopId) {
-      return isSuper() || (hasUserDoc() && currentShopId() != null && currentShopId() == resourceShopId);
-    }
-    
-    function isActiveUser() {
-      return isSuper() || (isSignedIn() && hasUserDoc() && currentUser().active == true);
+      return isSuper() || (
+        currentShopId() != null && 
+        currentShopId() == resourceShopId
+      );
     }
 
     // ═══════════════════════════════════════════════
-    // USERS COLLECTION
+    // 2. USERS COLLECTION
     // ═══════════════════════════════════════════════
     
     match /users/{uid} {
-      // Read: self OR superadmin OR admin (own shop only)
+      // Read: Self OR Superadmin OR Staff in same shop
       allow read: if isSignedIn() && (
         request.auth.uid == uid ||
         isSuper() ||
-        (isAdmin() && resource.data.shopId == currentShopId())
+        (isStaff() && resource != null && ('shopId' in resource.data) && resource.data.shopId == currentShopId())
       );
       
-      // Create: superadmin OR admin (own shop only)
-      allow create: if isSuper() ||
-        (isAdmin() && request.resource.data.shopId == currentShopId());
+      // Create: 
+      // 1) Superadmin can create any user
+      // 2) Shop Admin can create ONLY Cashiers for their own shop
+      // 3) Regular users / Cashiers CANNOT create user docs (PREVENTS PRIVILEGE ESCALATION)
+      allow create: if isSignedIn() && (
+        isSuper() ||
+        (isAdmin() && 
+         request.resource.data.role == 'cashier' && 
+         request.resource.data.shopId == currentShopId())
+      );
       
-      // Update: superadmin any, admin own shop, user can update own profile 
-      // (but NOT change role/permissions)
-      allow update: if isSuper() ||
-        (isAdmin() && resource.data.shopId == currentShopId()) ||
+      // Update:
+      // 1) Superadmin can update any user doc
+      // 2) Shop Admin can update Cashiers in their own shop
+      // 3) Self can update basic profile info, but CANNOT change role, shopId, or permissions!
+      allow update: if isSignedIn() && (
+        isSuper() ||
+        (isAdmin() && 
+         resource != null && 
+         resource.data.shopId == currentShopId() && 
+         resource.data.role == 'cashier' &&
+         request.resource.data.role == 'cashier' &&
+         request.resource.data.shopId == currentShopId()) ||
         (request.auth.uid == uid &&
-         request.resource.data.role == resource.data.role &&
-         request.resource.data.permissions == resource.data.permissions);
+         resource != null &&
+         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'shopId', 'permissions']))
+      );
       
-      // Delete: superadmin only
+      // Delete: Superadmin only
       allow delete: if isSuper();
     }
 
     // ═══════════════════════════════════════════════
-    // SHOPS COLLECTION
+    // 3. SHOPS COLLECTION
     // ═══════════════════════════════════════════════
     
     match /shops/{shopId} {
-      allow read: if isStaff();
+      // Authenticated users can read shop list/metadata (needed for login, receipts & UI)
+      allow read: if isSignedIn();
       allow write: if isSuper();
     }
 
     // ═══════════════════════════════════════════════
-    // PRODUCTS
+    // 4. PRODUCTS
     // ═══════════════════════════════════════════════
     
     match /products/{productId} {
       allow read: if isStaff() && sameShop(resource.data.shopId);
       allow create: if isSuper() ||
         (isAdmin() && request.resource.data.shopId == currentShopId());
-      allow update: if isSuper() ||
-        (isAdmin() && sameShop(resource.data.shopId));
+      // Staff (Cashiers & Admins) can update product stock on sale/return
+      allow update: if isStaff() && sameShop(resource.data.shopId);
       allow delete: if isSuper();
     }
 
     // ═══════════════════════════════════════════════
-    // SALES
+    // 5. SALES
     // ═══════════════════════════════════════════════
     
     match /sales/{saleId} {
@@ -116,7 +136,7 @@ service cloud.firestore {
     }
 
     // ═══════════════════════════════════════════════
-    // CUSTOMERS
+    // 6. CUSTOMERS
     // ═══════════════════════════════════════════════
     
     match /customers/{customerId} {
@@ -127,7 +147,7 @@ service cloud.firestore {
     }
 
     // ═══════════════════════════════════════════════
-    // GRNS (Goods Received Notes)
+    // 7. GRNS (Goods Received Notes)
     // ═══════════════════════════════════════════════
     
     match /grns/{grnId} {
@@ -138,7 +158,7 @@ service cloud.firestore {
     }
 
     // ═══════════════════════════════════════════════
-    // RETURNS
+    // 8. RETURNS
     // ═══════════════════════════════════════════════
     
     match /returns/{returnId} {
@@ -149,7 +169,7 @@ service cloud.firestore {
     }
 
     // ═══════════════════════════════════════════════
-    // SHIFTS
+    // 9. SHIFTS
     // ═══════════════════════════════════════════════
     
     match /shifts/{shiftId} {
@@ -160,7 +180,7 @@ service cloud.firestore {
     }
 
     // ═══════════════════════════════════════════════
-    // CASH MOVEMENTS
+    // 10. CASH MOVEMENTS (Petty Cash)
     // ═══════════════════════════════════════════════
     
     match /cashMovements/{moveId} {
@@ -171,7 +191,7 @@ service cloud.firestore {
     }
 
     // ═══════════════════════════════════════════════
-    // CREDIT PAYMENTS
+    // 11. CREDIT PAYMENTS
     // ═══════════════════════════════════════════════
     
     match /creditPayments/{paymentId} {
@@ -182,7 +202,7 @@ service cloud.firestore {
     }
 
     // ═══════════════════════════════════════════════
-    // SUPPLIERS
+    // 12. SUPPLIERS
     // ═══════════════════════════════════════════════
     
     match /suppliers/{supplierId} {
@@ -193,7 +213,7 @@ service cloud.firestore {
     }
 
     // ═══════════════════════════════════════════════
-    // DAILY SUMMARY (aggregated data)
+    // 13. DAILY SUMMARY
     // ═══════════════════════════════════════════════
     
     match /dailySummary/{summaryId} {
@@ -203,7 +223,7 @@ service cloud.firestore {
     }
 
     // ═══════════════════════════════════════════════
-    // ACTIVITY LOG (audit trail)
+    // 14. ACTIVITY LOG (Audit Trail)
     // ═══════════════════════════════════════════════
     
     match /activityLog/{logId} {
@@ -213,7 +233,7 @@ service cloud.firestore {
     }
 
     // ═══════════════════════════════════════════════
-    // DEFAULT DENY — catch-all for unknown paths
+    // 15. DEFAULT DENY — catch-all for unknown paths
     // ═══════════════════════════════════════════════
     
     match /{document=**} {

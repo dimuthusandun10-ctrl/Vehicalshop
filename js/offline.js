@@ -189,17 +189,17 @@ const Offline = {
           this.queue = this.queue.filter(q => q.id !== item.id);
         }
       } catch(e) {
-        // If permission-denied on 'users' collection — drop silently
-        if((e.code === 'permission-denied' || (e.message && e.message.toLowerCase().includes('permission'))) && item.collection === 'users'){
-          console.warn('🗑️ Dropping denied user update:', item.docId);
+        const isPerm = e.code === 'permission-denied' || (e.message && e.message.toLowerCase().includes('permission'));
+        if(isPerm){
+          console.warn(`🗑️ Dropping unauthorized sync item for ${item.collection}:`, item.docId);
           this.queue = this.queue.filter(q => q.id !== item.id);
           this.persist();
-          continue; // don't count as failure, move on
+          continue; // don't block the sync queue
         }
 
         item.attempts = (item.attempts || 0) + 1;
         console.warn(`Sync attempt ${item.attempts} failed for ${item.collection}:`, e.message);
-        if(item.attempts >= 5){
+        if(item.attempts >= 3){
           console.warn('❌ Max attempts reached, dropping queue item:', item.id);
           this.queue = this.queue.filter(q => q.id !== item.id);
           failed.push(item);
@@ -218,6 +218,14 @@ const Offline = {
     if(failed.length > 0 && typeof toast === 'function'){
       toast(`⚠️ දත්ත ${failed.length}ක් sync කිරීමට නොහැකි විය`, 'err');
     }
+  },
+
+  clearQueue(){
+    this.queue = [];
+    this.persist();
+    this.updateUI();
+    this.updateQueueBadge();
+    console.log('🧹 Offline sync queue cleared');
   },
 
   updateQueueBadge(){

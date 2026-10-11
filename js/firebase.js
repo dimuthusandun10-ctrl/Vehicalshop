@@ -35,10 +35,7 @@ let _fbPermissionDenied = false;
 
 function checkPermissionError(err, operationName){
   if(err && (err.code === 'permission-denied' || (err.message && err.message.toLowerCase().includes('permission')))){
-    if(!_fbPermissionDenied){
-      _fbPermissionDenied = true;
-      console.warn('⚠️ Firebase Firestore Security Rules are locked. Operating smoothly in local database mode.');
-    }
+    console.warn(`⚠️ Firestore permission denied on ${operationName}:`, err.message);
     return true;
   }
   return false;
@@ -46,7 +43,6 @@ function checkPermissionError(err, operationName){
 
 async function initFirebase(){
   if(_fbReady) return true;
-  if(_fbPermissionDenied) return false;
   try {
     const [appMod, fsMod, authMod] = await Promise.all([
       import("https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js"),
@@ -58,9 +54,9 @@ async function initFirebase(){
     _fbAuth = authMod.getAuth(_fbApp);
     _fbModules = { appMod, fsMod, authMod };
     _fbReady = true;
+    _fbPermissionDenied = false;
     return true;
   } catch(e) {
-    _fbPermissionDenied = true;
     console.warn('Firebase network / CORS restriction detected (local mode active).', e);
     return false;
   }
@@ -89,17 +85,95 @@ async function fbUpdateUserPassword(newPassword){
   return await _fbModules.authMod.updatePassword(_fbAuth.currentUser, newPassword);
 }
 
-async function fbCreateUser(email, password){
+async function createUserWithoutLogout(email, password, userDoc){
   if(!_fbReady) await initFirebase();
-  if(!_fbAuth || !_fbModules?.authMod) throw new Error('Firebase Auth unavailable');
-  return await _fbModules.authMod.createUserWithEmailAndPassword(_fbAuth, email, password);
+  if(!_fbReady || !_fbModules?.appMod || !_fbModules?.authMod || !_fbModules?.fsMod){
+    return { ok: false, error: new Error('Firebase services are not available.') };
+  }
+
+  const { initializeApp, deleteApp } = _fbModules.appMod;
+  const { getAuth, createUserWithEmailAndPassword, signOut } = _fbModules.authMod;
+  const { doc, setDoc } = _fbModules.fsMod;
+
+  // Secondary Firebase App instance ensures primary Superadmin/Admin session remains untouched
+  const secondaryAppName = 'creator-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7);
+  let cleanEmail = (email || '').trim().toLowerCase();
+  if(!cleanEmail.includes('@')){
+    cleanEmail = `${cleanEmail}@autoparts.local`;
+  }
+
+  try {
+    secondaryApp = initializeApp(firebaseConfig, secondaryAppName);
+    const secondaryAuth = getAuth(secondaryApp);
+
+    // 1. Create Firebase Auth user in secondary app
+    const credential = await createUserWithEmailAndPassword(secondaryAuth, cleanEmail, password);
+    const uid = credential.user.uid;
+
+    // 2. Prepare user document data
+    const db = window.DB || {};
+    const createdBy = (window.state && window.state.user) ? (window.state.user.authUid || window.state.user.id) : 'system';
+    const userData = {
+      ...userDoc,
+      id: uid,
+      authUid: uid,
+      email: cleanEmail,
+      active: true,
+      locked: false,
+      needsPasswordChange: true,
+      createdAt: new Date().toISOString(),
+      createdBy
+    };
+
+    // 3. Write Firestore document via primary Firestore instance (authenticated as Superadmin/Admin)
+    await setDoc(doc(_fbDb, 'users', uid), userData);
+
+    // 4. Sign out secondary auth
+    try {
+      await signOut(secondaryAuth);
+    } catch(_){}
+
+    // 5. Delete secondary app instance
+    try {
+      await deleteApp(secondaryApp);
+      secondaryApp = null;
+    } catch(_){}
+
+    // 6. Update local in-memory DB and cache
+    if(!db.users) db.users = [];
+    const idx = db.users.findIndex(x => x.id === uid || x.authUid === uid);
+    if(idx >= 0){
+      db.users[idx] = { ...db.users[idx], ...userData };
+    } else {
+      db.users.push(userData);
+    }
+    if(window.DB && typeof window.DB.persistLocal === 'function'){
+      window.DB.persistLocal();
+    } else if(typeof saveDB === 'function'){
+      saveDB();
+    }
+
+    return { ok: true, uid, user: userData };
+  } catch(err){
+    if(secondaryApp){
+      try {
+        const { deleteApp } = _fbModules.appMod;
+        await deleteApp(secondaryApp);
+      } catch(_){}
+    }
+    console.error('Error in createUserWithoutLogout:', err);
+    return { ok: false, error: err };
+  }
+}
+
+async function fbCreateUser(email, password, userDoc){
+  return await createUserWithoutLogout(email, password, userDoc);
 }
 
 /* =====================================================
    GENERIC CRUD HELPERS
    ===================================================== */
 async function fbGetAll(colName){
-  if(_fbPermissionDenied) return [];
   if(!_fbReady){
     const ok = await initFirebase();
     if(!ok || !_fbDb) return [];
@@ -115,7 +189,6 @@ async function fbGetAll(colName){
 }
 
 async function fbGet(colName, id){
-  if(_fbPermissionDenied) return null;
   if(!_fbReady){
     const ok = await initFirebase();
     if(!ok || !_fbDb) return null;
@@ -126,6 +199,18 @@ async function fbGet(colName, id){
     return s.exists() ? { id: s.id, ...s.data() } : null;
   } catch(e) {
     checkPermissionError(e, `fbGet(${colName}, ${id})`);
+    return null;
+  }
+}
+
+async function fbGetDirect(colName, id){
+  if(!_fbReady) await initFirebase();
+  if(!_fbReady || !_fbDb || !_fbModules?.fsMod) return null;
+  try {
+    const { doc, getDoc } = _fbModules.fsMod;
+    const s = await getDoc(doc(_fbDb, colName, id));
+    return s.exists() ? { id: s.id, ...s.data() } : null;
+  } catch(e){
     return null;
   }
 }
@@ -190,7 +275,7 @@ async function fbDeleteDirect(colName, id){
    ===================================================== */
 async function fbAdd(colName, data){
   // 1. Try online first if connected
-  if(typeof navigator !== 'undefined' && navigator.onLine && !_fbPermissionDenied){
+  if(typeof navigator !== 'undefined' && navigator.onLine){
     try {
       return await fbAddDirect(colName, data);
     } catch(e) {
@@ -222,7 +307,7 @@ async function fbAdd(colName, data){
 }
 
 async function fbSet(colName, id, data){
-  if(typeof navigator !== 'undefined' && navigator.onLine && !_fbPermissionDenied){
+  if(typeof navigator !== 'undefined' && navigator.onLine){
     try {
       return await fbSetDirect(colName, id, data);
     } catch(e) {
@@ -248,7 +333,7 @@ async function fbSet(colName, id, data){
 }
 
 async function fbUpdate(colName, id, data){
-  if(typeof navigator !== 'undefined' && navigator.onLine && !_fbPermissionDenied){
+  if(typeof navigator !== 'undefined' && navigator.onLine){
     try {
       return await fbUpdateDirect(colName, id, data);
     } catch(e) {
@@ -273,7 +358,7 @@ async function fbUpdate(colName, id, data){
 }
 
 async function fbDelete(colName, id){
-  if(typeof navigator !== 'undefined' && navigator.onLine && !_fbPermissionDenied){
+  if(typeof navigator !== 'undefined' && navigator.onLine){
     try {
       return await fbDeleteDirect(colName, id);
     } catch(e) {
@@ -394,20 +479,22 @@ window.shopAdd = shopAdd;
 window.shopUpdate = shopUpdate;
 window.migrateOrphanDocumentsToShop = migrateOrphanDocumentsToShop;
 
+window.fbGetDirect = fbGetDirect;
 window.fbAddDirect = fbAddDirect;
 window.fbSetDirect = fbSetDirect;
 window.fbUpdateDirect = fbUpdateDirect;
 window.fbDeleteDirect = fbDeleteDirect;
 window.fbSignIn = fbSignIn;
 window.fbSignOut = fbSignOut;
-window.fbUpdateUserPassword = fbUpdateUserPassword;
 window.fbCreateUser = fbCreateUser;
+window.createUserWithoutLogout = createUserWithoutLogout;
 
 window.FB = {
   COL,
   initFirebase,
   fbGetAll,
   fbGet,
+  fbGetDirect,
   fbAdd,
   fbSet,
   fbUpdate,
@@ -429,7 +516,8 @@ window.FB = {
   signIn: fbSignIn,
   signOut: fbSignOut,
   updatePassword: fbUpdateUserPassword,
-  createUser: fbCreateUser,
+  createUser: createUserWithoutLogout,
+  createUserWithoutLogout: createUserWithoutLogout,
   _getModules: () => _fbModules,
   _getDb: () => _fbDb
 };
