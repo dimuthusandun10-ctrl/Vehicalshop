@@ -3,7 +3,7 @@
    ========================================================= */
 
 (function initLoader() {
-  const APP_VERSION = '2.4.3';
+  const APP_VERSION = '2.5.1';
   const _loadedScripts = new Set();
   const _pendingPromises = new Map();
 

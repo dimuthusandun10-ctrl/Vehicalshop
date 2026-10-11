@@ -10,6 +10,15 @@ const BarcodeScanner = {
   rafId: null,
   useZXing: false,
   zxingReader: null,
+  continuous: localStorage.getItem('pos.scanner.continuous') !== 'false',
+  lastCode: null,
+  lastScanTime: 0,
+  scannedCount: 0,
+
+  toggleContinuous(val){
+    this.continuous = Boolean(val);
+    localStorage.setItem('pos.scanner.continuous', this.continuous ? 'true' : 'false');
+  },
 
   async init(){
     // 1. Check Native Web BarcodeDetector API
@@ -36,6 +45,11 @@ const BarcodeScanner = {
   async open(){
     await this.init();
 
+    // Reset counters and cooldowns
+    this.lastCode = null;
+    this.lastScanTime = 0;
+    this.scannedCount = 0;
+
     // Remove existing modal if any
     const existing = document.getElementById('barcodeScannerModal');
     if(existing) existing.remove();
@@ -48,8 +62,14 @@ const BarcodeScanner = {
       <div class="bsm-backdrop"></div>
       <div class="bsm-content">
         <div class="bsm-header">
-          <h3>📷 Barcode ස්කෑන් කරන්න (Camera Scanner)</h3>
-          <button type="button" class="bsm-close" title="වසන්න (Close)">✕</button>
+          <h3>📷 Barcode ස්කෑනරය</h3>
+          <div style="display:flex;align-items:center;gap:8px">
+            <label style="display:flex;align-items:center;gap:5px;font-size:11.5px;color:#cbd5e1;cursor:pointer;background:rgba(255,255,255,0.08);padding:3px 9px;border-radius:14px;border:1px solid rgba(255,255,255,0.12);user-select:none" title="එක දිගට භාණ්ඩ කිහිපයක් ස්කෑන් කිරීමට මෙය සක්‍රීය කරන්න">
+              <input type="checkbox" id="bsmContinuousToggle" ${this.continuous ? 'checked' : ''} onchange="BarcodeScanner.toggleContinuous(this.checked)" style="width:14px;height:14px;accent-color:#10b981;cursor:pointer">
+              <span>🔁 Multi-Scan</span>
+            </label>
+            <button type="button" class="bsm-close" title="වසන්න (Close)">✕</button>
+          </div>
         </div>
         <div class="bsm-video-wrap">
           <video id="bsmVideo" autoplay playsinline muted></video>
@@ -60,6 +80,10 @@ const BarcodeScanner = {
         </div>
         <div class="bsm-status" id="bsmStatus">
           📷 Camera එකට Barcode එක හෝ QR එක යොමු කරන්න...
+        </div>
+        <div class="bsm-footer" style="padding:10px 16px;display:flex;justify-content:space-between;align-items:center;background:var(--panel,#0f172a);border-top:1px solid var(--line,#334155)">
+          <small id="bsmCount" style="color:var(--muted,#94a3b8);font-size:12px;font-weight:600">ස්කෑන් කළ භාණ්ඩ: 0</small>
+          <button type="button" class="btn btn-primary btn-sm" onclick="BarcodeScanner.close()" style="font-weight:700;padding:6px 14px">✅ අවසන් (Done)</button>
         </div>
       </div>
     `;
@@ -121,7 +145,6 @@ const BarcodeScanner = {
             const code = barcodes[0].rawValue;
             console.log('📷 Native Barcode detected:', code);
             this.onDetected(code);
-            return;
           }
         }
       } catch(err){
@@ -157,7 +180,17 @@ const BarcodeScanner = {
 
   onDetected(code){
     if(!code) return;
-    this.isScanning = false;
+    const cleanCode = String(code).trim();
+    if(!cleanCode) return;
+
+    // Cooldown check: prevent scanning same code repeatedly within 1.4s
+    const now = Date.now();
+    if(this.lastCode === cleanCode && (now - this.lastScanTime < 1400)){
+      return;
+    }
+    this.lastCode = cleanCode;
+    this.lastScanTime = now;
+    this.scannedCount = (this.scannedCount || 0) + 1;
 
     // 1. Haptic Feedback (Vibrate 50ms)
     if(typeof navigator !== 'undefined' && navigator.vibrate){
@@ -167,19 +200,45 @@ const BarcodeScanner = {
     // 2. Audio Feedback Beep
     this.beep();
 
-    // 3. UI Status Update
+    // 3. Visual feedback (Frame flash green)
+    const frame = document.querySelector('.bsm-frame');
+    if(frame){
+      frame.classList.add('success');
+      setTimeout(() => frame.classList.remove('success'), 450);
+    }
+
+    const countEl = document.getElementById('bsmCount');
+    if(countEl){
+      countEl.textContent = `ස්කෑන් කළ භාණ්ඩ: ${this.scannedCount}`;
+    }
+
     const status = document.getElementById('bsmStatus');
     if(status){
       status.style.color = '#34d399';
-      status.textContent = '✅ හඳුනාගත්තා: ' + code;
+      status.innerHTML = `✅ හඳුනාගත්තා: <b>${cleanCode}</b>` + 
+        (this.continuous ? `<br><small style="color:#6ee7b7;font-size:11px">Cart එකට එක්විය! ඊළඟ භාණ්ඩය යොමු කරන්න...</small>` : '');
     }
 
-    // 4. Close and dispatch after brief visual confirmation
-    setTimeout(() => {
-      this.close();
-      const event = new CustomEvent('barcodeScanned', { detail: { code: String(code).trim() } });
-      window.dispatchEvent(event);
-    }, 280);
+    // 4. Dispatch event to POS cart handler
+    const event = new CustomEvent('barcodeScanned', { detail: { code: cleanCode } });
+    window.dispatchEvent(event);
+
+    // 5. Handling exit vs continuous scanning
+    if(!this.continuous){
+      // Single scan mode: close immediately
+      this.isScanning = false;
+      setTimeout(() => {
+        this.close();
+      }, 350);
+    } else {
+      // Continuous scan mode: keep camera active & prompt for next item after 1.4s
+      setTimeout(() => {
+        if(this.isScanning && status){
+          status.style.color = 'var(--muted, #94a3b8)';
+          status.innerHTML = '📷 Camera එකට Barcode එක හෝ QR එක යොමු කරන්න...';
+        }
+      }, 1400);
+    }
   },
 
   beep(){
@@ -192,7 +251,7 @@ const BarcodeScanner = {
 
       osc.type = 'sine';
       osc.frequency.setValueAtTime(880, ctx.currentTime); // 880Hz (A5)
-      gain.gain.setValueAtTime(0.12, ctx.currentTime);
+      gain.gain.setValueAtTime(0.14, ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
 
       osc.connect(gain);
@@ -205,6 +264,9 @@ const BarcodeScanner = {
 
   close(){
     this.isScanning = false;
+    this.lastCode = null;
+    this.lastScanTime = 0;
+    this.scannedCount = 0;
 
     if(this.rafId){
       cancelAnimationFrame(this.rafId);
@@ -218,11 +280,27 @@ const BarcodeScanner = {
       this.zxingReader = null;
     }
 
+    // 1. Explicitly pause and detach video stream
+    const video = document.getElementById('bsmVideo');
+    if(video){
+      try {
+        video.pause();
+        video.srcObject = null;
+      } catch(_){}
+    }
+
+    // 2. Stop all camera media tracks completely so hardware indicator turns off
     if(this.stream){
-      this.stream.getTracks().forEach(t => t.stop());
+      try {
+        this.stream.getTracks().forEach(t => {
+          t.stop();
+          t.enabled = false;
+        });
+      } catch(_){}
       this.stream = null;
     }
 
+    // 3. Remove modal DOM
     const modal = document.getElementById('barcodeScannerModal');
     if(modal) modal.remove();
   }

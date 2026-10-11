@@ -19,6 +19,22 @@ function pgSettings(){
       </div>
     </div>
 
+    <!-- 🚀 App Version & Cloudflare Live Update Card -->
+    <div class="card" style="margin-top:14px;background:#111c30;border:1px solid var(--line);border-radius:12px;padding:14px 16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+        <div>
+          <div style="font-size:14.5px;font-weight:700;display:flex;align-items:center;gap:8px;margin-bottom:3px">
+            🚀 පද්ධති සංස්කරණය: <code style="color:#38bdf8;font-size:13px">v2.5.1</code>
+            <span class="pill ok" style="font-size:11px">Cloudflare Live</span>
+          </div>
+          <small style="color:var(--muted);font-size:12px;display:block">Mobile දුරකථනයේ හෝ පරිගණකයේ අලුත්ම Features නොපෙනේ නම්, පැරණි Cache ඉවත් කර නවතම අනුවාදය ලබාගන්න.</small>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="forceUpdateApp()" style="display:flex;align-items:center;gap:6px;font-weight:700;padding:8px 14px">
+          🔄 යෙදුම යාවත්කාලීන කරන්න (Update App)
+        </button>
+      </div>
+    </div>
+
     ${tab==='shop' ? (state.user?.role === 'cashier' ? `
     <div style="margin-top:14px;padding:20px;text-align:center;color:var(--muted)">
       🔒 සාප්පු තොරතුරු වෙනස් කිරීමට ඔබට අවසර නැත (Restricted)

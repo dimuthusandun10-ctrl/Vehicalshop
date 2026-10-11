@@ -1572,3 +1572,37 @@
   }
 }
 
+/* ── Topbar Manual App Update Button ── */
+.topbar-update-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #f8fafc;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 11.5px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.topbar-update-btn:hover {
+  background: rgba(56, 189, 248, 0.2);
+  border-color: #38bdf8;
+  color: #38bdf8;
+}
+
+@media (max-width: 640px) {
+  .topbar-update-btn .hide-mobile {
+    display: none;
+  }
+  .topbar-update-btn {
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+}
+
+

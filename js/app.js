@@ -82,47 +82,113 @@ function registerPwaServiceWorker(){
       navigator.serviceWorker.register('/service-worker.js', { scope: '/' })
         .then(reg => {
           console.log('✅ PWA Service Worker registered, scope:', reg.scope);
+          window._swReg = reg;
 
-          // Hourly update check
+          // If a new worker is already waiting (from a background fetch), show update banner immediately
+          if(reg.waiting){
+            showUpdateBanner(reg);
+          }
+
+          // Check for updates whenever user returns to the app / window gains focus
+          document.addEventListener('visibilitychange', () => {
+            if(document.visibilityState === 'visible'){
+              try { reg.update(); } catch(_){}
+            }
+          });
+
+          // Check every 10 minutes
           setInterval(() => {
-            try { reg.update(); } catch(e){}
-          }, 3600000);
+            try { reg.update(); } catch(_){}
+          }, 600000);
 
           reg.addEventListener('updatefound', () => {
             const newWorker = reg.installing;
             if(!newWorker) return;
             newWorker.addEventListener('statechange', () => {
               if(newWorker.state === 'installed' && navigator.serviceWorker.controller){
-                showUpdateBanner();
+                showUpdateBanner(reg);
               }
             });
           });
         })
         .catch(err => console.warn('PWA SW registration notice:', err));
     });
+
+    // When the new Service Worker activates and claims clients, reload page seamlessly
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if(!refreshing){
+        refreshing = true;
+        window.location.reload();
+      }
+    });
   }
 }
 
-function showUpdateBanner(){
+function showUpdateBanner(reg){
   if(document.getElementById('updateBanner')) return;
   const banner = document.createElement('div');
   banner.className = 'update-banner';
   banner.id = 'updateBanner';
   banner.innerHTML = `
-    <span>🆕 නව version එකක් තියෙනවා (Update Available)</span>
-    <button onclick="updateApp()">🔄 Update කරන්න</button>
+    <div style="display:flex;align-items:center;gap:10px">
+      <span style="font-size:20px">🚀</span>
+      <div>
+        <b style="font-size:13px;display:block">නවතම සංස්කරණයක් ඇත!</b>
+        <small style="opacity:0.9;font-size:11px">New version available (Cloudflare update ready)</small>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px">
+      <button type="button" onclick="forceUpdateApp()">🔄 Update කරන්න</button>
+      <button type="button" onclick="this.closest('.update-banner').remove()" style="background:transparent;color:#fff;border:none;font-size:16px;cursor:pointer;padding:4px 8px;border-radius:6px" title="පසුව">✕</button>
+    </div>
   `;
   document.body.appendChild(banner);
 }
 
-function updateApp(){
-  if(navigator.serviceWorker && navigator.serviceWorker.controller){
-    navigator.serviceWorker.controller.postMessage({ type: 'SKIP_WAITING' });
+async function forceUpdateApp(){
+  if(typeof toast === 'function') toast('⏳ නවතම අනුවාදය පරීක්ෂා කරමින් පවතී... (Checking Cloudflare updates)', 'info');
+
+  try {
+    // 1. Tell waiting or installing service worker to activate
+    if('serviceWorker' in navigator){
+      const reg = window._swReg || await navigator.serviceWorker.getRegistration();
+      if(reg){
+        if(reg.waiting){
+          reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+        }
+        if(reg.installing){
+          reg.installing.postMessage({ type: 'SKIP_WAITING' });
+        }
+        try {
+          await reg.update();
+        } catch(_){}
+      }
+    }
+
+    // 2. Clear all cache storage caches (scripts, css, html)
+    if('caches' in window){
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+    }
+
+    if(typeof toast === 'function') toast('✅ යෙදුම සාර්ථකව යාවත්කාලීන විය! නැවත පූරණය වේ...', 'ok');
+
+    // 3. Force clean reload with cache-buster timestamp query to bypass Cloudflare/browser cache
+    setTimeout(() => {
+      const cleanUrl = window.location.origin + window.location.pathname;
+      window.location.href = cleanUrl + '?ts=' + Date.now();
+    }, 450);
+
+  } catch(err){
+    console.error('Force update error:', err);
+    const cleanUrl = window.location.origin + window.location.pathname;
+    window.location.href = cleanUrl + '?ts=' + Date.now();
   }
-  setTimeout(() => window.location.reload(), 400);
 }
 
-window.updateApp = updateApp;
+window.forceUpdateApp = forceUpdateApp;
+window.updateApp = forceUpdateApp;
 
 /* =========================================================
    Custom PWA Install Prompt (Chrome / Edge / Android)

@@ -267,6 +267,7 @@ function handleBarcodeScan(val){
     const inp = $('#posSearch') || $('#posSearchOem');
     if(inp) inp.value = state.search;
     renderGrid();
+    if(typeof toast === 'function') toast(`⚠️ "${val}" සඳහා සෘජු භාණ්ඩයක් හමු නොවීය`, 'warn');
   }
 }
 
@@ -277,6 +278,51 @@ if(typeof window !== 'undefined' && !window._barcodeScannedListenerAttached){
     }
   });
   window._barcodeScannedListenerAttached = true;
+}
+
+// =========================================================
+// Global USB Barcode Scanner Wedge Listener
+// Handles physical USB / Bluetooth handheld barcode guns
+// =========================================================
+let _usbBarcodeBuf = '';
+let _usbLastKeyTime = 0;
+
+if(typeof window !== 'undefined' && !window._usbBarcodeListenerAttached){
+  window.addEventListener('keydown', (e) => {
+    // Active only on billing page
+    if(window.state?.page !== 'billing') return;
+    if(e.ctrlKey || e.altKey || e.metaKey) return;
+
+    const activeEl = document.activeElement;
+    // Don't intercept if user is in an unrelated dialog field (like customer notes, discount, etc.)
+    const isSpecialInput = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA') && 
+                           (activeEl.id !== 'posSearch' && activeEl.id !== 'posSearchOem');
+
+    const now = Date.now();
+    const timeDelta = now - _usbLastKeyTime;
+    _usbLastKeyTime = now;
+
+    // USB barcode guns type < 50ms per key. If longer than 65ms, manual typing -> reset buffer
+    if(timeDelta > 65){
+      _usbBarcodeBuf = '';
+    }
+
+    if(e.key === 'Enter'){
+      if(_usbBarcodeBuf.length >= 3){
+        const scanned = _usbBarcodeBuf.trim();
+        _usbBarcodeBuf = '';
+        if(!isSpecialInput){
+          e.preventDefault();
+          e.stopPropagation();
+          handleBarcodeScan(scanned);
+        }
+      }
+    } else if(e.key && e.key.length === 1){
+      _usbBarcodeBuf += e.key;
+    }
+  }, true);
+
+  window._usbBarcodeListenerAttached = true;
 }
 
 function handleOemScan(val){
