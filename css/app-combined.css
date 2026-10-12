@@ -1998,36 +1998,84 @@ tbody tr:hover td{background:#1a2438}
   display: flex;
   align-items: center;
   gap: 8px;
+  width: 100%;
 }
 
-.grn-search-overlay-input-wrap input {
+.grn-search-input-box {
+  position: relative;
   flex: 1;
-  padding: 10px 85px 10px 12px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+.grn-search-input-box input {
+  width: 100%;
+  padding: 10px 92px 10px 12px;
   font-size: 13.5px;
   background: #0b1220;
   border: 1px solid var(--line);
   border-radius: 8px;
   color: var(--txt);
+  box-sizing: border-box;
 }
 
-.grn-search-overlay-input-wrap input:focus {
+.grn-search-input-box input:focus {
   border-color: var(--primary);
   outline: none;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2);
+}
+
+.grn-search-input-box .grn-scan-btn,
+.grn-search-input-box .grn-barcode-badge {
+  position: absolute !important;
+  right: 6px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  padding: 4px 8px !important;
+  border-radius: 6px !important;
+  cursor: pointer !important;
+  z-index: 2 !important;
+  background: rgba(16, 185, 129, 0.15) !important;
+  color: #34d399 !important;
+  border: 1px solid rgba(16, 185, 129, 0.35) !important;
+  line-height: 1.2 !important;
+  user-select: none !important;
+  transition: all 0.15s ease !important;
+}
+
+.grn-search-input-box .grn-scan-btn:hover {
+  background: rgba(16, 185, 129, 0.3) !important;
+  color: #fff !important;
+  border-color: rgba(16, 185, 129, 0.55) !important;
 }
 
 .grn-overlay-close-btn {
-  background: transparent;
-  border: none;
-  color: var(--muted);
-  font-size: 16px;
-  padding: 4px 8px;
-  cursor: pointer;
-  border-radius: 6px;
+  flex: 0 0 auto !important;
+  width: 36px !important;
+  height: 36px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid var(--line) !important;
+  color: var(--muted) !important;
+  font-size: 16px !important;
+  cursor: pointer !important;
+  border-radius: 8px !important;
+  transition: all 0.15s ease !important;
+  padding: 0 !important;
 }
 
 .grn-overlay-close-btn:hover {
-  background: var(--panel2);
-  color: var(--txt);
+  background: rgba(239, 68, 68, 0.18) !important;
+  color: #f87171 !important;
+  border-color: rgba(239, 68, 68, 0.4) !important;
 }
 
 .grn-search-overlay .grn-search-dropdown {
@@ -2716,22 +2764,34 @@ tbody tr:hover td{background:#1a2438}
   }
 
   /* If SCAN is inside input (absolutely positioned), reposition */
-  .grn-search-wrap .scan-btn-inside {
+  .grn-search-input-box {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+  }
+  .grn-search-input-box input {
+    padding: 9px 80px 9px 10px !important;
+    font-size: 12.5px !important;
+  }
+  .grn-search-input-box .grn-scan-btn,
+  .grn-search-input-box .grn-barcode-badge {
     position: absolute !important;
-    right: 4px !important;
-    top: 4px !important;
-    bottom: 4px !important;
-    padding: 0 10px !important;
+    right: 5px !important;
+    top: 50% !important;
+    bottom: auto !important;
+    transform: translateY(-50%) !important;
+    padding: 3px 7px !important;
     font-size: 10.5px !important;
-    border-radius: 6px !important;
+    height: auto !important;
+    min-width: 0 !important;
   }
 
   /* Close button */
   .grn-overlay-close-btn {
     flex: 0 0 auto !important;
-    padding: 6px 10px !important;
+    width: 36px !important;
+    height: 36px !important;
+    padding: 0 !important;
     font-size: 16px !important;
-    height: 38px !important;
   }
 
   /* Shorten placeholder text on mobile */

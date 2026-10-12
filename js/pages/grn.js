@@ -130,14 +130,16 @@ function pgGRN(){
 
             <!-- Search Overlay Anchored to Inline Field -->
             <div id="grnSearchOverlay" class="grn-search-overlay hidden">
-              <div class="grn-search-overlay-input-wrap grn-search-wrap">
-                <input id="grnSearchInput" class="grn-search-input" autocomplete="off"
-                       placeholder="භාණ්ඩය සොයන්න..."
-                       title="සොයන්න (නම / කේතය / OEM / Barcode)"
-                       oninput="grnSearchProducts(this.value)"
-                       onkeydown="grnSearchKeydown(event)">
-                <span class="grn-barcode-badge scan-btn grn-scan-btn" onclick="grnStartCameraScan()" title="Camera එකෙන් Barcode එක Scan කරන්න">📷 SCAN</span>
-                <button type="button" class="grn-overlay-close-btn" onclick="grnCloseSearchOverlay()" title="Close">✕</button>
+              <div class="grn-search-overlay-input-wrap">
+                <div class="grn-search-input-box">
+                  <input id="grnSearchInput" class="grn-search-input" autocomplete="off"
+                         placeholder="භාණ්ඩය සොයන්න (නම / කේතය / OEM)..."
+                         title="සොයන්න (නම / කේතය / OEM / Barcode)"
+                         oninput="grnSearchProducts(this.value)"
+                         onkeydown="grnSearchKeydown(event)">
+                  <button type="button" class="grn-scan-btn grn-barcode-badge" onclick="grnStartCameraScan()" title="Camera එකෙන් Barcode එක Scan කරන්න">📷 SCAN</button>
+                </div>
+                <button type="button" class="grn-overlay-close-btn" onclick="grnCloseSearchOverlay()" title="වසන්න (Close)">✕</button>
               </div>
               <div id="grnSearchDropdown" class="grn-search-dropdown grn-search-results"></div>
             </div>
