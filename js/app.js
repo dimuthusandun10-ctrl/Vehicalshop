@@ -148,17 +148,27 @@ function registerPwaServiceWorker(){
   });
 }
 
-const CURRENT_APP_VERSION = 'v2.6.4';
+const CURRENT_APP_VERSION = 'v2.6.5';
 try {
   if(localStorage.getItem('pos.appVersion') !== CURRENT_APP_VERSION){
     localStorage.setItem('pos.appVersion', CURRENT_APP_VERSION);
   }
 } catch(_){}
 
+let _lastUpdateCheckTime = 0;
+let _updateBannerTimer = null;
+
 async function checkForCloudflareUpdates(){
   if(typeof navigator !== 'undefined' && !navigator.onLine) return;
+  const now = Date.now();
+  // Throttle update check to once every 5 minutes to avoid polling overhead
+  if(now - _lastUpdateCheckTime < 300000){
+    return;
+  }
+  _lastUpdateCheckTime = now;
+
   try {
-    const res = await fetch('/service-worker.js?_chk=' + Date.now(), { cache: 'no-store' });
+    const res = await fetch('/service-worker.js?_chk=' + now, { cache: 'no-store' });
     if(res.ok){
       const text = await res.text();
       const match = text.match(/CACHE_VERSION\s*=\s*['"]([^'"]+)['"]/);
@@ -169,8 +179,7 @@ async function checkForCloudflareUpdates(){
           console.log('⚡ New version detected on Cloudflare:', remoteVer, 'Current:', CURRENT_APP_VERSION);
           showUpdateBannerDirect(remoteVer);
         } else {
-          const b = document.getElementById('updateBanner');
-          if(b) b.remove();
+          dismissUpdateBanner(true);
           const sbWrap = document.getElementById('sidebarUpdateWrap');
           if(sbWrap) sbWrap.style.display = 'none';
         }
@@ -182,33 +191,77 @@ async function checkForCloudflareUpdates(){
 }
 
 function showUpdateBannerDirect(newVer){
-  // 1. Reveal sidebar update button ONLY when an update is actually available
+  // 1. Reveal sidebar update button in the side menu (stays accessible at all times)
   const sbWrap = document.getElementById('sidebarUpdateWrap');
   if(sbWrap){
     sbWrap.style.display = 'block';
     const sbBtn = document.getElementById('sidebarUpdateBtn');
-    if(sbBtn) sbBtn.innerHTML = `🚀 නව Update ඇත! <small style="color:var(--muted);font-weight:700">${newVer}</small>`;
+    if(sbBtn){
+      sbBtn.innerHTML = `🚀 නව Update ඇත! <small style="color:#38bdf8;font-weight:700;margin-left:4px">${newVer}</small>`;
+      sbBtn.onclick = () => forceUpdateApp(newVer);
+    }
   }
 
-  // 2. Floating bottom update notification banner
-  if(document.getElementById('updateBanner')) return;
-  const banner = document.createElement('div');
-  banner.className = 'update-banner';
-  banner.id = 'updateBanner';
+  // 2. Prevent repeatedly popping up every few seconds during this session
+  const promptKey = 'pos.updatePrompted.' + newVer;
+  const lastPrompted = sessionStorage.getItem(promptKey);
+  if(lastPrompted && (Date.now() - Number(lastPrompted) < 600000)){ // 10 minutes debounce for floating popup
+    return;
+  }
+  try { sessionStorage.setItem(promptKey, String(Date.now())); } catch(_){}
+
+  // 3. Floating bottom update notification banner (Disappears after ~2 seconds)
+  let banner = document.getElementById('updateBanner');
+  if(!banner){
+    banner = document.createElement('div');
+    banner.className = 'update-banner';
+    banner.id = 'updateBanner';
+    document.body.appendChild(banner);
+  }
+
   banner.innerHTML = `
     <div style="display:flex;align-items:center;gap:10px">
       <span style="font-size:22px">🚀</span>
       <div>
         <b style="font-size:13px;display:block">නවතම සංස්කරණයක් ඇත (${newVer})!</b>
-        <small style="opacity:0.9;font-size:11px">Cloudflare වෙතින් නවතම යාවත්කාලීනය ලබාගන්න</small>
+        <small style="opacity:0.9;font-size:11px">Sidebar හෝ Settings මඟින් Update කළ හැක</small>
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:6px">
       <button type="button" onclick="forceUpdateApp('${newVer}')" style="background:#10b981;color:#fff;border:none;padding:6px 12px;border-radius:6px;font-weight:700;font-size:12px;cursor:pointer">🔄 Update කරන්න</button>
-      <button type="button" onclick="this.closest('.update-banner').remove()" style="background:transparent;color:#fff;border:none;font-size:16px;cursor:pointer;padding:4px 8px;border-radius:6px" title="පසුව">✕</button>
+      <button type="button" onclick="dismissUpdateBanner()" style="background:transparent;color:#fff;border:none;font-size:16px;cursor:pointer;padding:4px 8px;border-radius:6px" title="පසුව">✕</button>
     </div>
   `;
-  document.body.appendChild(banner);
+
+  banner.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
+  banner.style.opacity = '1';
+  banner.style.transform = 'translateY(0)';
+
+  // 4. Automatically disappear after 2.2 seconds (user requirement: තත්පර 2න් නැති වෙලා යන්න)
+  if(_updateBannerTimer) clearTimeout(_updateBannerTimer);
+  _updateBannerTimer = setTimeout(() => {
+    dismissUpdateBanner();
+  }, 2200);
+
+  // Pause timer if user hovers mouse
+  banner.onmouseenter = () => { if(_updateBannerTimer) clearTimeout(_updateBannerTimer); };
+  banner.onmouseleave = () => { _updateBannerTimer = setTimeout(dismissUpdateBanner, 1500); };
+}
+
+function dismissUpdateBanner(immediate = false){
+  if(_updateBannerTimer) clearTimeout(_updateBannerTimer);
+  const banner = document.getElementById('updateBanner');
+  if(!banner) return;
+  if(immediate){
+    banner.remove();
+    return;
+  }
+  banner.style.transition = 'opacity 0.35s ease, transform 0.35s ease';
+  banner.style.opacity = '0';
+  banner.style.transform = 'translateY(25px)';
+  setTimeout(() => {
+    if(banner && banner.parentNode) banner.parentNode.removeChild(banner);
+  }, 350);
 }
 
 function showUpdateBanner(reg){

@@ -25,7 +25,7 @@ function pgSettings(){
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
         <div>
           <div style="font-size:14.5px;font-weight:700;display:flex;align-items:center;gap:8px;margin-bottom:3px">
-            🚀 පද්ධති සංස්කරණය: <code style="color:#38bdf8;font-size:13px">v2.6.1</code>
+            🚀 පද්ධති සංස්කරණය: <code style="color:#38bdf8;font-size:13px">v2.6.5</code>
             <span class="pill ok" style="font-size:11px">Cloudflare Live</span>
           </div>
           <small style="color:var(--muted);font-size:12px;display:block">Mobile දුරකථනයේ හෝ පරිගණකයේ අලුත්ම Features නොපෙනේ නම්, පැරණි Cache ඉවත් කර නවතම අනුවාදය ලබාගන්න.</small>
@@ -675,7 +675,7 @@ async function exportFullBackup(){
   const shopName = state.activeShop?.name || db.shop?.name || 'AutoParts Shop';
   
   const backupData = {
-    version: '2.6.3',
+    version: '2.6.5',
     phase: 8,
     timestamp: new Date().toISOString(),
     shopId: shopId,

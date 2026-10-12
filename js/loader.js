@@ -133,12 +133,7 @@
       setTimeout(preloadAllPages, 2000);
     }
 
-    /* 6. Register PWA Service Worker for offline app shell */
-    if ('serviceWorker' in navigator && (window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-      navigator.serviceWorker.register('service-worker.js')
-        .then(reg => console.log('✅ Service Worker registered, scope:', reg.scope))
-        .catch(err => console.log('SW registration notice:', err.message));
-    }
+    /* 6. PWA Service Worker is managed centrally by js/app.js to avoid duplicate registration */
 
     /* 7. Development Mode & Database Audit Tool */
     const isDev = window.location.hostname === 'localhost' || 
