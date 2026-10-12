@@ -131,7 +131,7 @@ service cloud.firestore {
       allow read: if isStaff() && sameShop(resource.data.shopId);
       allow create: if isSuper() ||
         (isStaff() && request.resource.data.shopId == currentShopId());
-      allow update, delete: if isSuper();
+      allow update, delete: if isSuper() || (isAdmin() && sameShop(resource.data.shopId));
     }
 
     // ═══════════════════════════════════════════════
@@ -153,7 +153,7 @@ service cloud.firestore {
       allow read: if isStaff() && sameShop(resource.data.shopId);
       allow create, update: if isSuper() ||
         (isAdmin() && sameShop(request.resource.data.shopId));
-      allow delete: if isSuper();
+      allow delete: if isSuper() || (isAdmin() && sameShop(resource.data.shopId));
     }
 
     // ═══════════════════════════════════════════════
@@ -164,7 +164,7 @@ service cloud.firestore {
       allow read: if isStaff() && sameShop(resource.data.shopId);
       allow create, update: if isStaff() &&
         sameShop(request.resource.data.shopId);
-      allow delete: if isSuper();
+      allow delete: if isSuper() || (isAdmin() && sameShop(resource.data.shopId));
     }
 
     // ═══════════════════════════════════════════════
@@ -175,7 +175,7 @@ service cloud.firestore {
       allow read: if isStaff() && sameShop(resource.data.shopId);
       allow create, update: if isStaff() &&
         sameShop(request.resource.data.shopId);
-      allow delete: if isSuper();
+      allow delete: if isSuper() || (isAdmin() && sameShop(resource.data.shopId));
     }
 
     // ═══════════════════════════════════════════════
@@ -186,7 +186,7 @@ service cloud.firestore {
       allow read: if isStaff() && sameShop(resource.data.shopId);
       allow create: if isSuper() ||
         (isStaff() && request.resource.data.shopId == currentShopId());
-      allow delete: if isSuper();
+      allow delete: if isSuper() || (isAdmin() && sameShop(resource.data.shopId));
     }
 
     // ═══════════════════════════════════════════════
@@ -197,7 +197,7 @@ service cloud.firestore {
       allow read: if isStaff() && sameShop(resource.data.shopId);
       allow create: if isSuper() ||
         (isStaff() && request.resource.data.shopId == currentShopId());
-      allow delete: if isSuper();
+      allow delete: if isSuper() || (isAdmin() && sameShop(resource.data.shopId));
     }
 
     // ═══════════════════════════════════════════════
@@ -208,7 +208,7 @@ service cloud.firestore {
       allow read: if isStaff() && sameShop(resource.data.shopId);
       allow create, update: if isSuper() ||
         (isAdmin() && sameShop(request.resource.data.shopId));
-      allow delete: if isSuper();
+      allow delete: if isSuper() || (isAdmin() && sameShop(resource.data.shopId));
     }
 
     // ═══════════════════════════════════════════════
@@ -248,7 +248,7 @@ service cloud.firestore {
       allow create: if isSuper() ||
         (isAdmin() && request.resource.data.shopId == currentShopId());
       allow update: if isSuper() || isAdmin();
-      allow delete: if isSuper();
+      allow delete: if isSuper() || (isAdmin() && sameShop(resource.data.shopId));
     }
 
     // ═══════════════════════════════════════════════

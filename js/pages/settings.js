@@ -153,13 +153,13 @@ function pgSettings(){
 
         <!-- 1-Click Restore Card -->
         <div class="card" style="background:#111c30;border:1px solid var(--line);border-radius:12px;padding:16px">
-          <h4 style="margin:0 0 6px;color:#6ee7b7;font-size:15px">⬆️ Backup ගොනුවකින් දත්ත ප්‍රතිස්ථාපනය කරන්න (Restore)</h4>
+          <h4 style="margin:0 0 6px;color:#6ee7b7;font-size:15px">⬆️ Backup ගොනුවකින් දත්ත ප්‍රතිස්ථාපනය කරන්න (Restore JSON)</h4>
           <p style="color:var(--muted);font-size:12px;margin:0 0 14px">
-            මීට පෙර බාගත කරන ලද JSON Backup ගොනුවක් තෝරා පද්ධතියේ සියලුම දත්ත නැවත පිහිටුවන්න.
+            මීට පෙර බාගත කරන ලද JSON Backup ගොනුවක් තෝරා පද්ධතියේ සියලුම දත්ත (භාණ්ඩ, විකුණුම්, GRN, සැපයුම්කරුවන් ආදී සියල්ල) නැවත පිහිටුවන්න.
           </p>
           <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-            <input type="file" id="backupFileInput" accept=".json" style="padding:6px;background:var(--panel);border:1px solid var(--line);border-radius:8px;font-size:12px">
-            <button class="btn btn-green btn-sm" onclick="handleImportBackupClick()" style="font-weight:700;padding:8px 16px;font-size:13px">
+            <input type="file" id="backupFileInput" accept=".json" style="padding:7px;background:var(--panel);border:1px solid var(--line);border-radius:8px;font-size:12px;color:var(--txt)">
+            <button class="btn btn-green btn-sm" id="btnRestoreBackup" onclick="handleImportBackupClick()" style="font-weight:700;padding:8px 18px;font-size:13px;display:flex;align-items:center;gap:6px">
               📂 ප්‍රතිස්ථාපනය කරන්න (Restore)
             </button>
           </div>
@@ -179,11 +179,53 @@ function pgSettings(){
           </div>
         </div>
 
-        <!-- Reset to Default Card -->
-        <div class="card" style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.3);border-radius:12px;padding:16px">
-          <h4 style="margin:0 0 6px;color:#fca5a5;font-size:14px">⚠️ ආරම්භක තත්ත්වයට පත් කරන්න (Reset to Default)</h4>
-          <p style="color:var(--muted);font-size:12px;margin:0 0 12px">මෙමඟින් සියලුම වත්මන් local cache දත්ත ඉවත් කර ආරම්භක දත්ත නැවත පිහිටුවනු ඇත.</p>
-          <button class="btn btn-red btn-sm" onclick="resetToDemo()">🔄 Reset Cache Data</button>
+        <!-- Data Clearing & Maintenance Options -->
+        <div class="card" style="background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.3);border-radius:12px;padding:16px">
+          <h4 style="margin:0 0 6px;color:#fca5a5;font-size:15px">🗑️ දත්ත පිරිසිදු කිරීම සහ නඩත්තුව (Data Reset & Clear)</h4>
+          <p style="color:var(--muted);font-size:12px;margin:0 0 14px">
+            පරීක්ෂණ ගනුදෙනු මකා දැමීම හෝ පද්ධතිය ආරම්භක තත්ත්වයට පත් කිරීම සඳහා පහත විකල්ප භාවිතා කරන්න.
+          </p>
+
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <!-- 1. Clear Transactions only -->
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;background:rgba(15,23,42,0.6);padding:12px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.06)">
+              <div>
+                <b style="font-size:13.5px;color:#f87171">1. ගනුදෙනු දත්ත පමණක් ඉවත් කරන්න (Clear Sales & Transactions)</b>
+                <p style="margin:3px 0 0;font-size:11.5px;color:var(--muted)">
+                  සියලු විකුණුම් (Sales), GRN, Return, Shifts, Petty Cash, චෙක්පත් හා ණය ශේෂයන් 0 බවට පත් කරයි. <span style="color:#6ee7b7;font-weight:600">භාණ්ඩ තොගය (Products) සුරැකේ.</span>
+                </p>
+              </div>
+              <button class="btn btn-red btn-sm" onclick="clearTransactions()" style="font-weight:700;padding:7px 16px">
+                🗑️ ගනුදෙනු Clear කරන්න
+              </button>
+            </div>
+
+            <!-- 2. Reset to Default Demo -->
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;background:rgba(15,23,42,0.6);padding:12px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.06)">
+              <div>
+                <b style="font-size:13.5px;color:#fbbf24">2. ආරම්භක Demo තත්ත්වයට පත් කරන්න (Reset to Default Demo)</b>
+                <p style="margin:3px 0 0;font-size:11.5px;color:var(--muted)">
+                  භාණ්ඩ සහ සියලු දත්ත ආරම්භක Demo තත්ත්වයට සකසා local cache ඉවත් කරයි.
+                </p>
+              </div>
+              <button class="btn btn-muted btn-sm" onclick="resetToDemo()" style="font-weight:600;padding:7px 16px">
+                🔄 Demo Reset
+              </button>
+            </div>
+
+            <!-- 3. Wipe Local Storage Cache -->
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;background:rgba(15,23,42,0.6);padding:12px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.06)">
+              <div>
+                <b style="font-size:13.5px;color:var(--txt)">3. බ්‍රවුසරයේ Local Cache ඉවත් කරන්න (Wipe Local Storage)</b>
+                <p style="margin:3px 0 0;font-size:11.5px;color:var(--muted)">
+                  මෙම බ්‍රවුසරයේ සුරකින ලද සියලුම Local Storage දත්ත හා Cache එකවර ඉවත් කරයි.
+                </p>
+              </div>
+              <button class="btn btn-muted btn-sm" onclick="wipeLocalCache()" style="font-weight:600;padding:7px 16px">
+                🧹 Wipe Local Cache
+              </button>
+            </div>
+          </div>
         </div>
 
       </div>`;
@@ -536,61 +578,293 @@ async function importBackup(file){
       }
 
       const source = data.collections || data;
-      if(!source.products && !source.users && !source.sales){
+      if(!source.products && !source.users && !source.sales && !source.customers){
         toast('වලංගු නොවන Backup ගොනුවකි (අවශ්‍ය දත්ත මොඩියුල නොමැත)', 'err');
         return;
       }
 
+      // Legacy key compatibility
+      if(!source.cashMoves && Array.isArray(source.cashMovements)) source.cashMoves = source.cashMovements;
+      if(!source.payments && Array.isArray(source.creditPayments)) source.payments = source.creditPayments;
+
       const db = window.DB || {};
-      const targetKeys = [
+      const shopId = (typeof currentShopId === 'function' && currentShopId()) || state.user?.shopId || state.activeShopId || data.shopId || 'SHOP-001';
+
+      const arrayKeys = [
         'shops', 'users', 'products', 'customers', 'suppliers',
         'sales', 'grns', 'returns', 'shifts', 'cashMoves',
         'payments', 'dailySummary', 'supplierPayments',
-        'interchanges', 'scrapInventory', 'counters'
+        'interchanges', 'scrapInventory'
       ];
 
-      targetKeys.forEach(k => {
+      let restoredCount = 0;
+      arrayKeys.forEach(k => {
         if(Array.isArray(source[k])){
           db[k] = source[k];
+          restoredCount += source[k].length;
         }
       });
 
+      // Counters handling (object or array)
+      if(source.counters && typeof source.counters === 'object'){
+        db.counters = source.counters;
+      }
       if(data.shop && typeof data.shop === 'object'){
         db.shop = data.shop;
       }
 
-      if(typeof saveDB === 'function') saveDB();
+      // 1. Immediately persist to localStorage for both current shopId and global LOCAL_KEY
+      const dataToPersist = {
+        products: db.products || [],
+        customers: db.customers || [],
+        suppliers: db.suppliers || [],
+        sales: db.sales || [],
+        grns: db.grns || [],
+        returns: db.returns || [],
+        shifts: db.shifts || [],
+        cashMoves: db.cashMoves || [],
+        payments: db.payments || [],
+        supplierPayments: db.supplierPayments || [],
+        interchanges: db.interchanges || [],
+        scrapInventory: db.scrapInventory || [],
+        users: db.users || [],
+        shops: db.shops || [],
+        counters: db.counters || { invoice: 1, grn: 1, ret: 1, shift: 1, payment: 1, shop: 1 },
+        shop: db.shop || {},
+        savedAt: Date.now(),
+        shopId: shopId
+      };
 
-      // If Firestore is active and online, optionally sync key collections
+      try {
+        localStorage.setItem('pos.localDB.' + shopId, JSON.stringify(dataToPersist));
+        localStorage.setItem('autoparts_pos_db', JSON.stringify(dataToPersist));
+        if(typeof db._persistLocalNow === 'function') db._persistLocalNow();
+      } catch(saveErr){
+        console.warn('Local persist error during restore:', saveErr);
+      }
+
+      // 2. If online and Firebase is connected, sync restored data to Firestore
       if(window.FB && window.FB.fbSet && navigator.onLine){
-        toast('Firestore දත්ත ගබඩාව සමමුහුර්ත කරමින් පවතී... ⏳');
+        toast('Firestore දත්ත ගබඩාවට යාවත්කාලීන කරමින් පවතී... ⏳');
         try {
-          const syncKeys = ['products', 'customers', 'suppliers', 'interchanges', 'scrapInventory'];
-          for(const colKey of syncKeys){
-            if(Array.isArray(db[colKey]) && window.FB.COL && window.FB.COL[colKey]){
-              for(const doc of db[colKey]){
-                if(doc && doc.id){
-                  await window.FB.fbSet(window.FB.COL[colKey], doc.id, doc);
+          const syncMap = [
+            { key: 'products', col: window.FB.COL.products },
+            { key: 'customers', col: window.FB.COL.customers },
+            { key: 'suppliers', col: window.FB.COL.suppliers },
+            { key: 'sales', col: window.FB.COL.sales },
+            { key: 'grns', col: window.FB.COL.grns },
+            { key: 'returns', col: window.FB.COL.returns },
+            { key: 'shifts', col: window.FB.COL.shifts },
+            { key: 'cashMoves', col: window.FB.COL.cashMovements || 'cashMovements' },
+            { key: 'payments', col: window.FB.COL.creditPayments || 'creditPayments' },
+            { key: 'supplierPayments', col: window.FB.COL.supplierPayments || 'supplierPayments' },
+            { key: 'interchanges', col: window.FB.COL.interchanges || 'interchanges' },
+            { key: 'scrapInventory', col: window.FB.COL.scrapInventory || 'scrapInventory' }
+          ];
+
+          for(const sm of syncMap){
+            if(Array.isArray(db[sm.key]) && sm.col){
+              for(const item of db[sm.key]){
+                if(item && item.id){
+                  try {
+                    await window.FB.fbSet(sm.col, item.id, item);
+                  } catch(e){}
                 }
               }
             }
           }
         } catch(syncErr){
-          console.warn('Firestore restore partial sync warning:', syncErr);
+          console.warn('Firestore restore sync warning:', syncErr);
         }
       }
 
-      toast('දත්ත සාර්ථකව ප්‍රතිස්ථාපනය කරන ලදී! ✅', 'ok');
+      toast(`දත්ත සාර්ථකව ප්‍රතිස්ථාපනය කරන ලදී! (${restoredCount} items) ✅`, 'ok');
       setTimeout(() => {
         location.reload();
-      }, 1200);
+      }, 1500);
 
     } catch(err){
       console.error(err);
-      toast('ගොනුව කියවීමේ දෝෂයක්: ' + (err.message || 'JSON Invalid'), 'err');
+      toast('Backup ගොනුව කියවීමේ දෝෂයක්: ' + (err.message || 'JSON Invalid'), 'err');
     }
   };
   reader.readAsText(file);
+}
+
+async function clearTransactions(){
+  const shopId = (typeof currentShopId === 'function' && currentShopId()) || state.user?.shopId || state.activeShopId || 'SHOP-001';
+
+  if(!confirm('අවධානයයි: මෙම සාප්පුවේ සියලුම විකුණුම් බිල්පත් (Sales), GRN, Return, Shifts, Petty Cash, චෙක්පත් සහ පාරිභෝගික ණය ශේෂයන් 0 බවට පත්වේ.\n\n(භාණ්ඩ තොගය සහ සැපයුම්කරුවන් මකා නොදැමේ)\n\nඔබට ඉදිරියට යාමට අවශ්‍ය බව තහවුරුද?')){
+    return;
+  }
+
+  const db = window.DB || {};
+
+  // Keep copies for Firestore remote deletion if online
+  const oldSales = [...(db.sales || [])];
+  const oldGrns = [...(db.grns || [])];
+  const oldReturns = [...(db.returns || [])];
+  const oldShifts = [...(db.shifts || [])];
+  const oldCashMoves = [...(db.cashMoves || [])];
+  const oldPayments = [...(db.payments || [])];
+  const oldSupplierPayments = [...(db.supplierPayments || [])];
+
+  // 1. Clear local memory
+  db.sales = [];
+  db.grns = [];
+  db.returns = [];
+  db.shifts = [];
+  db.cashMoves = [];
+  db.payments = [];
+  db.supplierPayments = [];
+  db.dailySummary = [];
+  db.counters = { invoice: 1, grn: 1, ret: 1, shift: 1, payment: 1, shop: 1 };
+
+  // Reset customer debts
+  if(Array.isArray(db.customers)){
+    db.customers.forEach(c => {
+      c.balance = 0;
+      c.totalSpent = 0;
+    });
+  }
+
+  // 2. Persist immediately to localStorage
+  const dataToPersist = {
+    products: db.products || [],
+    customers: db.customers || [],
+    suppliers: db.suppliers || [],
+    sales: [],
+    grns: [],
+    returns: [],
+    shifts: [],
+    cashMoves: [],
+    payments: [],
+    supplierPayments: [],
+    interchanges: db.interchanges || [],
+    scrapInventory: db.scrapInventory || [],
+    users: db.users || [],
+    shops: db.shops || [],
+    counters: db.counters,
+    shop: db.shop || {},
+    savedAt: Date.now(),
+    shopId: shopId
+  };
+
+  try {
+    localStorage.setItem('pos.localDB.' + shopId, JSON.stringify(dataToPersist));
+    localStorage.setItem('autoparts_pos_db', JSON.stringify(dataToPersist));
+    localStorage.removeItem('pos.activeShift');
+    localStorage.removeItem('pos.syncQueue');
+
+    // Remove any GRN drafts
+    for(let i = 0; i < localStorage.length; i++){
+      const k = localStorage.key(i);
+      if(k && k.startsWith('pos.grnDraft')) localStorage.removeItem(k);
+    }
+
+    if(typeof db._persistLocalNow === 'function') db._persistLocalNow();
+  } catch(e){
+    console.warn('Clear transactions local persist warning:', e);
+  }
+
+  // 3. If online and Firebase connected, delete transaction documents in Firestore
+  if(window.FB && window.FB.fbDelete && navigator.onLine){
+    toast('Firestore ගනුදෙනු දත්ත ඉවත් කරමින් පවතී... ⏳');
+    try {
+      const deleteLists = [
+        { col: window.FB.COL.sales, list: oldSales },
+        { col: window.FB.COL.grns, list: oldGrns },
+        { col: window.FB.COL.returns, list: oldReturns },
+        { col: window.FB.COL.shifts, list: oldShifts },
+        { col: window.FB.COL.cashMovements || 'cashMovements', list: oldCashMoves },
+        { col: window.FB.COL.creditPayments || 'creditPayments', list: oldPayments },
+        { col: window.FB.COL.supplierPayments || 'supplierPayments', list: oldSupplierPayments }
+      ];
+
+      for(const item of deleteLists){
+        for(const doc of (item.list || [])){
+          if(doc && doc.id){
+            try {
+              await window.FB.fbDelete(item.col, doc.id);
+            } catch(delErr){}
+          }
+        }
+      }
+
+      // Update customer balances in Firestore
+      if(Array.isArray(db.customers) && window.FB.COL.customers){
+        for(const c of db.customers){
+          if(c && c.id){
+            try {
+              await window.FB.fbSet(window.FB.COL.customers, c.id, c);
+            } catch(_){}
+          }
+        }
+      }
+    } catch(syncErr){
+      console.warn('Firestore transaction delete error:', syncErr);
+    }
+  }
+
+  toast('සියලුම ගනුදෙනු දත්ත සාර්ථකව ඉවත් කරන ලදී! ✅', 'ok');
+  setTimeout(() => {
+    location.reload();
+  }, 1200);
+}
+
+function resetToDemo(){
+  if(!confirm('ඔබට සියලු දත්ත ඉවත් කර ආරම්භක Demo තත්ත්වයට පත් කිරීමට අවශ්‍ය බව සහතිකද?')) return;
+
+  // Clear all pos.localDB keys
+  const keysToRemove = [];
+  for(let i = 0; i < localStorage.length; i++){
+    const k = localStorage.key(i);
+    if(k && (k.startsWith('pos.localDB') || k === 'autoparts_pos_db' || k === 'pos.syncQueue' || k.startsWith('pos.grnDraft') || k === 'pos.activeShift')){
+      keysToRemove.push(k);
+    }
+  }
+  keysToRemove.forEach(k => localStorage.removeItem(k));
+
+  if(window.DB){
+    DB.sales = [];
+    DB.grns = [];
+    DB.returns = [];
+    DB.shifts = [];
+    DB.cashMoves = [];
+    DB.payments = [];
+    DB.supplierPayments = [];
+    DB.dailySummary = [];
+    DB.products = window.INITIAL_PRODUCTS ? JSON.parse(JSON.stringify(window.INITIAL_PRODUCTS)) : [];
+    DB.customers = window.INITIAL_CUSTOMERS ? JSON.parse(JSON.stringify(window.INITIAL_CUSTOMERS)) : [];
+    DB.suppliers = window.INITIAL_SUPPLIERS ? JSON.parse(JSON.stringify(window.INITIAL_SUPPLIERS)) : [];
+    DB.interchanges = window.INITIAL_INTERCHANGES ? JSON.parse(JSON.stringify(window.INITIAL_INTERCHANGES)) : [];
+    DB.scrapInventory = window.INITIAL_SCRAP ? JSON.parse(JSON.stringify(window.INITIAL_SCRAP)) : [];
+    DB.counters = { invoice: 1, grn: 1, ret: 1, shift: 1, payment: 1, shop: 1 };
+    if(typeof DB._persistLocalNow === 'function') DB._persistLocalNow();
+  }
+
+  toast('පද්ධතිය ආරම්භක Demo තත්ත්වයට සකසන ලදී ✅', 'ok');
+  setTimeout(() => {
+    location.reload();
+  }, 1000);
+}
+
+function wipeLocalCache(){
+  if(!confirm('අවධානයයි: මෙම බ්‍රවුසරයේ ඇති සියලුම Local Storage දත්ත හා Cache සම්පූර්ණයෙන්ම මකා දැමීමට අවශ්‍ය බව සහතිකද?')) return;
+
+  const keysToRemove = [];
+  for(let i = 0; i < localStorage.length; i++){
+    const k = localStorage.key(i);
+    if(k && (k.startsWith('pos.') || k.startsWith('autoparts_'))){
+      keysToRemove.push(k);
+    }
+  }
+  keysToRemove.forEach(k => localStorage.removeItem(k));
+
+  toast('සියලුම Local Cache සාර්ථකව මකා දමන ලදී ✅', 'ok');
+  setTimeout(() => {
+    location.reload();
+  }, 1000);
 }
 
 function toggleAutoBackup(enabled){
@@ -605,12 +879,6 @@ function downloadBackup(){
 
 function restoreBackup(){
   handleImportBackupClick();
-}
-
-function resetToDemo(){
-  if(!confirm('ඔබට සියලු දත්ත ඉවත් කර ආරම්භක තත්ත්වයට පත් කිරීමට අවශ්‍ය බව සහතිකද?')) return;
-  localStorage.removeItem('autoparts_pos_db');
-  location.reload();
 }
 
 async function connectHardwarePrinter(){
@@ -674,6 +942,9 @@ window.importBackup = importBackup;
 window.handleImportBackupClick = handleImportBackupClick;
 window.toggleAutoBackup = toggleAutoBackup;
 window.resetToDemo = resetToDemo;
+window.clearTransactions = clearTransactions;
+window.clearData = clearTransactions;
+window.wipeLocalCache = wipeLocalCache;
 window.connectHardwarePrinter = connectHardwarePrinter;
 window.disconnectHardwarePrinter = disconnectHardwarePrinter;
 window.testPrintHardware = testPrintHardware;
