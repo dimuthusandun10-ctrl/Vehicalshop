@@ -66,13 +66,13 @@ function pgBilling(){
         <!-- Hardware Quick Actions Bar (Camera Scanner, Bluetooth Printer, Barcode Labels) -->
         <div class="pos-hardware-actions">
           <button type="button" class="btn btn-sm pos-hw-btn pos-hw-camera" onclick="if(window.BarcodeScanner) BarcodeScanner.open(); else focusSearch();" title="කැමරාවෙන් Barcode ස්කෑන් කරන්න (Camera Barcode Scanner)">
-            📷 <span>කැමරා ස්කෑනරය</span>
+            📷 <span>ස්කෑනරය</span>
           </button>
           <button type="button" id="posPrinterStatusBtn" class="btn btn-sm pos-hw-btn pos-hw-printer ${(window.Printer && window.Printer.isConnected)?'connected':''}" onclick="openPrinterQuickModal()" title="Bluetooth Thermal Printer සම්බන්ධ කරන්න">
-            🖨️ <span id="posPrinterStatusText">${(window.Printer && window.Printer.isConnected)?'Printer: සම්බන්ධයි':'Bluetooth Printer'}</span>
+            🖨️ <span id="posPrinterStatusText">${(window.Printer && window.Printer.isConnected)?'සම්බන්ධයි':'Printer'}</span>
           </button>
           <button type="button" class="btn btn-sm pos-hw-btn pos-hw-labels" onclick="go('labels')" title="Barcode ලේබල් මුද්‍රණය කරන්න (Print Labels)">
-            🏷️ <span>Barcode ලේබල්</span>
+            🏷️ <span>ලේබල්</span>
           </button>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
@@ -2004,7 +2004,7 @@ function updateBillingPrinterBtn(){
     btn.classList.toggle('connected', Boolean(isConn));
   }
   if(txt){
-    txt.textContent = isConn ? `Printer: සම්බන්ධයි (${window.Printer.paperWidth||58}mm)` : 'Bluetooth Printer';
+    txt.textContent = isConn ? 'සම්බන්ධයි' : 'Printer';
   }
 }
 

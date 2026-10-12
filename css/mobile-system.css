@@ -1605,27 +1605,32 @@
   }
 }
 
-/* ============ Mobile Hardware Bar (POS Billing) ============ */
+/* ============ Mobile Hardware Bar (POS Billing - Single Compact Row) ============ */
 .pos-hardware-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-  flex-wrap: wrap;
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 6px !important;
+  margin-bottom: 8px !important;
+  width: 100% !important;
 }
 
 .pos-hw-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-weight: 600;
-  padding: 7px 12px;
-  border-radius: 8px;
-  font-size: 12.5px;
-  cursor: pointer;
-  border: 1px solid transparent;
-  transition: all 0.2s ease;
-  user-select: none;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 4px !important;
+  font-weight: 600 !important;
+  padding: 6px 4px !important;
+  border-radius: 8px !important;
+  font-size: 11.5px !important;
+  cursor: pointer !important;
+  border: 1px solid transparent !important;
+  transition: all 0.2s ease !important;
+  user-select: none !important;
+  white-space: nowrap !important;
+  min-height: 34px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
 }
 
 .pos-hw-camera {
@@ -1633,7 +1638,7 @@
   color: #0f172a !important;
   border-color: #d97706 !important;
   font-weight: 700 !important;
-  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.25);
+  box-shadow: 0 1px 4px rgba(245, 158, 11, 0.2) !important;
 }
 
 .pos-hw-camera:hover {
@@ -1659,22 +1664,11 @@
 }
 
 @media (max-width: 480px) {
-  .pos-hardware-actions {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 6px;
-    width: 100%;
-  }
   .pos-hw-btn {
-    width: 100%;
-    justify-content: center;
-    font-size: 11.5px;
-    padding: 8px 6px;
-  }
-  .pos-hw-camera {
-    grid-column: span 2;
-    padding: 10px;
-    font-size: 13px;
+    font-size: 11px !important;
+    padding: 5px 2px !important;
+    min-height: 32px !important;
+    gap: 3px !important;
   }
 }
 
