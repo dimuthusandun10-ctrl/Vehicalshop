@@ -240,7 +240,19 @@ service cloud.firestore {
     }
 
     // ═══════════════════════════════════════════════
-    // 16. DEFAULT DENY — catch-all for unknown paths
+    // 16. SUPPLIER PAYMENTS & CHEQUES LEDGER
+    // ═══════════════════════════════════════════════
+    
+    match /supplierPayments/{paymentId} {
+      allow read: if isStaff() && sameShop(resource.data.shopId);
+      allow create: if isSuper() ||
+        (isAdmin() && request.resource.data.shopId == currentShopId());
+      allow update: if isSuper() || isAdmin();
+      allow delete: if isSuper();
+    }
+
+    // ═══════════════════════════════════════════════
+    // 17. DEFAULT DENY — catch-all for unknown paths
     // ═══════════════════════════════════════════════
     
     match /{document=**} {

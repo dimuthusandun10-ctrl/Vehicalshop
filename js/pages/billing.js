@@ -676,6 +676,7 @@ function addToCart(pid){
       name: p.name,
       price: p.price,
       cost: p.cost || 0,
+      costAtSale: p.cost || 0,
       rack: p.rack || '',
       bin: p.bin || '',
       oemNo: p.oemNo || '',
@@ -1717,7 +1718,15 @@ async function executeSaleRecord(total, method, paid, change, cardRef='', notes=
     customerId: custId || null,
     customer: cust?.name || 'වෝක්-ඉන්',
     vehicle: cust?.vehicle || '',
-    items: JSON.parse(JSON.stringify(state.cart)),
+    items: (state.cart || []).map(item => {
+      const prod = db.getProd ? db.getProd(item.pid) : (db.products || []).find(x => x.id === item.pid);
+      const costSnap = item.costAtSale != null ? item.costAtSale : (item.cost != null ? item.cost : (prod ? prod.cost : 0));
+      return {
+        ...item,
+        cost: costSnap,
+        costAtSale: costSnap
+      };
+    }),
     sub,
     disc,
     coreDeduction: coreDeduction || 0,

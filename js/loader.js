@@ -24,7 +24,8 @@
     shops: ['js/pages/shops.js'],
     settings: ['js/pages/settings.js', 'js/printer.js', 'js/barcode-scanner.js'],
     'serial-search': ['js/pages/serial-search.js'],
-    profile: ['js/pages/profile.js']
+    profile: ['js/pages/profile.js'],
+    payables: ['js/pages/payables.js']
   };
 
   function isScriptAlreadyLoaded(src) {

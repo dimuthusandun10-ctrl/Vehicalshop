@@ -240,6 +240,7 @@ async function switchSuperAdminShop(shopId){
   db.shifts    = [];
   db.cashMoves = [];
   db.payments  = [];
+  db.supplierPayments = [];
 
   // 3. Reload data for newly selected shop
   if(typeof db.loadAll === 'function'){
@@ -456,4 +457,41 @@ document.addEventListener('keydown', (e) => {
 window.openMobileSidebar = openMobileSidebar;
 window.closeMobileSidebar = closeMobileSidebar;
 window.toggleMobileSidebar = toggleMobileSidebar;
+
+/* =========================================================
+   CSV / EXCEL EXPORT HELPER (UTF-8 BOM FOR MICROSOFT EXCEL)
+   ========================================================= */
+function downloadCSV(filename, headers, rows){
+  // Build CSV with BOM for Excel compatibility
+  const bom = '\uFEFF';
+  const csv = [
+    headers.map(h => `"${String(h ?? '').replace(/"/g, '""')}"`).join(','),
+    ...rows.map(row => 
+      row.map(cell => {
+        const str = String(cell ?? '');
+        return `"${str.replace(/"/g, '""')}"`;
+      }).join(',')
+    )
+  ].join('\r\n');
+  
+  const blob = new Blob([bom + csv], { 
+    type: 'text/csv;charset=utf-8;' 
+  });
+  
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  setTimeout(() => {
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, 100);
+  
+  if(typeof toast === 'function') toast('⬇️ ' + filename + ' බාගත විය', 'ok');
+}
+
+window.downloadCSV = downloadCSV;
+
 

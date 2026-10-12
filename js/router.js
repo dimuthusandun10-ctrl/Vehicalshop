@@ -105,7 +105,8 @@ function render(){
     profile: typeof pgProfile !== 'undefined' ? pgProfile : null,
     settings: typeof pgSettings !== 'undefined' ? pgSettings : null,
     labels: typeof pgLabels !== 'undefined' ? pgLabels : null,
-    credit: typeof pgCredit !== 'undefined' ? pgCredit : null
+    credit: typeof pgCredit !== 'undefined' ? pgCredit : null,
+    payables: typeof pgPayables !== 'undefined' ? pgPayables : null
   };
 
   const renderFn = map[state.page];

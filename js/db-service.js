@@ -48,6 +48,7 @@ Object.assign(DB, {
   shifts: [],
   cashMoves: [],
   payments: [],
+  supplierPayments: [],
   counters: { invoice: 1, grn: 1, ret: 1, shift: 1, payment: 1, shop: 1 },
 
   isFirebaseConnected: false,
@@ -130,6 +131,7 @@ Object.assign(DB, {
         this.shifts    = filterByShop(cached.shifts);
         this.cashMoves = filterByShop(cached.cashMoves);
         this.payments  = filterByShop(cached.payments);
+        this.supplierPayments = filterByShop(cached.supplierPayments);
       } else {
         // No active shop → empty arrays (strict isolation)
         this.products  = [];
@@ -141,6 +143,7 @@ Object.assign(DB, {
         this.shifts    = [];
         this.cashMoves = [];
         this.payments  = [];
+        this.supplierPayments = [];
       }
 
       if(cached.counters) this.counters = { ...this.counters, ...cached.counters };
@@ -228,7 +231,8 @@ Object.assign(DB, {
             { key: 'returns',   name: 'returns' },
             { key: 'shifts',    name: 'shifts' },
             { key: 'cashMoves', name: 'cashMovements' },
-            { key: 'payments',  name: 'creditPayments' }
+            { key: 'payments',  name: 'creditPayments' },
+            { key: 'supplierPayments', name: 'supplierPayments' }
           ];
 
           const results = await Promise.all(
@@ -254,6 +258,7 @@ Object.assign(DB, {
           this.shifts    = [];
           this.cashMoves = [];
           this.payments  = [];
+          this.supplierPayments = [];
         }
 
         const shopDoc = await window.FB.fbGet(window.FB.COL.settings, 'shop');
@@ -395,6 +400,7 @@ Object.assign(DB, {
         shifts:    this.shifts,
         cashMoves: this.cashMoves,
         payments:  this.payments,
+        supplierPayments: this.supplierPayments,
         suppliers: this.suppliers,
         users:     this.users,
         shops:     this.shops,
@@ -435,6 +441,7 @@ Object.assign(DB, {
         shifts: mergeCol('shifts', this.shifts),
         cashMoves: mergeCol('cashMoves', this.cashMoves),
         payments: mergeCol('payments', this.payments),
+        supplierPayments: mergeCol('supplierPayments', this.supplierPayments),
         counters: this.counters,
         savedAt: Date.now()
       }));
@@ -571,6 +578,11 @@ function startPageListeners(page){
       watch('products');
       watch('suppliers');
       watch('grns');
+      break;
+    case 'payables':
+      watch('suppliers');
+      watch('grns');
+      watch('supplierPayments');
       break;
     case 'returns':
       watch('returns', 'returns', (list) => {

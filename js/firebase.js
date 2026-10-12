@@ -23,6 +23,7 @@ const COL = {
   shifts:    'shifts',
   cashMoves: 'cashMovements',   /* Petty Cash */
   payments:  'creditPayments',  /* Store Credit settle */
+  supplierPayments: 'supplierPayments', /* Supplier Payables */
   settings:  'settings',
   counters:  'counters'
 };
