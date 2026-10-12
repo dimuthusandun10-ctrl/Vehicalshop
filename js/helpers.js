@@ -241,6 +241,8 @@ async function switchSuperAdminShop(shopId){
   db.cashMoves = [];
   db.payments  = [];
   db.supplierPayments = [];
+  db.interchanges = [];
+  db.scrapInventory = [];
 
   // 3. Reload data for newly selected shop
   if(typeof db.loadAll === 'function'){

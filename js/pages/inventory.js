@@ -449,99 +449,230 @@ function editProduct(id){
   const engineStr = Array.isArray(p.engine) ? p.engine.join(', ') : (p.engine || '');
   const crossSellStr = Array.isArray(p.crossSell) ? p.crossSell.join(', ') : (p.crossSell || '');
 
+  // Pre-load existing interchange record if any
+  const existingInt = (db.interchanges || []).find(i => (id && i.productId === id) || (p.code && i.productCode === p.code));
+  window._invModalInterchangeVehicles = existingInt && Array.isArray(existingInt.fitsVehicles) ? 
+    JSON.parse(JSON.stringify(existingInt.fitsVehicles)) : 
+    (p.brand || p.model || (p.chassis && p.chassis.length) ? [{
+      brand: p.brand || '',
+      model: p.model || '',
+      chassis: Array.isArray(p.chassis) ? p.chassis : [],
+      engine: Array.isArray(p.engine) ? p.engine : [],
+      yearFrom: p.yearFrom || null,
+      yearTo: p.yearTo || null,
+      notes: 'Direct fit'
+    }] : []);
+  window._invModalAlternates = existingInt && Array.isArray(existingInt.alternates) ? existingInt.alternates.join(', ') : '';
+
   openModal(id ? '✏️ භාණ්ඩය සංස්කරණය' : '➕ නව අමතර කොටසක්', id ? 'Edit Auto Part' : 'New Auto Part',
-  `<div class="grid2">
-     <div>
-       <label style="font-size:11.5px;color:var(--muted);font-weight:600">කේතය / Barcode *</label>
-       <div style="display:flex;gap:6px">
-         <input id="pCode" value="${esc(p.code)}" placeholder="Barcode / කේතය" style="flex:1">
-         <button type="button" class="btn btn-sm btn-blue" onclick="scanBarcodeForField('#pCode')" title="Camera එකෙන් Barcode එක Scan කරන්න" style="padding:4px 10px;font-size:12px;white-space:nowrap;display:flex;align-items:center;gap:4px">
-           📷 Scan
-         </button>
-       </div>
-     </div>
-     <div><label style="font-size:11.5px;color:var(--muted);font-weight:600">කාණ්ඩය / Category</label>
-       <select id="pCat">${cats.map(c=>`<option ${c===p.cat?'selected':''}>${c}</option>`).join('')}</select></div>
-   </div>
+  `
+  <!-- Modal Segmented Tabs -->
+  <div style="display:flex;gap:8px;margin-bottom:14px;border-bottom:1px solid var(--line);padding-bottom:10px">
+    <button type="button" id="tabBtnGeneral" class="btn btn-sm btn-primary" onclick="switchInvModalTab('general')" style="font-weight:700">
+      📦 මූලික විස්තර (General)
+    </button>
+    <button type="button" id="tabBtnInterchange" class="btn btn-sm" onclick="switchInvModalTab('interchange')" style="font-weight:700">
+      🔄 Part Interchange (වාහන ගැලපුම්)
+    </button>
+  </div>
 
-   <div class="grid2" style="margin-top:12px">
-     <div><label style="font-size:11.5px;color:var(--muted);font-weight:600">නම (සිංහල) *</label><input id="pName" value="${esc(p.name)}"></div>
-     <div><label style="font-size:11.5px;color:var(--muted);font-weight:600">Name (English)</label><input id="pNameEn" value="${esc(p.nameEn||'')}"></div>
-   </div>
+  <!-- TAB 1: GENERAL PRODUCT DETAILS -->
+  <div id="invTabGeneral">
+    <div class="grid2">
+      <div>
+        <label style="font-size:11.5px;color:var(--muted);font-weight:600">කේතය / Barcode *</label>
+        <div style="display:flex;gap:6px">
+          <input id="pCode" value="${esc(p.code)}" placeholder="Barcode / කේතය" style="flex:1" oninput="if($('#pIntAutoCode')) $('#pIntAutoCode').textContent = this.value">
+          <button type="button" class="btn btn-sm btn-blue" onclick="scanBarcodeForField('#pCode')" title="Camera එකෙන් Barcode එක Scan කරන්න" style="padding:4px 10px;font-size:12px;white-space:nowrap;display:flex;align-items:center;gap:4px">
+            📷 Scan
+          </button>
+        </div>
+      </div>
+      <div><label style="font-size:11.5px;color:var(--muted);font-weight:600">කාණ්ඩය / Category</label>
+        <select id="pCat">${cats.map(c=>`<option ${c===p.cat?'selected':''}>${c}</option>`).join('')}</select></div>
+    </div>
 
-   <!-- Auto Parts Compatibility Group -->
-   <div style="background:rgba(255,255,255,0.02);border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:14px">
-     <div style="font-size:12px;font-weight:700;color:var(--primary);margin-bottom:8px">🚗 වාහන සහ අමතර කොටස් අනුකූලතාව (Compatibility)</div>
-     <div class="grid2">
-       <div><label style="font-size:11px;color:var(--muted)">OEM අංකය (උදා: 04465-02220)</label><input id="pOem" value="${esc(p.oemNo||'')}"></div>
-       <div><label style="font-size:11px;color:var(--muted)">විකල්ප අංක / Alt Nos (කොමා වලින් වෙන් කරන්න)</label><input id="pAlt" value="${esc(altNosStr)}" placeholder="AN-688K, TN-401"></div>
-     </div>
-     <div class="grid2" style="margin-top:10px">
-       <div><label style="font-size:11px;color:var(--muted)">වෙළඳ නාමය / Brand</label><input id="pBrand" value="${esc(p.brand||'')}"></div>
-       <div><label style="font-size:11px;color:var(--muted)">වාහන මාදිලිය / Model</label><input id="pModel" value="${esc(p.model||'')}"></div>
-     </div>
-     <div class="grid2" style="margin-top:10px">
-       <div><label style="font-size:11px;color:var(--muted)">Chassis Codes (කොමා වලින් වෙන් කරන්න)</label><input id="pChassis" value="${esc(chassisStr)}" placeholder="NZE141, GP5"></div>
-       <div><label style="font-size:11px;color:var(--muted)">Engine Codes (කොමා වලින් වෙන් කරන්න)</label><input id="pEngine" value="${esc(engineStr)}" placeholder="1NZ-FE, L15A"></div>
-     </div>
-     <div class="grid2" style="margin-top:10px">
-       <div><label style="font-size:11px;color:var(--muted)">ගැලපෙන වර්ෂය (සිට / From)</label><input id="pYFrom" type="number" value="${p.yearFrom||''}" placeholder="2006"></div>
-       <div><label style="font-size:11px;color:var(--muted)">ගැලපෙන වර්ෂය (දක්වා / To)</label><input id="pYTo" type="number" value="${p.yearTo||''}" placeholder="2018"></div>
-     </div>
-   </div>
+    <div class="grid2" style="margin-top:12px">
+      <div><label style="font-size:11.5px;color:var(--muted);font-weight:600">නම (සිංහල) *</label><input id="pName" value="${esc(p.name)}"></div>
+      <div><label style="font-size:11.5px;color:var(--muted);font-weight:600">Name (English)</label><input id="pNameEn" value="${esc(p.nameEn||'')}"></div>
+    </div>
 
-   <!-- Storage Location (Placed below category/brand section) -->
-   <div style="background:rgba(255,255,255,0.02);border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:14px">
-     <div style="font-size:12px;font-weight:700;color:var(--blue);margin-bottom:8px">📍 ගබඩා ස්ථානය (Storage Location)</div>
-     <div class="grid3">
-       <div><label style="font-size:11px;color:var(--muted);font-weight:600">රාක්ක අංකය (Rack)</label><input id="pRack" value="${esc(p.rack||'')}" placeholder="A-01"></div>
-       <div><label style="font-size:11px;color:var(--muted);font-weight:600">පෙට්ටි අංකය (Bin)</label><input id="pBin" value="${esc(p.bin||'')}" placeholder="B3"></div>
-       <div><label style="font-size:11px;color:var(--muted);font-weight:600">ගබඩාව (Warehouse)</label><input id="pWarehouse" value="${esc(p.warehouse||'Main')}" placeholder="Main"></div>
-     </div>
-   </div>
+    <!-- Auto Parts Compatibility Group -->
+    <div style="background:rgba(255,255,255,0.02);border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:14px">
+      <div style="font-size:12px;font-weight:700;color:var(--primary);margin-bottom:8px">🚗 වාහන සහ අමතර කොටස් අනුකූලතාව (Direct Fit)</div>
+      <div class="grid2">
+        <div><label style="font-size:11px;color:var(--muted)">OEM අංකය (උදා: 04465-02220)</label><input id="pOem" value="${esc(p.oemNo||'')}"></div>
+        <div><label style="font-size:11px;color:var(--muted)">විකල්ප අංක / Alt Nos (කොමා වලින් වෙන් කරන්න)</label><input id="pAlt" value="${esc(altNosStr)}" placeholder="AN-688K, TN-401"></div>
+      </div>
+      <div class="grid2" style="margin-top:10px">
+        <div><label style="font-size:11px;color:var(--muted)">වෙළඳ නාමය / Brand</label><input id="pBrand" value="${esc(p.brand||'')}"></div>
+        <div><label style="font-size:11px;color:var(--muted)">වාහන මාදිලිය / Model</label><input id="pModel" value="${esc(p.model||'')}"></div>
+      </div>
+      <div class="grid2" style="margin-top:10px">
+        <div><label style="font-size:11px;color:var(--muted)">Chassis Codes (කොමා වලින් වෙන් කරන්න)</label><input id="pChassis" value="${esc(chassisStr)}" placeholder="NZE141, GP5"></div>
+        <div><label style="font-size:11px;color:var(--muted)">Engine Codes (කොමා වලින් වෙන් කරන්න)</label><input id="pEngine" value="${esc(engineStr)}" placeholder="1NZ-FE, L15A"></div>
+      </div>
+      <div class="grid2" style="margin-top:10px">
+        <div><label style="font-size:11px;color:var(--muted)">ගැලපෙන වර්ෂය (සිට / From)</label><input id="pYFrom" type="number" value="${p.yearFrom||''}" placeholder="2006"></div>
+        <div><label style="font-size:11px;color:var(--muted)">ගැලපෙන වර්ෂය (දක්වා / To)</label><input id="pYTo" type="number" value="${p.yearTo||''}" placeholder="2018"></div>
+      </div>
+    </div>
 
-   <div class="grid3" style="margin-top:12px">
-     <div><label style="font-size:11.5px;color:var(--muted);font-weight:600">පිරිවැය / Cost</label><input id="pCost" type="number" value="${p.cost||0}"></div>
-     <div><label style="font-size:11.5px;color:var(--muted);font-weight:600">සිල්ලර මිල / Retail</label><input id="pPrice" type="number" value="${p.price||0}"></div>
-     <div><label style="font-size:11.5px;color:var(--muted);font-weight:600">තොග මිල / Wholesale</label><input id="pPriceWs" type="number" value="${p.priceWholesale||0}"></div>
-   </div>
+    <!-- Storage Location -->
+    <div style="background:rgba(255,255,255,0.02);border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:14px">
+      <div style="font-size:12px;font-weight:700;color:var(--blue);margin-bottom:8px">📍 ගබඩා ස්ථානය (Storage Location)</div>
+      <div class="grid3">
+        <div><label style="font-size:11px;color:var(--muted);font-weight:600">රාක්ක අංකය (Rack)</label><input id="pRack" value="${esc(p.rack||'')}" placeholder="A-01"></div>
+        <div><label style="font-size:11px;color:var(--muted);font-weight:600">පෙට්ටි අංකය (Bin)</label><input id="pBin" value="${esc(p.bin||'')}" placeholder="B3"></div>
+        <div><label style="font-size:11px;color:var(--muted);font-weight:600">ගබඩාව (Warehouse)</label><input id="pWarehouse" value="${esc(p.warehouse||'Main')}" placeholder="Main"></div>
+      </div>
+    </div>
 
-   <div class="grid3" style="margin-top:12px">
-     <div><label style="font-size:11.5px;color:var(--muted);font-weight:600">තොගය / Qty</label><input id="pQty" type="number" value="${p.qty||0}"></div>
-     <div><label style="font-size:11.5px;color:var(--muted);font-weight:600">අවම තොගය / Reorder</label><input id="pRe" type="number" value="${p.reorder||5}"></div>
-     <div><label style="font-size:11.5px;color:var(--muted);font-weight:600">ඒකකය / Unit</label><input id="pUnit" value="${esc(p.unit||'pcs')}"></div>
-   </div>
+    <div class="grid3" style="margin-top:12px">
+      <div><label style="font-size:11.5px;color:var(--muted);font-weight:600">පිරිවැය / Cost</label><input id="pCost" type="number" value="${p.cost||0}"></div>
+      <div><label style="font-size:11.5px;color:var(--muted);font-weight:600">සිල්ලර මිල / Retail</label><input id="pPrice" type="number" value="${p.price||0}"></div>
+      <div><label style="font-size:11.5px;color:var(--muted);font-weight:600">තොග මිල / Wholesale</label><input id="pPriceWs" type="number" value="${p.priceWholesale||0}"></div>
+    </div>
 
-   <!-- Warranty & Serial Tracking -->
-   <div class="grid2" style="margin-top:12px;align-items:center">
-     <div>
-       <label style="font-size:11.5px;color:var(--muted);font-weight:600">වගකීම් කාලය (මාස / Months)</label>
-       <input id="pWar" type="number" value="${p.warranty||0}" placeholder="12">
-     </div>
-     <div style="padding-top:16px">
-       <label style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;cursor:pointer">
-         <input type="checkbox" id="pHasSerial" ${p.hasSerial?'checked':''} style="width:18px;height:18px">
-         <span>Serial අංකය නිරීක්ෂණය කරන්නද? (Track S/N)</span>
-       </label>
-     </div>
-   </div>
+    <div class="grid3" style="margin-top:12px">
+      <div><label style="font-size:11.5px;color:var(--muted);font-weight:600">තොගය / Qty</label><input id="pQty" type="number" value="${p.qty||0}"></div>
+      <div><label style="font-size:11.5px;color:var(--muted);font-weight:600">අවම තොගය / Reorder</label><input id="pRe" type="number" value="${p.reorder||5}"></div>
+      <div><label style="font-size:11.5px;color:var(--muted);font-weight:600">ඒකකය / Unit</label><input id="pUnit" value="${esc(p.unit||'pcs')}"></div>
+    </div>
 
-   <!-- Core Deposit & Cross-Sell -->
-   <div class="grid2" style="margin-top:12px">
-     <div>
-       <label style="font-size:11.5px;color:var(--muted);font-weight:600">Core Deposit (රු.)</label>
-       <input id="pCore" type="number" value="${p.coreDeposit||0}" placeholder="2000">
-       <div style="font-size:10.5px;color:var(--muted);margin-top:3px">💡 පරණ කොටසක් භාරගත් විට අඩු කරන මුදල</div>
-     </div>
-     <div>
-       <label style="font-size:11.5px;color:var(--muted);font-weight:600">සමඟ විකුණන්න (Cross-sell codes)</label>
-       <input id="pCrossSell" value="${esc(crossSellStr)}" placeholder="OF-2002, AF-2003">
-       <div style="font-size:10.5px;color:var(--muted);margin-top:3px">💡 මේ භාණ්ඩයත් එක්ක බොහෝ විට විකුණන codes</div>
-     </div>
-   </div>`,
+    <!-- Warranty & Serial Tracking -->
+    <div class="grid2" style="margin-top:12px;align-items:center">
+      <div>
+        <label style="font-size:11.5px;color:var(--muted);font-weight:600">වගකීම් කාලය (මාස / Months)</label>
+        <input id="pWar" type="number" value="${p.warranty||0}" placeholder="12">
+      </div>
+      <div style="padding-top:16px">
+        <label style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;cursor:pointer">
+          <input type="checkbox" id="pHasSerial" ${p.hasSerial?'checked':''} style="width:18px;height:18px">
+          <span>Serial අංකය නිරීක්ෂණය කරන්නද? (Track S/N)</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Core Deposit & Cross-Sell -->
+    <div class="grid2" style="margin-top:12px">
+      <div>
+        <label style="font-size:11.5px;color:var(--muted);font-weight:600">Core Deposit (රු.)</label>
+        <input id="pCore" type="number" value="${p.coreDeposit||0}" placeholder="2000">
+        <div style="font-size:10.5px;color:var(--muted);margin-top:3px">💡 පරණ කොටසක් භාරගත් විට අඩු කරන මුදල</div>
+      </div>
+      <div>
+        <label style="font-size:11.5px;color:var(--muted);font-weight:600">සමඟ විකුණන්න (Cross-sell codes)</label>
+        <input id="pCrossSell" value="${esc(crossSellStr)}" placeholder="OF-2002, AF-2003">
+        <div style="font-size:10.5px;color:var(--muted);margin-top:3px">💡 මේ භාණ්ඩයත් එක්ක බොහෝ විට විකුණන codes</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 2: PART INTERCHANGE / CROSS COMPATIBILITY -->
+  <div id="invTabInterchange" style="display:none">
+    <div style="background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px">
+      <div style="font-size:11.5px;color:var(--muted);font-weight:600">භාණ්ඩ කේතය (Auto-filled Reference Code):</div>
+      <b id="pIntAutoCode" style="font-size:16px;color:var(--primary)">${esc(p.code || 'නව කේතය')}</b>
+      <div style="font-size:11.5px;color:var(--muted);margin-top:2px">
+        මෙම භාණ්ඩය එකිනෙකට ආදේශ කළ හැකි වෙනත් වාහන හා alternative codes මෙහිදී කළමනාකරණය කරන්න.
+      </div>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <label style="font-size:12px;color:var(--txt);font-weight:700">🚗 Fits Vehicles (අනුකූල වාහන ලැයිස්තුව)</label>
+      <button type="button" class="btn btn-sm btn-primary" onclick="addInvModalVehicleRow()" style="font-size:11px;padding:3px 8px">
+        + වාහනයක් එක් කරන්න
+      </button>
+    </div>
+
+    <div id="invModalVehiclesList" style="display:flex;flex-direction:column;gap:8px;max-height:240px;overflow-y:auto;margin-bottom:12px">
+      ${renderInvModalVehicleRows()}
+    </div>
+
+    <div>
+      <label style="font-size:12px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">
+        ආදේශක භාණ්ඩ කේත (Alternative Product Codes - කොමාවකින් වෙන් කරන්න)
+      </label>
+      <input id="pInterchangeAlternates" value="${esc(window._invModalAlternates || '')}" placeholder="උදා: OF-2003, OF-2004, Vic C-224..." style="width:100%">
+    </div>
+  </div>
+  `,
   `<button class="btn" onclick="closeModal()">අවලංගු</button>
    <button class="btn btn-primary" onclick="saveProduct('${id||''}')">💾 සුරකින්න</button>`,
   true);
+}
+
+function switchInvModalTab(tabId){
+  const tGen = document.getElementById('invTabGeneral');
+  const tInt = document.getElementById('invTabInterchange');
+  const bGen = document.getElementById('tabBtnGeneral');
+  const bInt = document.getElementById('tabBtnInterchange');
+
+  if(!tGen || !tInt) return;
+
+  if(tabId === 'interchange'){
+    tGen.style.display = 'none';
+    tInt.style.display = 'block';
+    bGen.className = 'btn btn-sm';
+    bInt.className = 'btn btn-sm btn-primary';
+    const codeInp = document.getElementById('pCode');
+    const autoCode = document.getElementById('pIntAutoCode');
+    if(codeInp && autoCode) autoCode.textContent = codeInp.value || 'කේතයක් නැත';
+  } else {
+    tGen.style.display = 'block';
+    tInt.style.display = 'none';
+    bGen.className = 'btn btn-sm btn-primary';
+    bInt.className = 'btn btn-sm';
+  }
+}
+
+function renderInvModalVehicleRows(){
+  const list = window._invModalInterchangeVehicles || [];
+  if(!list.length){
+    return `<div style="font-size:12px;color:var(--muted);padding:10px;text-align:center;background:var(--panel2);border-radius:8px">ගැලපෙන වෙනත් වාහන ඇතුළත් කර නැත</div>`;
+  }
+  return list.map((v, idx) => `
+    <div style="background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;display:flex;flex-direction:column;gap:6px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:11px;font-weight:700;color:var(--primary)">ගැලපුම #${idx + 1}</span>
+        <button type="button" class="btn btn-sm" onclick="removeInvModalVehicleRow(${idx})" style="color:#ef4444;padding:2px 6px;font-size:11px">✕ මකන්න</button>
+      </div>
+      <div class="grid3" style="gap:6px">
+        <input placeholder="Brand (Maruti, Toyota...)" value="${esc(v.brand || '')}" oninput="window._invModalInterchangeVehicles[${idx}].brand = this.value" style="font-size:12px;padding:6px">
+        <input placeholder="Model (Alto, Axio...)" value="${esc(v.model || '')}" oninput="window._invModalInterchangeVehicles[${idx}].model = this.value" style="font-size:12px;padding:6px">
+        <input placeholder="Chassis (HA12, HA24...)" value="${esc((v.chassis || []).join(', '))}" oninput="window._invModalInterchangeVehicles[${idx}].chassis = this.value.split(',').map(s=>s.trim()).filter(Boolean)" style="font-size:12px;padding:6px">
+      </div>
+      <div class="grid3" style="gap:6px">
+        <input placeholder="Engine (K10B, 1NZ...)" value="${esc((v.engine || []).join(', '))}" oninput="window._invModalInterchangeVehicles[${idx}].engine = this.value.split(',').map(s=>s.trim()).filter(Boolean)" style="font-size:12px;padding:6px">
+        <input type="number" placeholder="Year From" value="${v.yearFrom || ''}" oninput="window._invModalInterchangeVehicles[${idx}].yearFrom = parseInt(this.value, 10) || null" style="font-size:12px;padding:6px">
+        <input type="number" placeholder="Year To" value="${v.yearTo || ''}" oninput="window._invModalInterchangeVehicles[${idx}].yearTo = parseInt(this.value, 10) || null" style="font-size:12px;padding:6px">
+      </div>
+    </div>
+  `).join('');
+}
+
+function addInvModalVehicleRow(){
+  window._invModalInterchangeVehicles = window._invModalInterchangeVehicles || [];
+  window._invModalInterchangeVehicles.push({
+    brand: '',
+    model: '',
+    chassis: [],
+    engine: [],
+    yearFrom: 2000,
+    yearTo: 2020,
+    notes: 'Direct fit'
+  });
+  const container = document.getElementById('invModalVehiclesList');
+  if(container) container.innerHTML = renderInvModalVehicleRows();
+}
+
+function removeInvModalVehicleRow(idx){
+  if(window._invModalInterchangeVehicles){
+    window._invModalInterchangeVehicles.splice(idx, 1);
+  }
+  const container = document.getElementById('invModalVehiclesList');
+  if(container) container.innerHTML = renderInvModalVehicleRows();
 }
 
 async function saveProduct(id){
@@ -601,10 +732,50 @@ async function saveProduct(id){
     toast('නව භාණ්ඩය එකතු කළා ✅');
   }
 
+  const targetPid = id || newId;
+  const targetCode = data.code;
+  const altsInp = $('#pInterchangeAlternates');
+  const altsList = altsInp ? altsInp.value.split(',').map(s=>s.trim()).filter(Boolean) : [];
+  const fitsList = (window._invModalInterchangeVehicles || []).filter(v => v.brand || v.model || (v.chassis && v.chassis.length));
+
+  if(fitsList.length > 0 || altsList.length > 0){
+    db.interchanges = db.interchanges || [];
+    let intDoc = db.interchanges.find(i => (targetPid && i.productId === targetPid) || (targetCode && i.productCode === targetCode));
+    const isNew = !intDoc;
+    if(!intDoc){
+      intDoc = {
+        id: 'INT-' + Date.now(),
+        shopId: curShop,
+        productId: targetPid,
+        productCode: targetCode,
+        createdAt: new Date().toISOString()
+      };
+      db.interchanges.push(intDoc);
+    }
+    intDoc.productCode = targetCode;
+    intDoc.productId = targetPid;
+    intDoc.fitsVehicles = fitsList;
+    intDoc.alternates = altsList;
+    intDoc.updatedAt = new Date().toISOString();
+    intDoc.updatedBy = window.state?.user?.name || 'Staff';
+
+    try {
+      if(isNew && window.shopAdd) await window.shopAdd('interchanges', intDoc);
+      else if(window.shopUpdate) await window.shopUpdate('interchanges', intDoc.id, intDoc);
+      else if(window.FB && window.FB.fbSet) await window.FB.fbSet('interchanges', intDoc.id, intDoc);
+    } catch(err){
+      console.warn('Interchange save warning from inventory:', err);
+    }
+  }
+
   if(typeof saveDB === 'function') saveDB();
   closeModal();
   render();
 }
+
+window.switchInvModalTab = switchInvModalTab;
+window.addInvModalVehicleRow = addInvModalVehicleRow;
+window.removeInvModalVehicleRow = removeInvModalVehicleRow;
 
 async function delProduct(id){
   if(!hasPermission('delete-product')){

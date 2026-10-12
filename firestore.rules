@@ -252,7 +252,29 @@ service cloud.firestore {
     }
 
     // ═══════════════════════════════════════════════
-    // 17. DEFAULT DENY — catch-all for unknown paths
+    // 17. PART INTERCHANGE (Cross Compatibility)
+    // ═══════════════════════════════════════════════
+    
+    match /interchanges/{interchangeId} {
+      allow read: if isStaff() && sameShop(resource.data.shopId);
+      allow create, update: if (isAdmin() || isSuper()) && 
+                            sameShop(request.resource.data.shopId);
+      allow delete: if isSuper();
+    }
+
+    // ═══════════════════════════════════════════════
+    // 18. SCRAP BATTERY (CORE) INVENTORY
+    // ═══════════════════════════════════════════════
+    
+    match /scrapInventory/{scrapId} {
+      allow read: if isStaff() && sameShop(resource.data.shopId);
+      allow create, update: if isStaff() && 
+                            sameShop(request.resource.data.shopId);
+      allow delete: if isSuper();
+    }
+
+    // ═══════════════════════════════════════════════
+    // 19. DEFAULT DENY — catch-all for unknown paths
     // ═══════════════════════════════════════════════
     
     match /{document=**} {

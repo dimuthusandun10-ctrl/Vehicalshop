@@ -102,28 +102,92 @@ function pgSettings(){
       </div>
     </div>` : ''}
 
-    ${tab==='backup' ? `
-    <div style="margin-top:14px;display:flex;flex-direction:column;gap:14px">
-      <div class="card" style="background:#111c30">
-        <h4 style="margin-bottom:6px">📥 Backup දත්ත බාගත කරන්න</h4>
-        <p style="color:var(--muted);font-size:12px;margin-bottom:12px">පද්ධතියේ සියලුම භාණ්ඩ, OEM අංක, පාරිභෝගික ණය, සහ විකුණුම් වාර්තා JSON ගොනුවක් ලෙස බාගත කරගන්න.</p>
-        <button class="btn btn-blue btn-sm" onclick="downloadBackup()">💾 JSON Backup එක බාගත කරන්න</button>
-      </div>
+    ${tab==='backup' ? (() => {
+      const lastBackupIso = localStorage.getItem('pos.lastBackup');
+      let lastBackupText = 'තවමත් Backup ගෙන නොමැත (Never)';
+      if(lastBackupIso){
+        try {
+          const d = new Date(lastBackupIso);
+          lastBackupText = d.toLocaleDateString('en-GB') + ' ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+        } catch(_) { lastBackupText = lastBackupIso; }
+      }
+      const autoBackupEnabled = localStorage.getItem('pos.autoBackup') !== 'false';
 
-      <div class="card" style="background:#111c30">
-        <h4 style="margin-bottom:6px">📤 දත්ත නැවත ඇතුලත් කරන්න (Restore)</h4>
-        <p style="color:var(--muted);font-size:12px;margin-bottom:12px">මීට පෙර සුරකින ලද JSON Backup ගොනුවක් තෝරා පද්ධතිය යාවත්කාලීන කරන්න.</p>
-        <input type="file" id="backupFile" accept=".json" style="max-width:320px;margin-bottom:10px">
-        <br>
-        <button class="btn btn-green btn-sm" onclick="restoreBackup()">📂 Backup එකෙන් යථා තත්ත්වයට පත් කරන්න</button>
-      </div>
+      return `
+      <div style="margin-top:14px;display:flex;flex-direction:column;gap:14px">
+        
+        <!-- Status Card -->
+        <div class="card" style="background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:16px">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--line)">
+            <div>
+              <h4 style="margin:0;font-size:16px;color:var(--txt)">💾 දත්ත සුරැකීම සහ ප්‍රතිස්ථාපනය</h4>
+              <small style="color:var(--muted)">Data Backup & System Disaster Recovery (Phase 8)</small>
+            </div>
+            <span class="pill ${autoBackupEnabled ? 'ok' : 'warn'}" style="font-size:11.5px;padding:4px 10px">
+              Auto-backup: ${autoBackupEnabled ? '🟢 සක්‍රීය (Daily)' : '⚪ අක්‍රීය'}
+            </span>
+          </div>
 
-      <div class="card" style="background:rgba(239,68,68,.08);border-color:rgba(239,68,68,.3)">
-        <h4 style="margin-bottom:6px;color:#fca5a5">⚠️ ආරම්භක තත්ත්වයට පත් කරන්න (Reset to Default)</h4>
-        <p style="color:var(--muted);font-size:12px;margin-bottom:12px">මෙමඟින් සියලුම වත්මන් දත්ත ඉවත් කර ආරම්භක දත්ත නැවත පිහිටුවනු ඇත.</p>
-        <button class="btn btn-red btn-sm" onclick="resetToDemo()">🔄 Reset Data</button>
-      </div>
-    </div>` : ''}
+          <div class="grid2" style="gap:12px;margin-bottom:6px">
+            <div>
+              <span style="font-size:12px;color:var(--muted);display:block">අවසන් වරට Backup ගත් දිනය:</span>
+              <b style="font-size:14px;color:var(--primary)">${esc(lastBackupText)}</b>
+            </div>
+            <div>
+              <span style="font-size:12px;color:var(--muted);display:block">ආවරණය වන එකතු (Collections):</span>
+              <b style="font-size:14px;color:#34d399">16 Business Modules (JSON Complete)</b>
+            </div>
+          </div>
+        </div>
+
+        <!-- 1-Click Export Card -->
+        <div class="card" style="background:#111c30;border:1px solid var(--line);border-radius:12px;padding:16px">
+          <h4 style="margin:0 0 6px;color:#93c5fd;font-size:15px">⬇️ 1-Click සම්පූර්ණ දත්ත Backup එකක් බාගත කරන්න</h4>
+          <p style="color:var(--muted);font-size:12px;margin:0 0 14px">
+            භාණ්ඩ, තොග, ගනුදෙනුකරුවන්, සැපයුම්කරුවන්, විකුණුම්, GRN, චෙක්පත්, Part Interchange හා Scrap තොග ඇතුළු සියලුම දත්ත එකවර ආරක්ෂිත JSON ගොනුවක් ලෙස බාගත කරගන්න.
+          </p>
+          <button class="btn btn-blue btn-sm" onclick="exportFullBackup()" style="font-weight:700;padding:8px 16px;font-size:13px;display:flex;align-items:center;gap:6px">
+            💾 සම්පූර්ණ Backup බාගන්න (Download JSON)
+          </button>
+        </div>
+
+        <!-- 1-Click Restore Card -->
+        <div class="card" style="background:#111c30;border:1px solid var(--line);border-radius:12px;padding:16px">
+          <h4 style="margin:0 0 6px;color:#6ee7b7;font-size:15px">⬆️ Backup ගොනුවකින් දත්ත ප්‍රතිස්ථාපනය කරන්න (Restore)</h4>
+          <p style="color:var(--muted);font-size:12px;margin:0 0 14px">
+            මීට පෙර බාගත කරන ලද JSON Backup ගොනුවක් තෝරා පද්ධතියේ සියලුම දත්ත නැවත පිහිටුවන්න.
+          </p>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <input type="file" id="backupFileInput" accept=".json" style="padding:6px;background:var(--panel);border:1px solid var(--line);border-radius:8px;font-size:12px">
+            <button class="btn btn-green btn-sm" onclick="handleImportBackupClick()" style="font-weight:700;padding:8px 16px;font-size:13px">
+              📂 ප්‍රතිස්ථාපනය කරන්න (Restore)
+            </button>
+          </div>
+        </div>
+
+        <!-- Auto-Backup Settings Toggle Card -->
+        <div class="card" style="background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:16px">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+            <div>
+              <b style="font-size:13.5px;color:var(--txt)">📅 Auto-Backup ස්වයංක්‍රීය මතක්කිරීම් (Scheduler)</b>
+              <p style="margin:4px 0 0;font-size:11.5px;color:var(--muted)">දිනපතා රාත්‍රී 2:00 ට සහ සතිපතා ආරක්ෂිත backup මතක් කිරීම් සිදු කරයි.</p>
+            </div>
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;cursor:pointer">
+              <input type="checkbox" id="autoBackupCheckbox" ${autoBackupEnabled ? 'checked' : ''} onchange="toggleAutoBackup(this.checked)" style="width:18px;height:18px;accent-color:var(--primary)">
+              <span>සක්‍රීයයි</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Reset to Default Card -->
+        <div class="card" style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.3);border-radius:12px;padding:16px">
+          <h4 style="margin:0 0 6px;color:#fca5a5;font-size:14px">⚠️ ආරම්භක තත්ත්වයට පත් කරන්න (Reset to Default)</h4>
+          <p style="color:var(--muted);font-size:12px;margin:0 0 12px">මෙමඟින් සියලුම වත්මන් local cache දත්ත ඉවත් කර ආරම්භක දත්ත නැවත පිහිටුවනු ඇත.</p>
+          <button class="btn btn-red btn-sm" onclick="resetToDemo()">🔄 Reset Cache Data</button>
+        </div>
+
+      </div>`;
+    })() : ''}
 
     ${tab==='hardware' ? (() => {
       const isConnected = Boolean(window.Printer && window.Printer.isConnected);
@@ -381,37 +445,166 @@ async function delUser(id){
   toast('පරිශීලකයා මකා දමන ලදී');
 }
 
-function downloadBackup(){
+function exportFullBackup(){
   const db = window.DB || {};
-  const blob = new Blob([JSON.stringify(db, null, 2)], {type:'application/json'});
+  const shopId = (typeof currentShopId === 'function' && currentShopId()) || state.user?.shopId || state.activeShopId || 'SHOP-001';
+  const shopName = state.activeShop?.name || db.shop?.name || 'AutoParts Shop';
+  
+  const backupData = {
+    version: '2.6.3',
+    phase: 8,
+    timestamp: new Date().toISOString(),
+    shopId: shopId,
+    shopName: shopName,
+    collections: {
+      shops: db.shops || [],
+      users: db.users || [],
+      products: db.products || [],
+      customers: db.customers || [],
+      suppliers: db.suppliers || [],
+      sales: db.sales || [],
+      grns: db.grns || [],
+      returns: db.returns || [],
+      shifts: db.shifts || [],
+      cashMoves: db.cashMoves || [],
+      payments: db.payments || [],
+      dailySummary: db.dailySummary || [],
+      supplierPayments: db.supplierPayments || [],
+      interchanges: db.interchanges || [],
+      scrapInventory: db.scrapInventory || [],
+      counters: db.counters || []
+    },
+    // Top-level mirrors for backwards compatibility
+    shops: db.shops || [],
+    users: db.users || [],
+    products: db.products || [],
+    customers: db.customers || [],
+    suppliers: db.suppliers || [],
+    sales: db.sales || [],
+    grns: db.grns || [],
+    returns: db.returns || [],
+    shifts: db.shifts || [],
+    cashMoves: db.cashMoves || [],
+    payments: db.payments || [],
+    dailySummary: db.dailySummary || [],
+    supplierPayments: db.supplierPayments || [],
+    interchanges: db.interchanges || [],
+    scrapInventory: db.scrapInventory || [],
+    counters: db.counters || []
+  };
+
+  localStorage.setItem('pos.lastBackup', new Date().toISOString());
+
+  const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
+  const shopSlug = shopName.toLowerCase().replace(/[^a-z0-9]/g, '_');
   a.href = url;
-  a.download = `autoparts_pos_backup_${today()}.json`;
+  a.download = `autoparts_pos_${shopSlug}_backup_${today()}.json`;
   a.click();
   URL.revokeObjectURL(url);
-  toast('Backup එක බාගත විය ✅');
+  toast('සම්පූර්ණ Backup ගොනුව සාර්ථකව බාගත විය (16 Collections) ✅', 'ok');
+  render();
 }
 
-function restoreBackup(){
-  const file = $('#backupFile')?.files[0];
-  if(!file){ toast('කරුණාකර JSON Backup ගොනුවක් තෝරන්න','err'); return; }
+function handleImportBackupClick(){
+  const fileInput = $('#backupFileInput');
+  const file = fileInput?.files?.[0];
+  if(!file){
+    toast('කරුණාකර පළමුව වලංගු JSON Backup ගොනුවක් තෝරන්න', 'warn');
+    return;
+  }
+  importBackup(file);
+}
+
+async function importBackup(file){
+  if(!file){
+    toast('කරුණාකර JSON Backup ගොනුවක් තෝරන්න', 'err');
+    return;
+  }
+
+  if(!confirm('අවධානයයි: මෙම Backup ගොනුවෙන් දත්ත ප්‍රතිස්ථාපනය කිරීමෙන් පද්ධතියේ දැනට පවතින දත්ත යාවත්කාලීන වේ. ඔබට ඉදිරියට යාමට අවශ්‍ය බව තහවුරුද?')){
+    return;
+  }
+
   const reader = new FileReader();
-  reader.onload = async e => {
+  reader.onload = async (e) => {
     try {
       const data = JSON.parse(e.target.result);
-      if(!data.products || !data.users){ toast('වලංගු නොවන Backup ගොනුවකි','err'); return; }
-      if(window.DB){
-        Object.assign(window.DB, data);
-        if(typeof saveDB === 'function') saveDB();
+      if(!data || typeof data !== 'object'){
+        throw new Error('වලංගු නොවන JSON දත්තයකි');
       }
-      toast('දත්ත සාර්ථකව ප්‍රතිස්ථාපනය කළා ✅');
-      render();
+
+      const source = data.collections || data;
+      if(!source.products && !source.users && !source.sales){
+        toast('වලංගු නොවන Backup ගොනුවකි (අවශ්‍ය දත්ත මොඩියුල නොමැත)', 'err');
+        return;
+      }
+
+      const db = window.DB || {};
+      const targetKeys = [
+        'shops', 'users', 'products', 'customers', 'suppliers',
+        'sales', 'grns', 'returns', 'shifts', 'cashMoves',
+        'payments', 'dailySummary', 'supplierPayments',
+        'interchanges', 'scrapInventory', 'counters'
+      ];
+
+      targetKeys.forEach(k => {
+        if(Array.isArray(source[k])){
+          db[k] = source[k];
+        }
+      });
+
+      if(data.shop && typeof data.shop === 'object'){
+        db.shop = data.shop;
+      }
+
+      if(typeof saveDB === 'function') saveDB();
+
+      // If Firestore is active and online, optionally sync key collections
+      if(window.FB && window.FB.fbSet && navigator.onLine){
+        toast('Firestore දත්ත ගබඩාව සමමුහුර්ත කරමින් පවතී... ⏳');
+        try {
+          const syncKeys = ['products', 'customers', 'suppliers', 'interchanges', 'scrapInventory'];
+          for(const colKey of syncKeys){
+            if(Array.isArray(db[colKey]) && window.FB.COL && window.FB.COL[colKey]){
+              for(const doc of db[colKey]){
+                if(doc && doc.id){
+                  await window.FB.fbSet(window.FB.COL[colKey], doc.id, doc);
+                }
+              }
+            }
+          }
+        } catch(syncErr){
+          console.warn('Firestore restore partial sync warning:', syncErr);
+        }
+      }
+
+      toast('දත්ත සාර්ථකව ප්‍රතිස්ථාපනය කරන ලදී! ✅', 'ok');
+      setTimeout(() => {
+        location.reload();
+      }, 1200);
+
     } catch(err){
-      toast('ගොනුව කියවීමේ දෝෂයක්','err');
+      console.error(err);
+      toast('ගොනුව කියවීමේ දෝෂයක්: ' + (err.message || 'JSON Invalid'), 'err');
     }
   };
   reader.readAsText(file);
+}
+
+function toggleAutoBackup(enabled){
+  localStorage.setItem('pos.autoBackup', enabled ? 'true' : 'false');
+  toast(enabled ? 'Auto-backup මතක් කිරීම් සක්‍රීය කරන ලදී ✅' : 'Auto-backup අක්‍රිය කරන ලදී', 'ok');
+  render();
+}
+
+function downloadBackup(){
+  exportFullBackup();
+}
+
+function restoreBackup(){
+  handleImportBackupClick();
 }
 
 function resetToDemo(){
@@ -476,6 +669,10 @@ window.delUser = delUser;
 window.downloadBackup = downloadBackup;
 window.exportDatabaseBackup = downloadBackup;
 window.restoreBackup = restoreBackup;
+window.exportFullBackup = exportFullBackup;
+window.importBackup = importBackup;
+window.handleImportBackupClick = handleImportBackupClick;
+window.toggleAutoBackup = toggleAutoBackup;
 window.resetToDemo = resetToDemo;
 window.connectHardwarePrinter = connectHardwarePrinter;
 window.disconnectHardwarePrinter = disconnectHardwarePrinter;

@@ -24,6 +24,8 @@ const COL = {
   cashMoves: 'cashMovements',   /* Petty Cash */
   payments:  'creditPayments',  /* Store Credit settle */
   supplierPayments: 'supplierPayments', /* Supplier Payables */
+  interchanges: 'interchanges',         /* Part Interchange */
+  scrapInventory: 'scrapInventory',     /* Core Scrap Batteries */
   settings:  'settings',
   counters:  'counters'
 };

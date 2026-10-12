@@ -49,6 +49,8 @@ Object.assign(DB, {
   cashMoves: [],
   payments: [],
   supplierPayments: [],
+  interchanges: window.INITIAL_INTERCHANGES || [],
+  scrapInventory: window.INITIAL_SCRAP || [],
   counters: { invoice: 1, grn: 1, ret: 1, shift: 1, payment: 1, shop: 1 },
 
   isFirebaseConnected: false,
@@ -132,6 +134,8 @@ Object.assign(DB, {
         this.cashMoves = filterByShop(cached.cashMoves);
         this.payments  = filterByShop(cached.payments);
         this.supplierPayments = filterByShop(cached.supplierPayments);
+        this.interchanges = filterByShop(cached.interchanges);
+        this.scrapInventory = filterByShop(cached.scrapInventory);
       } else {
         // No active shop → empty arrays (strict isolation)
         this.products  = [];
@@ -144,6 +148,8 @@ Object.assign(DB, {
         this.cashMoves = [];
         this.payments  = [];
         this.supplierPayments = [];
+        this.interchanges = [];
+        this.scrapInventory = [];
       }
 
       if(cached.counters) this.counters = { ...this.counters, ...cached.counters };
@@ -156,6 +162,8 @@ Object.assign(DB, {
       if(window.INITIAL_CUSTOMERS && !this.customers.length) this.customers = window.INITIAL_CUSTOMERS;
       if(window.INITIAL_SUPPLIERS && !this.suppliers.length) this.suppliers = window.INITIAL_SUPPLIERS;
       if(window.INITIAL_USERS && !this.users.length) this.users = window.INITIAL_USERS;
+      if(window.INITIAL_INTERCHANGES && !this.interchanges.length) this.interchanges = window.INITIAL_INTERCHANGES;
+      if(window.INITIAL_SCRAP && !this.scrapInventory.length) this.scrapInventory = window.INITIAL_SCRAP;
       this.persistLocal();
     }
 
@@ -232,7 +240,9 @@ Object.assign(DB, {
             { key: 'shifts',    name: 'shifts' },
             { key: 'cashMoves', name: 'cashMovements' },
             { key: 'payments',  name: 'creditPayments' },
-            { key: 'supplierPayments', name: 'supplierPayments' }
+            { key: 'supplierPayments', name: 'supplierPayments' },
+            { key: 'interchanges', name: 'interchanges' },
+            { key: 'scrapInventory', name: 'scrapInventory' }
           ];
 
           const results = await Promise.all(
@@ -259,6 +269,8 @@ Object.assign(DB, {
           this.cashMoves = [];
           this.payments  = [];
           this.supplierPayments = [];
+          this.interchanges = [];
+          this.scrapInventory = [];
         }
 
         const shopDoc = await window.FB.fbGet(window.FB.COL.settings, 'shop');
@@ -401,6 +413,8 @@ Object.assign(DB, {
         cashMoves: this.cashMoves,
         payments:  this.payments,
         supplierPayments: this.supplierPayments,
+        interchanges: this.interchanges,
+        scrapInventory: this.scrapInventory,
         suppliers: this.suppliers,
         users:     this.users,
         shops:     this.shops,
@@ -442,6 +456,8 @@ Object.assign(DB, {
         cashMoves: mergeCol('cashMoves', this.cashMoves),
         payments: mergeCol('payments', this.payments),
         supplierPayments: mergeCol('supplierPayments', this.supplierPayments),
+        interchanges: mergeCol('interchanges', this.interchanges),
+        scrapInventory: mergeCol('scrapInventory', this.scrapInventory),
         counters: this.counters,
         savedAt: Date.now()
       }));
@@ -569,6 +585,7 @@ function startPageListeners(page){
       watch('products');
       watch('sales');
       watch('customers');
+      watch('interchanges');
       break;
     case 'inventory':
     case 'lowstock':
@@ -583,6 +600,14 @@ function startPageListeners(page){
       watch('suppliers');
       watch('grns');
       watch('supplierPayments');
+      break;
+    case 'interchange':
+      watch('interchanges');
+      watch('products');
+      break;
+    case 'scrap':
+      watch('scrapInventory');
+      watch('products');
       break;
     case 'returns':
       watch('returns', 'returns', (list) => {
@@ -652,7 +677,92 @@ async function bootMigration(){
   localStorage.setItem('pos.migration.shopId.done', 'v1');
 }
 
+/* =====================================================
+   CORE / SCRAP BATTERY INVENTORY HELPER
+   ===================================================== */
+async function addScrapInventory(item){
+  if(!item) return;
+  const db = window.DB || {};
+  const shopId = (typeof currentShopId === 'function' && currentShopId()) ? currentShopId() : (window.state?.user?.shopId || 'SHOP-001');
+  db.scrapInventory = db.scrapInventory || [];
+
+  const existing = db.scrapInventory.find(s => 
+    (s.productId === item.productId || (item.productName && s.productName === item.productName)) &&
+    (!s.shopId || s.shopId === shopId)
+  );
+
+  const qty = Number(item.quantity || 1);
+  const dateStr = item.date || (typeof today === 'function' ? today() : new Date().toISOString().slice(0, 10));
+
+  const acquisitionEntry = {
+    date: dateStr,
+    qty: qty,
+    sourceSaleId: item.sourceSaleId || 'MANUAL',
+    customerName: item.customerName || 'පාරිභෝගික හුවමාරුව',
+    depositPaid: Number(item.depositPaid || 0),
+    recordedBy: item.recordedBy || (window.state?.user?.name || 'Staff')
+  };
+
+  if(existing){
+    existing.quantity = (Number(existing.quantity) || 0) + qty;
+    existing.unitScrapValue = Number(existing.unitScrapValue) || 800;
+    existing.totalValue = existing.quantity * existing.unitScrapValue;
+    existing.acquisitions = existing.acquisitions || [];
+    existing.acquisitions.push(acquisitionEntry);
+    existing.updatedAt = new Date().toISOString();
+
+    if(window.shopUpdate){
+      try {
+        await window.shopUpdate('scrapInventory', existing.id, {
+          quantity: existing.quantity,
+          totalValue: existing.totalValue,
+          acquisitions: existing.acquisitions,
+          updatedAt: existing.updatedAt
+        });
+      } catch(e){ console.warn('shopUpdate scrapInventory warning:', e); }
+    } else if(window.FB && window.FB.fbUpdate){
+      try {
+        await window.FB.fbUpdate('scrapInventory', existing.id, {
+          quantity: existing.quantity,
+          totalValue: existing.totalValue,
+          acquisitions: existing.acquisitions,
+          updatedAt: existing.updatedAt
+        });
+      } catch(e){ console.warn('fbUpdate scrapInventory warning:', e); }
+    }
+  } else {
+    const prod = db.getProd ? db.getProd(item.productId) : (db.products || []).find(p => p.id === item.productId);
+    const unitRate = Number(item.unitScrapValue || 800);
+    const newScrap = {
+      id: 'SCR-' + Date.now(),
+      shopId: shopId,
+      productId: item.productId || 'P-CORE',
+      productName: item.productName || prod?.name || 'වාහන බැටරි (Core Battery)',
+      category: item.category || 'battery',
+      source: item.source || 'customer_exchange',
+      quantity: qty,
+      unitScrapValue: unitRate,
+      totalValue: qty * unitRate,
+      acquisitions: [acquisitionEntry],
+      disposals: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    db.scrapInventory.push(newScrap);
+
+    if(window.shopAdd){
+      try { await window.shopAdd('scrapInventory', newScrap); } catch(e){ console.warn('shopAdd scrapInventory warning:', e); }
+    } else if(window.FB && window.FB.fbAdd){
+      try { await window.FB.fbAdd('scrapInventory', newScrap); } catch(e){ console.warn('fbAdd scrapInventory warning:', e); }
+    }
+  }
+
+  if(typeof db.persistLocal === 'function') db.persistLocal();
+}
+
 window.stopAllListeners = stopAllListeners;
 window.startPageListeners = startPageListeners;
 window.bootMigration = bootMigration;
+window.addScrapInventory = addScrapInventory;
+if(window.DB) window.DB.addScrapInventory = addScrapInventory;
 

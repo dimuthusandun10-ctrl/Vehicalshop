@@ -427,12 +427,39 @@ function renderGrid(){
       const altMatch = Array.isArray(p.altNos) && p.altNos.some(a => (a || '').toLowerCase().includes(q));
       return oemMatch || altMatch;
     } else if(searchMode === 'vehicle'){
-      if(vf.brand && (p.brand || '').toLowerCase() !== vf.brand.toLowerCase()) return false;
-      if(vf.chassis && !(p.chassis || []).some(c => (c || '').toUpperCase().includes(vf.chassis.toUpperCase()))) return false;
-      if(vf.engine && !(p.engine || []).some(e => e.toUpperCase().includes(vf.engine.toUpperCase()))) return false;
-      const yr = parseInt(vf.year);
-      if(yr && (yr < (p.yearFrom || 1900) || yr > (p.yearTo || 2099))) return false;
-      return true;
+      // 1. Direct match
+      const directBrand = !vf.brand || (p.brand || '').toLowerCase() === vf.brand.toLowerCase();
+      const directChassis = !vf.chassis || (p.chassis || []).some(c => (c || '').toUpperCase().includes(vf.chassis.toUpperCase()));
+      const directEngine = !vf.engine || (p.engine || []).some(e => (e || '').toUpperCase().includes(vf.engine.toUpperCase()));
+      const yr = parseInt(vf.year, 10);
+      const directYear = !yr || (yr >= (p.yearFrom || 1900) && yr <= (p.yearTo || 2099));
+
+      if(directBrand && directChassis && directEngine && directYear){
+        p._interchangeMatch = false; // Direct fit
+        return true;
+      }
+
+      // 2. Part Interchange Cross-Reference Match
+      const interchanges = db.interchanges || [];
+      const intMatch = interchanges.some(item => {
+        const isThisProduct = item.productId === p.id || item.productCode === p.code || (item.alternates || []).includes(p.code);
+        if(!isThisProduct) return false;
+
+        return (item.fitsVehicles || []).some(v => {
+          const vBrand = !vf.brand || (v.brand || '').toLowerCase().includes(vf.brand.toLowerCase());
+          const vChassis = !vf.chassis || (v.chassis || []).some(c => (c || '').toUpperCase().includes(vf.chassis.toUpperCase()));
+          const vEngine = !vf.engine || (v.engine || []).some(e => (e || '').toUpperCase().includes(vf.engine.toUpperCase()));
+          const vYear = !yr || (yr >= (v.yearFrom || 1900) && yr <= (v.yearTo || 2099));
+          return vBrand && vChassis && vEngine && vYear;
+        });
+      });
+
+      if(intMatch){
+        p._interchangeMatch = true; // 🔄 Interchange
+        return true;
+      }
+
+      return false;
     }
     return true;
   });
@@ -482,7 +509,14 @@ function renderGrid(){
 
     return `
     <div class="product-card-new ${out ? 'out-of-stock' : ''}" ${out ? '' : `onclick="addToCart('${p.id}')"`}>
-      <div class="product-code">${esc(p.code)}</div>
+      <div class="product-code" style="display:flex;align-items:center;justify-content:space-between">
+        <span>${esc(p.code)}</span>
+        ${searchMode === 'vehicle' ? `
+          <span class="ic-badge ${p._interchangeMatch ? 'badge-interchange' : 'badge-direct'}" style="font-size:9.5px;padding:1px 5px;border-radius:4px">
+            ${p._interchangeMatch ? '🔄 Interchange' : 'Direct fit'}
+          </span>
+        ` : ''}
+      </div>
       <button class="card-view-btn" type="button"
               onclick="event.stopPropagation(); showProductDetail('${p.id}')"
               title="විස්තර බලන්න">
@@ -2010,6 +2044,35 @@ async function executeSaleRecord(total, method, paid, change, cardRef='', notes=
 
   if(typeof saveDB === 'function') saveDB(true);
   if(window.DB && typeof window.DB._persistLocalNow === 'function') window.DB._persistLocalNow();
+
+  /* 6. Auto-track Core Scrap Battery if core deduction applied */
+  if(finalSale.coreDeduction > 0 || (finalSale.items || []).some(it => it.useCoreExchange)){
+    try {
+      const coreItems = (finalSale.items || []).filter(it => it.useCoreExchange || (Number(it.coreDeposit) > 0));
+      const targetItems = coreItems.length ? coreItems : (finalSale.items || []);
+      for(const cItem of targetItems){
+        const scrapItem = {
+          productId: cItem.pid,
+          productName: cItem.name || 'වාහන බැටරි (Core Battery)',
+          category: 'battery',
+          source: 'customer_exchange',
+          quantity: cItem.qty || 1,
+          sourceSaleId: finalSale.no,
+          customerName: finalSale.customer,
+          depositPaid: finalSale.coreDeduction || ((cItem.coreDeposit || 2000) * (cItem.qty || 1)),
+          recordedBy: state.user?.name || 'Staff',
+          date: today()
+        };
+        if(typeof window.addScrapInventory === 'function'){
+          window.addScrapInventory(scrapItem).catch(err => console.warn('addScrapInventory err:', err));
+        } else if(window.DB && typeof window.DB.addScrapInventory === 'function'){
+          window.DB.addScrapInventory(scrapItem).catch(err => console.warn('DB.addScrapInventory err:', err));
+        }
+      }
+    } catch(scErr){
+      console.warn('Scrap auto-increment warning:', scErr);
+    }
+  }
 
   /* 7. Clear cart & checkout state */
   state.cart = [];

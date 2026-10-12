@@ -106,7 +106,9 @@ function render(){
     settings: typeof pgSettings !== 'undefined' ? pgSettings : null,
     labels: typeof pgLabels !== 'undefined' ? pgLabels : null,
     credit: typeof pgCredit !== 'undefined' ? pgCredit : null,
-    payables: typeof pgPayables !== 'undefined' ? pgPayables : null
+    payables: typeof pgPayables !== 'undefined' ? pgPayables : null,
+    interchange: typeof pgInterchange !== 'undefined' ? pgInterchange : null,
+    scrap: typeof pgScrap !== 'undefined' ? pgScrap : null
   };
 
   const renderFn = map[state.page];

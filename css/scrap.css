@@ -1,0 +1,196 @@
+/* =========================================================
+   css/scrap.css - Scrap Battery (Core) Inventory UI
+   Phase 8: Automotive Specifics
+   ========================================================= */
+
+.scrap-page {
+  padding: 0 0 40px;
+}
+
+/* Header & Actions */
+.scrap-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.scrap-header h3 {
+  margin: 0;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.scrap-header h3 small {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 400;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+/* Grid of Scrap Inventory Items */
+.scrap-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.scrap-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.scrap-card:hover {
+  border-color: rgba(16, 185, 129, 0.4);
+}
+
+.sc-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.sc-title {
+  font-size: 15.5px;
+  font-weight: 700;
+  color: var(--txt);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sc-cat-pill {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(59, 130, 246, 0.15);
+  color: #93c5fd;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  text-transform: uppercase;
+}
+
+/* Metric Display Rows */
+.sc-metrics-box {
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+}
+
+.sc-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12.5px;
+  padding: 4px 0;
+  color: var(--muted);
+}
+
+.sc-row b {
+  color: var(--txt);
+  font-family: 'Inter', sans-serif;
+}
+
+.sc-row.highlight {
+  font-size: 14px;
+  font-weight: 700;
+  border-top: 1px dashed var(--line);
+  margin-top: 4px;
+  padding-top: 6px;
+  color: var(--txt);
+}
+
+.sc-row.highlight b {
+  color: #34d399;
+  font-size: 15px;
+}
+
+/* Activity Mini-Log */
+.sc-activity {
+  background: rgba(15, 23, 42, 0.5);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 14px;
+}
+
+.sc-act-head {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.sc-act-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11.5px;
+  padding: 3px 0;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.05);
+}
+
+.sc-act-item:last-child {
+  border-bottom: none;
+}
+
+.sc-act-add {
+  color: #34d399;
+  font-weight: 600;
+}
+
+.sc-act-sub {
+  color: #f87171;
+  font-weight: 600;
+}
+
+/* Card Actions */
+.sc-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: auto;
+}
+
+/* Toggle Switch in Modals */
+.scrap-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-top: 10px;
+}
+
+.scrap-toggle-row input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--primary);
+}
+
+@media (max-width: 640px) {
+  .scrap-grid {
+    grid-template-columns: 1fr;
+  }
+}

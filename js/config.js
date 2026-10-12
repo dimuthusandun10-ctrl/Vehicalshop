@@ -14,6 +14,8 @@ var NAV = [
   {id:'lowstock',      icon:'⚠️', si:'අඩු තොග',             en:'Low Stock',           perm:'lowstock',      roles:['superadmin','admin','cashier']},
   {id:'grn',           icon:'📥', si:'භාණ්ඩ ලැබීම (GRN)',   en:'Goods Received',      perm:'grn',           roles:['superadmin','admin']},
   {id:'payables',      icon:'💰', si:'සැපයුම් ණය',         en:'Payables',            perm:'inventory',     roles:['superadmin','admin']},
+  {id:'interchange',   icon:'🔄', si:'Part Interchange',   en:'Interchange',         perm:'inventory',     roles:['superadmin','admin','cashier']},
+  {id:'scrap',         icon:'🔋', si:'Scrap තොගය',         en:'Scrap Inventory',     perm:'inventory',     roles:['superadmin','admin','cashier']},
   {id:'labels',        icon:'🏷️', si:'Barcode ලේබල්',       en:'Labels',              perm:'billing',       roles:['superadmin','admin','cashier']},
   {id:'returns',       icon:'↩️', si:'ආපසු භාරදීම',         en:'Returns',             perm:'returns',       roles:['superadmin','admin','cashier']},
   {id:'serial-search', icon:'🛡️', si:'Serial සෙවීම',      en:'Serial Search',       perm:'serial-search', roles:['superadmin','admin','cashier']},

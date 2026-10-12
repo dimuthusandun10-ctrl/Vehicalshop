@@ -202,9 +202,175 @@ async function seedIfEmpty(){
   }
 }
 
+var INITIAL_INTERCHANGES = [
+  {
+    id: 'INT-001',
+    shopId: 'SHOP-001',
+    productCode: 'OF-2002',
+    productId: 'P02',
+    fitsVehicles: [
+      {
+        brand: 'Maruti',
+        model: 'Alto',
+        chassis: ['HA12', 'HA24', 'HA25'],
+        engine: ['F8D', 'K10B'],
+        yearFrom: 2000,
+        yearTo: 2015,
+        notes: 'Direct fit spin-on filter'
+      },
+      {
+        brand: 'Suzuki',
+        model: 'Wagon R',
+        chassis: ['MH21', 'MH22', 'MH23S'],
+        engine: ['K10B', 'K6A'],
+        yearFrom: 2003,
+        yearTo: 2017,
+        notes: 'Direct fit with standard seal'
+      },
+      {
+        brand: 'Nissan',
+        model: 'Sunny / Wingroad',
+        chassis: ['N16', 'B15', 'Y11'],
+        engine: ['QG13', 'QG15'],
+        yearFrom: 2000,
+        yearTo: 2012,
+        notes: 'OEM replacement'
+      }
+    ],
+    alternates: ['OF-2003', 'OF-2004', 'Vic C-224', 'Sakura C-1823'],
+    updatedAt: new Date().toISOString(),
+    updatedBy: 'Admin'
+  },
+  {
+    id: 'INT-002',
+    shopId: 'SHOP-001',
+    productCode: 'BP-1001',
+    productId: 'P01',
+    fitsVehicles: [
+      {
+        brand: 'Toyota',
+        model: 'Axio / Fielder / Premio / Allion',
+        chassis: ['NZE141', 'NZE144', 'NZE161', 'ZRT260', 'NZT260'],
+        engine: ['1NZ-FE', '2ZR-FE'],
+        yearFrom: 2006,
+        yearTo: 2018,
+        notes: 'Front brake caliper direct fit'
+      },
+      {
+        brand: 'Toyota',
+        model: 'Corolla 141',
+        chassis: ['ZRE142', 'NZE141'],
+        engine: ['1NZ-FE'],
+        yearFrom: 2007,
+        yearTo: 2014,
+        notes: 'Front set with shims'
+      }
+    ],
+    alternates: ['Akebono AN-688K', 'Advics SN-135'],
+    updatedAt: new Date().toISOString(),
+    updatedBy: 'Admin'
+  },
+  {
+    id: 'INT-003',
+    shopId: 'SHOP-001',
+    productCode: 'SP-3004',
+    productId: 'P04',
+    fitsVehicles: [
+      {
+        brand: 'Maruti',
+        model: 'Alto 800 / K10',
+        chassis: ['HA12', 'HA24', 'HA36'],
+        engine: ['F8D', 'K10B'],
+        yearFrom: 2005,
+        yearTo: 2022,
+        notes: 'Laser Iridium long life plug'
+      },
+      {
+        brand: 'Honda',
+        model: 'Fit / Vezel Hybrid',
+        chassis: ['GP5', 'GP6', 'RU3'],
+        engine: ['LEB-H1'],
+        yearFrom: 2013,
+        yearTo: 2020,
+        notes: 'High heat rating plug'
+      }
+    ],
+    alternates: ['Denso IXEH22TT', 'Bosch FR7DC'],
+    updatedAt: new Date().toISOString(),
+    updatedBy: 'Admin'
+  }
+];
+
+var INITIAL_SCRAP = [
+  {
+    id: 'SCR-001',
+    shopId: 'SHOP-001',
+    productId: 'P07',
+    productName: 'වාහන බැටරි 55Ah (Core Scrap)',
+    category: 'battery',
+    source: 'customer_exchange',
+    quantity: 12,
+    unitScrapValue: 800,
+    totalValue: 9600,
+    acquisitions: [
+      {
+        date: typeof today === 'function' ? today() : new Date().toISOString().slice(0, 10),
+        qty: 1,
+        sourceSaleId: 'INV-0018',
+        customerName: 'කමල් පෙරේරා',
+        depositPaid: 2000,
+        recordedBy: 'cashier'
+      },
+      {
+        date: typeof today === 'function' ? today() : new Date().toISOString().slice(0, 10),
+        qty: 2,
+        sourceSaleId: 'INV-0015',
+        customerName: 'සුනිල් ශාන්ත',
+        depositPaid: 4000,
+        recordedBy: 'cashier'
+      }
+    ],
+    disposals: [
+      {
+        date: typeof today === 'function' ? today() : new Date().toISOString().slice(0, 10),
+        qty: 4,
+        buyer: 'Scrap Dealer Kamal',
+        amountReceived: 3200,
+        recordedBy: 'superadmin'
+      }
+    ],
+    updatedAt: new Date().toISOString()
+  },
+  {
+    id: 'SCR-002',
+    shopId: 'SHOP-001',
+    productId: 'P07',
+    productName: 'වාහන බැටරි 65Ah / 70Ah (Heavy Core)',
+    category: 'battery',
+    source: 'customer_exchange',
+    quantity: 6,
+    unitScrapValue: 1100,
+    totalValue: 6600,
+    acquisitions: [
+      {
+        date: typeof today === 'function' ? today() : new Date().toISOString().slice(0, 10),
+        qty: 1,
+        sourceSaleId: 'INV-0012',
+        customerName: 'ජගත් ජයසිංහ',
+        depositPaid: 2500,
+        recordedBy: 'admin'
+      }
+    ],
+    disposals: [],
+    updatedAt: new Date().toISOString()
+  }
+];
+
 window.INITIAL_SHOPS = INITIAL_SHOPS;
 window.INITIAL_PRODUCTS = INITIAL_PRODUCTS;
 window.INITIAL_CUSTOMERS = INITIAL_CUSTOMERS;
 window.INITIAL_SUPPLIERS = INITIAL_SUPPLIERS;
 window.INITIAL_USERS = INITIAL_USERS;
+window.INITIAL_INTERCHANGES = INITIAL_INTERCHANGES;
+window.INITIAL_SCRAP = INITIAL_SCRAP;
 window.seedIfEmpty = seedIfEmpty;

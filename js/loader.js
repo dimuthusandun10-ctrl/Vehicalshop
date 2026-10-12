@@ -25,7 +25,9 @@
     settings: ['js/pages/settings.js', 'js/printer.js', 'js/barcode-scanner.js'],
     'serial-search': ['js/pages/serial-search.js'],
     profile: ['js/pages/profile.js'],
-    payables: ['js/pages/payables.js']
+    payables: ['js/pages/payables.js'],
+    interchange: ['js/pages/interchange.js'],
+    scrap: ['js/pages/scrap.js']
   };
 
   function isScriptAlreadyLoaded(src) {
