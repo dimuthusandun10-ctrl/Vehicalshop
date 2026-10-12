@@ -33,7 +33,7 @@ window.addEventListener('keydown', e => {
 setInterval(updateClock, 1000);
 
 /* Application Bootstrapper Entry Point */
-function initApp(){
+async function initApp(){
   updateClock();
 
   // Read PWA shortcut navigation (e.g. ?page=billing or ?page=inventory)
@@ -66,11 +66,19 @@ function initApp(){
     window.BackupService.init();
   }
 
-  if(typeof initLoginEnhancements === 'function'){
-    initLoginEnhancements();
-  } else {
-    const uInp = $('#lUser');
-    if(uInp) uInp.focus();
+  // Restore active user session across browser refresh / reload
+  let sessionRestored = false;
+  if(typeof window.restoreSession === 'function'){
+    sessionRestored = await window.restoreSession();
+  }
+
+  if(!sessionRestored){
+    if(typeof initLoginEnhancements === 'function'){
+      initLoginEnhancements();
+    } else {
+      const uInp = $('#lUser');
+      if(uInp) uInp.focus();
+    }
   }
 
   // Register PWA Service Worker

@@ -1428,6 +1428,10 @@ function grnConfirmModal(){
 
   const totalUnits = grnItems.reduce((a, r) => a + Number(r.qty || 0), 0);
   const grandTotal = grnItems.reduce((a, r) => a + Number(r.total || 0), 0);
+  const payType = grnState.paymentType || 'credit';
+  const payMethod = payType === 'credit' ? 'credit' : (grnState.paymentMethod || 'petty');
+  const effectivePaid = grnGetEffectivePaidAmount(grandTotal);
+  const balanceDue = Math.max(0, grandTotal - effectivePaid);
 
   // Calculate WAC for each received item
   const wacItems = grnItems.map(item => {

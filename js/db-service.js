@@ -481,6 +481,11 @@ Object.assign(DB, {
         counters: this.counters,
         savedAt: Date.now()
       }));
+      if(typeof _posSyncChannel !== 'undefined' && _posSyncChannel){
+        try {
+          _posSyncChannel.postMessage({ type: 'db_updated', timestamp: Date.now() });
+        } catch(e){}
+      }
     } catch(e){
       console.warn('Cache save failed:', e);
     }
@@ -536,9 +541,39 @@ Object.assign(DB, {
 
 function rerenderIfActive(){
   if(typeof window !== 'undefined' && window.state && window.state.user){
-    if(typeof window.render === 'function') window.render();
+    if(window.state.page === 'billing'){
+      if(typeof window.renderGrid === 'function') window.renderGrid();
+    } else {
+      if(typeof window.render === 'function') window.render();
+    }
     if(typeof window.renderNav === 'function') window.renderNav();
   }
+}
+
+/* =====================================================
+   REAL-TIME CROSS-TAB & CROSS-DEVICE MULTI-TERMINAL SYNC
+   ===================================================== */
+const _posSyncChannel = (typeof BroadcastChannel !== 'undefined') ? new BroadcastChannel('pos_realtime_sync') : null;
+if(_posSyncChannel){
+  _posSyncChannel.onmessage = (evt) => {
+    if(evt.data?.type === 'db_updated' && window.state?.user){
+      if(window.DB && typeof window.DB.loadAllSync === 'function'){
+        window.DB.loadAllSync();
+      }
+      rerenderIfActive();
+    }
+  };
+}
+
+if(typeof window !== 'undefined'){
+  window.addEventListener('storage', (evt) => {
+    if(evt.key && evt.key.startsWith('pos.localDB.') && window.state?.user){
+      if(window.DB && typeof window.DB.loadAllSync === 'function'){
+        window.DB.loadAllSync();
+      }
+      rerenderIfActive();
+    }
+  });
 }
 
 function saveDB(immediate = false){
@@ -546,6 +581,11 @@ function saveDB(immediate = false){
     DB._persistLocalNow();
   } else {
     DB.persistLocal();
+  }
+  if(_posSyncChannel){
+    try {
+      _posSyncChannel.postMessage({ type: 'db_updated', timestamp: Date.now() });
+    } catch(e){}
   }
 }
 

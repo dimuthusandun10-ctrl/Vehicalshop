@@ -473,6 +473,13 @@ async function doLogin(){
   state.page = (shortcut && typeof can === 'function' && can(shortcut)) ? shortcut : 'billing';
   state.cart = [];
 
+  // Persist session across browser refresh
+  try {
+    localStorage.setItem('pos.currentUser', JSON.stringify(user));
+    localStorage.setItem('pos.currentPage', state.page);
+    localStorage.removeItem('pos.screenLocked');
+  } catch(e){}
+
   if(typeof window.loadPageModule === 'function'){
     await window.loadPageModule(state.page);
   }
@@ -481,6 +488,9 @@ async function doLogin(){
   render();
   if(typeof updateClock === 'function') updateClock();
   if(typeof updateShiftIndicator === 'function') updateShiftIndicator();
+
+  // Start 5-minute inactivity idle lock
+  if(typeof initIdleTimer === 'function') initIdleTimer();
 
   // FIX 3: Prompt password change if flagged
   if(user.needsPasswordChange){
@@ -615,6 +625,16 @@ function performLogout(){
   if(typeof updateBrandName === 'function') updateBrandName();
   if(typeof updateTopBarShopSwitcher === 'function') updateTopBarShopSwitcher();
 
+  // Clear persisted user session & lock state
+  try {
+    localStorage.removeItem('pos.currentUser');
+    localStorage.removeItem('pos.currentPage');
+    localStorage.removeItem('pos.screenLocked');
+  } catch(e){}
+  if(typeof stopIdleTimer === 'function') stopIdleTimer();
+  const lockOverlay = document.getElementById('screenLockOverlay');
+  if(lockOverlay) lockOverlay.remove();
+
   const appSlot = $('#appSlot') || $('#app');
   if(appSlot) appSlot.classList.add('hidden');
 
@@ -720,6 +740,355 @@ window.initLoginEnhancements = initLoginEnhancements;
 window.resetLoginButton = resetLoginButton;
 window.showSyncIndicator = showSyncIndicator;
 window.hideSyncIndicator = hideSyncIndicator;
+window.restoreSession = restoreSession;
+window.initIdleTimer = initIdleTimer;
+window.resetIdleTimer = resetIdleTimer;
+window.stopIdleTimer = stopIdleTimer;
+window.lockScreen = lockScreen;
+window.unlockScreen = unlockScreen;
+window.toggleUnlockPasswordVisibility = toggleUnlockPasswordVisibility;
+window.lockSwitchUser = lockSwitchUser;
+
+/* =========================================================
+   Session Restoration Across Browser Refresh & Reloads
+   ========================================================= */
+async function restoreSession(){
+  try {
+    const userJson = localStorage.getItem('pos.currentUser');
+    if(!userJson) return false;
+    const user = JSON.parse(userJson);
+    if(!user || !user.id || !user.role) return false;
+
+    const db = window.DB || {};
+    // Verify user is not deactivated or locked in local user cache
+    if(db.users && Array.isArray(db.users)){
+      const liveUser = db.users.find(u => u.id === user.id || u.authUid === user.id);
+      if(liveUser){
+        if(liveUser.locked === true || liveUser.active === false){
+          localStorage.removeItem('pos.currentUser');
+          return false;
+        }
+      }
+    }
+
+    state.user = user;
+    state.authUid = user.authUid || user.id;
+
+    // Set active shop
+    const allShops = (db.shops && db.shops.length > 0) ? db.shops : (window.INITIAL_SHOPS || []);
+    if(user.role === 'superadmin'){
+      const savedShopId = localStorage.getItem('pos.activeShopId');
+      if(savedShopId && allShops.find(s => s.id === savedShopId)){
+        state.activeShopId = savedShopId;
+      } else if(allShops.length > 0){
+        state.activeShopId = allShops[0].id;
+      }
+      state.activeShop = allShops.find(s => s.id === state.activeShopId) || allShops[0] || null;
+    } else {
+      state.activeShop = allShops.find(s => s.id === user.shopId) || null;
+      state.activeShopId = state.activeShop?.id || user.shopId;
+    }
+
+    db.shop = state.activeShop || db.shop;
+    if(typeof updateBrandName === 'function') updateBrandName();
+    if(typeof updateTopBarShopSwitcher === 'function') updateTopBarShopSwitcher();
+
+    // Instant local cache load
+    if(db && typeof db.loadAllSync === 'function'){
+      db.loadAllSync();
+    }
+
+    const loginScreen = $('#loginScreen');
+    if(loginScreen) loginScreen.classList.add('hidden');
+    const loginSlot = $('#loginSlot');
+    if(loginSlot) loginSlot.classList.add('hidden');
+
+    const appSlot = $('#appSlot') || $('#app');
+    if(appSlot) appSlot.classList.remove('hidden');
+
+    const uAvatar = $('#uAvatar');
+    if(uAvatar) uAvatar.textContent = (user.name || 'U').charAt(0);
+    const uName = $('#uName');
+    if(uName) uName.textContent = user.name;
+    const uRole = $('#uRole');
+    if(uRole) uRole.textContent = (typeof ROLE_SI !== 'undefined' ? ROLE_SI[user.role] : user.role) + ' / ' + (typeof ROLE_EN !== 'undefined' ? ROLE_EN[user.role] : user.role);
+    const roleBadge = $('#roleBadge');
+    if(roleBadge){
+      roleBadge.className = 'badge ' + user.role;
+      roleBadge.textContent = typeof ROLE_EN !== 'undefined' ? ROLE_EN[user.role] : user.role;
+    }
+
+    // Determine target page: URL shortcut > localStorage saved page > default 'billing'
+    const savedPage = localStorage.getItem('pos.currentPage');
+    const shortcut = window.state?.shortcutPage;
+    let targetPage = shortcut || savedPage || 'billing';
+    if(typeof can === 'function' && !can(targetPage)){
+      targetPage = 'billing';
+    }
+    if(typeof can === 'function' && !can(targetPage) && typeof NAV !== 'undefined'){
+      const firstNav = NAV.find(n => (typeof hasPermission === 'function' ? hasPermission(n.perm || n.id) : (n.roles || []).includes(user.role)));
+      targetPage = firstNav ? firstNav.id : 'billing';
+    }
+
+    state.page = targetPage;
+    state.cart = state.cart || [];
+
+    if(typeof window.loadPageModule === 'function'){
+      await window.loadPageModule(targetPage);
+    }
+
+    if(typeof renderNav === 'function') renderNav();
+    if(typeof render === 'function') render();
+    if(typeof updateClock === 'function') updateClock();
+    if(typeof updateShiftIndicator === 'function') updateShiftIndicator();
+
+    if(typeof window.startPageListeners === 'function'){
+      window.startPageListeners(targetPage);
+    }
+
+    // Start 5-minute inactivity idle detection
+    if(typeof initIdleTimer === 'function'){
+      initIdleTimer();
+    }
+
+    // Restore lock state if previously locked
+    if(localStorage.getItem('pos.screenLocked') === 'true'){
+      lockScreen();
+    }
+
+    return true;
+  } catch(err){
+    console.warn('Session restore failed:', err);
+    return false;
+  }
+}
+
+/* =========================================================
+   5-Minute Inactivity Auto Screen Lock System
+   ========================================================= */
+const INACTIVITY_LOCK_MS = 5 * 60 * 1000; // 5 minutes (300,000ms)
+let _idleLockTimer = null;
+let _isScreenLocked = false;
+let _idleEventsBound = false;
+
+function initIdleTimer(){
+  resetIdleTimer();
+  if(!_idleEventsBound){
+    const activityEvents = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click'];
+    activityEvents.forEach(evt => {
+      window.addEventListener(evt, () => {
+        if(!_isScreenLocked && window.state?.user){
+          resetIdleTimer();
+        }
+      }, { passive: true });
+    });
+    _idleEventsBound = true;
+  }
+}
+
+function resetIdleTimer(){
+  if(_idleLockTimer) clearTimeout(_idleLockTimer);
+  if(!_isScreenLocked && window.state?.user){
+    _idleLockTimer = setTimeout(() => {
+      lockScreen();
+    }, INACTIVITY_LOCK_MS);
+  }
+}
+
+function stopIdleTimer(){
+  if(_idleLockTimer){
+    clearTimeout(_idleLockTimer);
+    _idleLockTimer = null;
+  }
+}
+
+function lockScreen(){
+  if(!window.state?.user) return;
+  _isScreenLocked = true;
+  try {
+    localStorage.setItem('pos.screenLocked', 'true');
+  } catch(e){}
+
+  if(document.getElementById('screenLockOverlay')) return;
+
+  const user = window.state.user;
+  const initialLetter = (user.name || 'U').charAt(0).toUpperCase();
+  const roleName = (typeof ROLE_SI !== 'undefined' && ROLE_SI[user.role]) 
+    ? `${ROLE_SI[user.role]} (${ROLE_EN[user.role] || user.role})`
+    : (user.role || 'User');
+
+  const overlay = document.createElement('div');
+  overlay.id = 'screenLockOverlay';
+  overlay.className = 'screen-lock-overlay';
+  overlay.innerHTML = `
+    <div class="screen-lock-modal">
+      <div class="screen-lock-icon-wrap">
+        <span class="screen-lock-icon">🔒</span>
+      </div>
+      <h2 class="screen-lock-title">පද්ධතිය අගුළු දමා ඇත</h2>
+      <p class="screen-lock-subtitle">ආරක්ෂාව සඳහා මිනිත්තු 5ක් අක්‍රියව තිබූ බැවින් පද්ධතිය අගුළු ලන ලදී (Screen locked due to 5 min inactivity)</p>
+
+      <div class="screen-lock-user-card">
+        <div class="screen-lock-avatar">${esc(initialLetter)}</div>
+        <div class="screen-lock-user-details">
+          <div class="screen-lock-user-name">${esc(user.name)}</div>
+          <div class="screen-lock-user-role">${esc(roleName)}</div>
+        </div>
+      </div>
+
+      <div class="screen-lock-form">
+        <label for="lockUnlockPass" class="screen-lock-label">🔑 මුරපදය ඇතුළත් කර අගුල හරින්න (Enter Password)</label>
+        <div class="screen-lock-input-wrap">
+          <input type="password" id="lockUnlockPass" placeholder="මුරපදය / Password" autocomplete="current-password">
+          <button type="button" class="eye-btn" onclick="toggleUnlockPasswordVisibility()" tabindex="-1" aria-label="Show password">
+            <span id="lockEyeIcon">👁️</span>
+          </button>
+        </div>
+        <div id="lockUnlockErr" class="screen-lock-err"></div>
+
+        <button type="button" id="lockUnlockBtn" class="btn btn-primary screen-lock-submit-btn" onclick="unlockScreen()">
+          <span id="lockUnlockBtnText">🔓 අගුළු හරින්න (Unlock POS)</span>
+          <span id="lockUnlockBtnSpinner" class="btn-spinner hidden"><span class="spinner"></span></span>
+        </button>
+
+        <div class="screen-lock-switch-wrap">
+          <button type="button" class="screen-lock-switch-btn" onclick="lockSwitchUser()">
+            👤 වෙනත් පරිශීලකයෙක් ලෙස පිවිසෙන්න (Switch User / Log Out)
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Trap ESC key and all clicks
+  overlay.addEventListener('keydown', (e) => {
+    if(e.key === 'Escape'){
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  });
+
+  document.body.appendChild(overlay);
+
+  const passInput = document.getElementById('lockUnlockPass');
+  if(passInput){
+    passInput.addEventListener('keydown', (e) => {
+      if(e.key === 'Enter'){
+        e.preventDefault();
+        unlockScreen();
+      }
+    });
+    setTimeout(() => passInput.focus(), 150);
+  }
+}
+
+function toggleUnlockPasswordVisibility(){
+  const inp = document.getElementById('lockUnlockPass');
+  const icon = document.getElementById('lockEyeIcon');
+  if(!inp) return;
+  if(inp.type === 'password'){
+    inp.type = 'text';
+    if(icon) icon.textContent = '🙈';
+  } else {
+    inp.type = 'password';
+    if(icon) icon.textContent = '👁️';
+  }
+}
+
+async function unlockScreen(){
+  const passInp = document.getElementById('lockUnlockPass');
+  const errEl = document.getElementById('lockUnlockErr');
+  const btn = document.getElementById('lockUnlockBtn');
+  const txt = document.getElementById('lockUnlockBtnText');
+  const spn = document.getElementById('lockUnlockBtnSpinner');
+  const entered = passInp ? passInp.value.trim() : '';
+
+  if(!entered){
+    if(errEl) errEl.textContent = '❌ කරුණාකර ඔබගේ මුරපදය ඇතුළත් කරන්න';
+    if(passInp) passInp.focus();
+    return;
+  }
+
+  if(btn) btn.disabled = true;
+  if(txt) txt.classList.add('hidden');
+  if(spn) spn.classList.remove('hidden');
+  if(errEl) errEl.textContent = '';
+
+  try {
+    const user = window.state?.user;
+    if(!user){
+      lockSwitchUser();
+      return;
+    }
+
+    let isValid = false;
+
+    // 1. Check against user.password hash with bcrypt
+    if(user.password && window.Security && typeof window.Security.verifyPassword === 'function'){
+      isValid = await window.Security.verifyPassword(entered, user.password);
+    }
+
+    // 2. Fallback: check matching user in db.users
+    if(!isValid && window.DB?.users){
+      const dbUser = window.DB.users.find(u => u.id === user.id || u.username === user.username || u.email === user.email);
+      if(dbUser && dbUser.password && window.Security){
+        isValid = await window.Security.verifyPassword(entered, dbUser.password);
+      }
+    }
+
+    // 3. Fallback: verify via Firebase Auth signInWithEmailAndPassword
+    if(!isValid && window.FB && typeof window.FB.getAuth === 'function' && typeof window.FB.getAuthModule === 'function' && user.email){
+      try {
+        const authMod = window.FB.getAuthModule();
+        const auth = window.FB.getAuth();
+        if(auth && authMod){
+          await authMod.signInWithEmailAndPassword(auth, user.email, entered);
+          isValid = true;
+        }
+      } catch(fbErr){}
+    }
+
+    if(isValid){
+      _isScreenLocked = false;
+      try {
+        localStorage.removeItem('pos.screenLocked');
+      } catch(e){}
+
+      const overlay = document.getElementById('screenLockOverlay');
+      if(overlay) overlay.remove();
+
+      resetIdleTimer();
+      if(typeof toast === 'function'){
+        toast('🔓 පද්ධතිය සාර්ථකව අගුළු හරින ලදී (System Unlocked)', 'ok');
+      }
+    } else {
+      if(errEl) errEl.textContent = '❌ වැරදි මුරපදයකි. කරුණාකර නැවත උත්සාහ කරන්න.';
+      if(passInp){
+        passInp.value = '';
+        passInp.focus();
+      }
+    }
+  } catch(err){
+    console.error('Unlock error:', err);
+    if(errEl) errEl.textContent = '❌ අගුළු හැරීමේ දෝෂයක්: ' + (err.message || err);
+  } finally {
+    if(btn) btn.disabled = false;
+    if(txt) txt.classList.remove('hidden');
+    if(spn) spn.classList.add('hidden');
+  }
+}
+
+function lockSwitchUser(){
+  if(confirm('ඔබට මෙම ගිණුමෙන් ඉවත් වී වෙනත් පරිශීලකයෙක් ලෙස පිවිසීමට අවශ්‍යද? (Switch User / Log Out?)')){
+    _isScreenLocked = false;
+    try {
+      localStorage.removeItem('pos.screenLocked');
+    } catch(e){}
+    const overlay = document.getElementById('screenLockOverlay');
+    if(overlay) overlay.remove();
+    performLogout();
+  }
+}
 
 /* Process any pending actions queued before auth.js was loaded */
 if(window._pendingQuick){
@@ -734,4 +1103,5 @@ if(window._pendingQuick){
     doLogin();
   }
 }
+
 

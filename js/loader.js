@@ -114,7 +114,7 @@
 
     /* 3. Initialize application */
     if (typeof initApp === 'function') {
-      initApp();
+      await initApp();
     }
 
     /* 4. Hide boot loader screen smoothly */
