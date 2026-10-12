@@ -2,7 +2,7 @@
    service-worker.js - PWA Offline App Shell & Runtime Cache
    ========================================================= */
 
-const CACHE_VERSION = 'v2.5.1';
+const CACHE_VERSION = 'v2.5.2';
 const CACHE_NAME = 'autoparts-pos-' + CACHE_VERSION;
 const RUNTIME_CACHE = 'autoparts-runtime-' + CACHE_VERSION;
 
@@ -60,6 +60,8 @@ const APP_SHELL = [
   '/js/router.js',
   '/js/app.js',
   '/js/loader.js',
+  '/js/jsbarcode.min.js',
+  '/js/zxing.min.js',
   '/js/printer.js',
   '/js/barcode-scanner.js',
 

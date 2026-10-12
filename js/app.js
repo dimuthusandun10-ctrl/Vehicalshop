@@ -123,33 +123,73 @@ function registerPwaServiceWorker(){
       }
     });
   }
+
+  // Active check for updates directly from Cloudflare server
+  setTimeout(() => {
+    checkForCloudflareUpdates();
+  }, 3500);
+
+  document.addEventListener('visibilitychange', () => {
+    if(document.visibilityState === 'visible'){
+      checkForCloudflareUpdates();
+    }
+  });
 }
 
-function showUpdateBanner(reg){
+const CURRENT_APP_VERSION = 'v2.5.2';
+
+async function checkForCloudflareUpdates(){
+  if(typeof navigator !== 'undefined' && !navigator.onLine) return;
+  try {
+    const res = await fetch('/service-worker.js?_chk=' + Date.now(), { cache: 'no-store' });
+    if(res.ok){
+      const text = await res.text();
+      const match = text.match(/CACHE_VERSION\s*=\s*['"]([^'"]+)['"]/);
+      if(match && match[1]){
+        const remoteVer = match[1];
+        const localVer = localStorage.getItem('pos.appVersion') || CURRENT_APP_VERSION;
+        if(remoteVer !== localVer){
+          console.log('⚡ New version detected on Cloudflare:', remoteVer, 'Local:', localVer);
+          showUpdateBannerDirect(remoteVer);
+        }
+      }
+    }
+  } catch(e){
+    // Network or worker check notice ignored
+  }
+}
+
+function showUpdateBannerDirect(newVer){
   if(document.getElementById('updateBanner')) return;
   const banner = document.createElement('div');
   banner.className = 'update-banner';
   banner.id = 'updateBanner';
   banner.innerHTML = `
     <div style="display:flex;align-items:center;gap:10px">
-      <span style="font-size:20px">🚀</span>
+      <span style="font-size:22px">🚀</span>
       <div>
-        <b style="font-size:13px;display:block">නවතම සංස්කරණයක් ඇත!</b>
-        <small style="opacity:0.9;font-size:11px">New version available (Cloudflare update ready)</small>
+        <b style="font-size:13px;display:block">නවතම සංස්කරණයක් ඇත (${newVer})!</b>
+        <small style="opacity:0.9;font-size:11px">Cloudflare වෙතින් නවතම යාවත්කාලීනය ලබාගන්න</small>
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:6px">
-      <button type="button" onclick="forceUpdateApp()">🔄 Update කරන්න</button>
+      <button type="button" onclick="forceUpdateApp()" style="background:#10b981;color:#fff;border:none;padding:6px 12px;border-radius:6px;font-weight:700;font-size:12px;cursor:pointer">🔄 Update කරන්න</button>
       <button type="button" onclick="this.closest('.update-banner').remove()" style="background:transparent;color:#fff;border:none;font-size:16px;cursor:pointer;padding:4px 8px;border-radius:6px" title="පසුව">✕</button>
     </div>
   `;
   document.body.appendChild(banner);
 }
 
+function showUpdateBanner(reg){
+  showUpdateBannerDirect(CURRENT_APP_VERSION);
+}
+
 async function forceUpdateApp(){
   if(typeof toast === 'function') toast('⏳ නවතම අනුවාදය පරීක්ෂා කරමින් පවතී... (Checking Cloudflare updates)', 'info');
 
   try {
+    localStorage.setItem('pos.appVersion', CURRENT_APP_VERSION);
+
     // 1. Tell waiting or installing service worker to activate
     if('serviceWorker' in navigator){
       const reg = window._swReg || await navigator.serviceWorker.getRegistration();
@@ -189,6 +229,7 @@ async function forceUpdateApp(){
 
 window.forceUpdateApp = forceUpdateApp;
 window.updateApp = forceUpdateApp;
+window.checkForCloudflareUpdates = checkForCloudflareUpdates;
 
 /* =========================================================
    Custom PWA Install Prompt (Chrome / Edge / Android)
