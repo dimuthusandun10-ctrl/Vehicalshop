@@ -136,7 +136,12 @@ function registerPwaServiceWorker(){
   });
 }
 
-const CURRENT_APP_VERSION = 'v2.5.6';
+const CURRENT_APP_VERSION = 'v2.5.7';
+try {
+  if(localStorage.getItem('pos.appVersion') !== CURRENT_APP_VERSION){
+    localStorage.setItem('pos.appVersion', CURRENT_APP_VERSION);
+  }
+} catch(_){}
 
 async function checkForCloudflareUpdates(){
   if(typeof navigator !== 'undefined' && !navigator.onLine) return;
@@ -147,10 +152,15 @@ async function checkForCloudflareUpdates(){
       const match = text.match(/CACHE_VERSION\s*=\s*['"]([^'"]+)['"]/);
       if(match && match[1]){
         const remoteVer = match[1];
-        const localVer = localStorage.getItem('pos.appVersion') || CURRENT_APP_VERSION;
-        if(remoteVer !== localVer){
-          console.log('⚡ New version detected on Cloudflare:', remoteVer, 'Local:', localVer);
+        window._availableRemoteVersion = remoteVer;
+        if(remoteVer !== CURRENT_APP_VERSION){
+          console.log('⚡ New version detected on Cloudflare:', remoteVer, 'Current:', CURRENT_APP_VERSION);
           showUpdateBannerDirect(remoteVer);
+        } else {
+          const b = document.getElementById('updateBanner');
+          if(b) b.remove();
+          const sbWrap = document.getElementById('sidebarUpdateWrap');
+          if(sbWrap) sbWrap.style.display = 'none';
         }
       }
     }
@@ -168,13 +178,7 @@ function showUpdateBannerDirect(newVer){
     if(sbBtn) sbBtn.innerHTML = `🚀 නව Update ඇත! <small style="color:var(--muted);font-weight:700">${newVer}</small>`;
   }
 
-  // 2. Reveal login screen update button ONLY when an update is actually available
-  const lWrap = document.getElementById('loginUpdateWrap');
-  if(lWrap){
-    lWrap.style.display = 'block';
-  }
-
-  // 3. Floating bottom update notification banner
+  // 2. Floating bottom update notification banner
   if(document.getElementById('updateBanner')) return;
   const banner = document.createElement('div');
   banner.className = 'update-banner';
@@ -188,7 +192,7 @@ function showUpdateBannerDirect(newVer){
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:6px">
-      <button type="button" onclick="forceUpdateApp()" style="background:#10b981;color:#fff;border:none;padding:6px 12px;border-radius:6px;font-weight:700;font-size:12px;cursor:pointer">🔄 Update කරන්න</button>
+      <button type="button" onclick="forceUpdateApp('${newVer}')" style="background:#10b981;color:#fff;border:none;padding:6px 12px;border-radius:6px;font-weight:700;font-size:12px;cursor:pointer">🔄 Update කරන්න</button>
       <button type="button" onclick="this.closest('.update-banner').remove()" style="background:transparent;color:#fff;border:none;font-size:16px;cursor:pointer;padding:4px 8px;border-radius:6px" title="පසුව">✕</button>
     </div>
   `;
@@ -196,49 +200,48 @@ function showUpdateBannerDirect(newVer){
 }
 
 function showUpdateBanner(reg){
-  showUpdateBannerDirect(CURRENT_APP_VERSION);
+  showUpdateBannerDirect(window._availableRemoteVersion || CURRENT_APP_VERSION);
 }
 
-async function forceUpdateApp(){
-  if(typeof toast === 'function') toast('⏳ නවතම අනුවාදය පරීක්ෂා කරමින් පවතී... (Checking Cloudflare updates)', 'info');
+async function forceUpdateApp(targetVer){
+  if(typeof toast === 'function') toast('⏳ නවතම අනුවාදය බාගත කරමින් පවතී... (Updating App)', 'info');
 
   try {
-    localStorage.setItem('pos.appVersion', CURRENT_APP_VERSION);
+    const newVer = targetVer || window._availableRemoteVersion || CURRENT_APP_VERSION;
+    try { localStorage.setItem('pos.appVersion', newVer); } catch(_){}
 
-    // 1. Tell waiting or installing service worker to activate
+    // 1. Unregister all existing service workers to avoid stale controller interception
     if('serviceWorker' in navigator){
-      const reg = window._swReg || await navigator.serviceWorker.getRegistration();
-      if(reg){
-        if(reg.waiting){
-          reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+      try {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        for(const reg of registrations){
+          if(reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+          if(reg.installing) reg.installing.postMessage({ type: 'SKIP_WAITING' });
+          try { await reg.update(); } catch(_){}
+          try { await reg.unregister(); } catch(_){}
         }
-        if(reg.installing){
-          reg.installing.postMessage({ type: 'SKIP_WAITING' });
-        }
-        try {
-          await reg.update();
-        } catch(_){}
-      }
+      } catch(e){}
     }
 
-    // 2. Clear all cache storage caches (scripts, css, html)
+    // 2. Clear ALL cache storage caches (HTML, CSS, JS)
     if('caches' in window){
-      const keys = await caches.keys();
-      await Promise.all(keys.map(k => caches.delete(k)));
+      try {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k)));
+      } catch(e){}
     }
 
     if(typeof toast === 'function') toast('✅ යෙදුම සාර්ථකව යාවත්කාලීන විය! නැවත පූරණය වේ...', 'ok');
 
-    // 3. Force clean reload with cache-buster timestamp query to bypass Cloudflare/browser cache
+    // 3. Force hard navigation directly to origin with cache-busting timestamp
     setTimeout(() => {
       const cleanUrl = window.location.origin + window.location.pathname;
-      window.location.href = cleanUrl + '?ts=' + Date.now();
-    }, 450);
+      window.location.replace(cleanUrl + '?v=' + encodeURIComponent(newVer) + '&_t=' + Date.now());
+    }, 300);
 
   } catch(err){
     console.error('Force update error:', err);
-    const cleanUrl = window.location.origin + window.location.pathname;
-    window.location.href = cleanUrl + '?ts=' + Date.now();
+    window.location.replace(window.location.origin + window.location.pathname + '?_t=' + Date.now());
   }
 }
 

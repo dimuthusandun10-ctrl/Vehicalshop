@@ -2,7 +2,7 @@
    service-worker.js - PWA Offline App Shell & Runtime Cache
    ========================================================= */
 
-const CACHE_VERSION = 'v2.5.6';
+const CACHE_VERSION = 'v2.5.7';
 const CACHE_NAME = 'autoparts-pos-' + CACHE_VERSION;
 const RUNTIME_CACHE = 'autoparts-runtime-' + CACHE_VERSION;
 
@@ -192,7 +192,7 @@ self.addEventListener('fetch', event => {
   // Network-first for HTML document navigation (always get fresh version if online)
   if (req.destination === 'document' || req.mode === 'navigate') {
     event.respondWith(
-      fetch(req)
+      fetch(req, { cache: 'no-cache' })
         .then(response => {
           if (response && response.status === 200) {
             safePut(req, response.clone());
@@ -200,17 +200,35 @@ self.addEventListener('fetch', event => {
           return response;
         })
         .catch(() => {
-          return caches.match(req, { ignoreSearch: true })
+          return caches.match(req)
             .then(cached => cached || caches.match('/index.html') || caches.match('index.html') || caches.match('/'));
         })
     );
     return;
   }
 
-  // Cache-first with background revalidation (Stale-While-Revalidate) for scripts and stylesheets
+  // Scripts and stylesheets: Network-first if version query exists (?v=, ?ts=, ?_t=), otherwise stale-while-revalidate
   if (req.destination === 'script' || req.destination === 'style' || url.pathname.endsWith('.js') || url.pathname.endsWith('.css')) {
+    const hasVersionQuery = url.searchParams.has('v') || url.searchParams.has('ts') || url.searchParams.has('_t') || url.searchParams.has('_chk');
+
+    if (hasVersionQuery) {
+      event.respondWith(
+        fetch(req)
+          .then(response => {
+            if (response && response.status === 200) {
+              safePut(req, response.clone());
+            }
+            return response;
+          })
+          .catch(() => {
+            return caches.match(req).then(cached => cached || caches.match(req, { ignoreSearch: true }));
+          })
+      );
+      return;
+    }
+
     event.respondWith(
-      caches.match(req, { ignoreSearch: true }).then(cached => {
+      caches.match(req).then(cached => {
         const fetchPromise = fetch(req)
           .then(response => {
             if (response && response.status === 200) {
