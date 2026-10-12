@@ -57,6 +57,7 @@ const APP_SHELL = [
   '/js/firebase.js',
   '/js/seed.js',
   '/js/db-service.js',
+  '/js/backup-service.js',
   '/js/shift.js',
   '/js/auth.js',
   '/js/date-picker.js',

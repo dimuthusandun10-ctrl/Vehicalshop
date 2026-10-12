@@ -112,6 +112,10 @@ function pgSettings(){
         } catch(_) { lastBackupText = lastBackupIso; }
       }
       const autoBackupEnabled = localStorage.getItem('pos.autoBackup') !== 'false';
+      const autoBackupTime = localStorage.getItem('pos.autoBackupTime') || '16:00';
+      const folderName = localStorage.getItem('pos.backupFolderName') || 'POS System';
+      const folderGranted = localStorage.getItem('pos.backupFolderGranted') === 'true';
+      const isDesktopFsSupported = typeof window.showDirectoryPicker === 'function';
 
       return `
       <div style="margin-top:14px;display:flex;flex-direction:column;gap:14px">
@@ -123,9 +127,14 @@ function pgSettings(){
               <h4 style="margin:0;font-size:16px;color:var(--txt)">💾 දත්ත සුරැකීම සහ ප්‍රතිස්ථාපනය</h4>
               <small style="color:var(--muted)">Data Backup & System Disaster Recovery (Phase 8)</small>
             </div>
-            <span class="pill ${autoBackupEnabled ? 'ok' : 'warn'}" style="font-size:11.5px;padding:4px 10px">
-              Auto-backup: ${autoBackupEnabled ? '🟢 සක්‍රීය (Daily)' : '⚪ අක්‍රීය'}
-            </span>
+            <div style="display:flex;gap:6px;align-items:center">
+              <span class="pill ${autoBackupEnabled ? 'ok' : 'warn'}" style="font-size:11.5px;padding:4px 10px">
+                Daily 4:00 PM: ${autoBackupEnabled ? '🟢 සක්‍රීයයි (16:00)' : '⚪ අක්‍රීයයි'}
+              </span>
+              <span class="pill" style="font-size:11.5px;padding:4px 10px;background:rgba(59,130,246,0.15);color:#93c5fd;border:1px solid rgba(59,130,246,0.3)">
+                🏬 ${esc(state.activeShop?.name || 'Shop')}
+              </span>
+            </div>
           </div>
 
           <div class="grid2" style="gap:12px;margin-bottom:6px">
@@ -134,15 +143,80 @@ function pgSettings(){
               <b style="font-size:14px;color:var(--primary)">${esc(lastBackupText)}</b>
             </div>
             <div>
-              <span style="font-size:12px;color:var(--muted);display:block">ආවරණය වන එකතු (Collections):</span>
-              <b style="font-size:14px;color:#34d399">16 Business Modules (JSON Complete)</b>
+              <span style="font-size:12px;color:var(--muted);display:block">සුරැකෙන ස්ථානය (Location):</span>
+              <b style="font-size:14px;color:#34d399">${isDesktopFsSupported && folderGranted ? '📁 Documents / ' + esc(folderName) : '📁 Downloads / POS_System'}</b>
+            </div>
+          </div>
+        </div>
+
+        <!-- Auto-Backup 4:00 PM Scheduler & Folder Permission Card -->
+        <div class="card" style="background:#111c30;border:1px solid rgba(59,130,246,0.35);border-radius:12px;padding:16px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.08)">
+            <div>
+              <h4 style="margin:0 0 4px;font-size:15px;color:#93c5fd;display:flex;align-items:center;gap:8px">
+                📅 දිනපතා සවස 4:00 ට ස්වයංක්‍රීය Backup (Daily 4:00 PM Auto-Backup)
+                <span class="pill ${autoBackupEnabled ? 'ok' : 'muted'}" style="font-size:11px;padding:2px 8px">
+                  ${autoBackupEnabled ? 'ක්‍රියාත්මකයි' : 'අක්‍රියයි'}
+                </span>
+              </h4>
+              <p style="margin:0;font-size:12px;color:var(--muted)">
+                සෑම දිනකම සවස 4:00 ට (${esc(autoBackupTime)}) වත්මන් සාප්පුවේ දත්ත ස්වයංක්‍රීයව ආරක්ෂිත ෆෝල්ඩරයට (Documents / POS System / ${esc(state.activeShop?.name || 'Shop')}) සුරකියි.
+              </p>
+            </div>
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;cursor:pointer;background:rgba(255,255,255,0.05);padding:6px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.1)">
+              <input type="checkbox" id="autoBackupCheckbox" ${autoBackupEnabled ? 'checked' : ''} onchange="toggleAutoBackup(this.checked)" style="width:18px;height:18px;accent-color:var(--primary)">
+              <span>ස්වයංක්‍රීයයි</span>
+            </label>
+          </div>
+
+          <!-- Target Folder / Permission Section -->
+          <div style="background:rgba(15,23,42,0.7);padding:12px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);margin-bottom:12px">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+              <div>
+                <b style="font-size:13px;color:var(--txt);display:flex;align-items:center;gap:6px">
+                  📁 සුරැකෙන ෆෝල්ඩරය (Backup Storage Location):
+                  ${isDesktopFsSupported && folderGranted ? '<span style="color:#34d399;font-size:12px">● සෘජු ලිවීම සක්‍රීයයි ✅</span>' : ''}
+                </b>
+                <p style="margin:4px 0 0;font-size:12px;color:#94a3b8">
+                  ${isDesktopFsSupported ? (
+                    folderGranted 
+                      ? `ස්ථානය: Documents / <b style="color:#60a5fa">${esc(folderName)}</b> / <b style="color:#34d399">${esc(state.activeShop?.name || 'Shop')}</b> (ෆෝල්ඩර අවසරය ලබා දී ඇත)`
+                      : `ස්ථානය: <span style="color:#fbbf24">තවම ෆෝල්ඩරයක් තෝරා නැත</span> (Documents තුළ 'POS System' තෝරා අවසර ලබා දෙන්න)`
+                  ) : `ස්ථානය: <b style="color:#60a5fa">Downloads / POS_System</b> (Mobile බ්‍රවුසරය සඳහා ස්වයංක්‍රීයව Downloads සහ In-App Vault හි සුරැකේ)`}
+                </p>
+              </div>
+
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                ${isDesktopFsSupported ? `
+                  <button class="btn btn-blue btn-sm" onclick="selectBackupFolder()" style="font-weight:600;padding:6px 14px;font-size:12px;display:flex;align-items:center;gap:6px">
+                    📁 ${folderGranted ? 'ෆෝල්ඩරය වෙනස් කරන්න' : 'ෆෝල්ඩරය තෝරා අවසර දෙන්න'}
+                  </button>
+                ` : `
+                  <span class="pill" style="font-size:11px;background:rgba(100,116,139,0.2);color:#94a3b8">📱 Mobile Auto-Save</span>
+                `}
+                <button class="btn btn-muted btn-sm" onclick="triggerTestAutoBackup()" style="font-weight:600;padding:6px 14px;font-size:12px;display:flex;align-items:center;gap:6px" title="4:00 PM වන තෙක් නොසිට දැන්ම Backup එක සුරැකෙන අයුරු පරීක්ෂා කරන්න">
+                  ⚡ දැන්ම පරීක්ෂා කරන්න (Test Now)
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Schedule Time & Shop Isolation Notice -->
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;font-size:12px;color:var(--muted)">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span>⏰ වේලාව:</span>
+              <input type="time" value="${esc(autoBackupTime)}" onchange="updateAutoBackupTime(this.value)" style="background:var(--panel);border:1px solid var(--line);color:var(--txt);padding:3px 8px;border-radius:6px;font-size:12px">
+              <span style="color:#6ee7b7">(පෙරනිමි: සවස 04:00 PM)</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;color:#93c5fd">
+              🛡️ <b>Shop Isolation:</b> '${esc(state.activeShop?.name || 'Active Shop')}' සාප්පුවට පමණක් අදාළව ගොනු වෙන්ව සුරැකේ (අනෙක් සාප්පු මිශ්‍ර නොවේ).
             </div>
           </div>
         </div>
 
         <!-- 1-Click Export Card -->
         <div class="card" style="background:#111c30;border:1px solid var(--line);border-radius:12px;padding:16px">
-          <h4 style="margin:0 0 6px;color:#93c5fd;font-size:15px">⬇️ 1-Click සම්පූර්ණ දත්ත Backup එකක් බාගත කරන්න</h4>
+          <h4 style="margin:0 0 6px;color:#93c5fd;font-size:15px">⬇️ 1-Click සම්පූර්ණ දත්ත Backup එකක් බාගත කරන්න (Manual Backup)</h4>
           <p style="color:var(--muted);font-size:12px;margin:0 0 14px">
             භාණ්ඩ, තොග, ගනුදෙනුකරුවන්, සැපයුම්කරුවන්, විකුණුම්, GRN, චෙක්පත්, Part Interchange හා Scrap තොග ඇතුළු සියලුම දත්ත එකවර ආරක්ෂිත JSON ගොනුවක් ලෙස බාගත කරගන්න.
           </p>
@@ -162,20 +236,6 @@ function pgSettings(){
             <button class="btn btn-green btn-sm" id="btnRestoreBackup" onclick="handleImportBackupClick()" style="font-weight:700;padding:8px 18px;font-size:13px;display:flex;align-items:center;gap:6px">
               📂 ප්‍රතිස්ථාපනය කරන්න (Restore)
             </button>
-          </div>
-        </div>
-
-        <!-- Auto-Backup Settings Toggle Card -->
-        <div class="card" style="background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:16px">
-          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
-            <div>
-              <b style="font-size:13.5px;color:var(--txt)">📅 Auto-Backup ස්වයංක්‍රීය මතක්කිරීම් (Scheduler)</b>
-              <p style="margin:4px 0 0;font-size:11.5px;color:var(--muted)">දිනපතා රාත්‍රී 2:00 ට සහ සතිපතා ආරක්ෂිත backup මතක් කිරීම් සිදු කරයි.</p>
-            </div>
-            <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;cursor:pointer">
-              <input type="checkbox" id="autoBackupCheckbox" ${autoBackupEnabled ? 'checked' : ''} onchange="toggleAutoBackup(this.checked)" style="width:18px;height:18px;accent-color:var(--primary)">
-              <span>සක්‍රීයයි</span>
-            </label>
           </div>
         </div>
 
@@ -503,7 +563,13 @@ async function delUser(id){
   toast('පරිශීලකයා මකා දමන ලදී');
 }
 
-function exportFullBackup(){
+async function exportFullBackup(){
+  if(window.BackupService && typeof window.BackupService.performBackup === 'function'){
+    await window.BackupService.performBackup({ isAuto: false, forceDownload: true });
+    render();
+    return;
+  }
+
   const db = window.DB || {};
   const shopId = (typeof currentShopId === 'function' && currentShopId()) || state.user?.shopId || state.activeShopId || 'SHOP-001';
   const shopName = state.activeShop?.name || db.shop?.name || 'AutoParts Shop';
@@ -1035,8 +1101,34 @@ function wipeAllLocalCache(){
 
 function toggleAutoBackup(enabled){
   localStorage.setItem('pos.autoBackup', enabled ? 'true' : 'false');
-  toast(enabled ? 'Auto-backup මතක් කිරීම් සක්‍රීය කරන ලදී ✅' : 'Auto-backup අක්‍රිය කරන ලදී', 'ok');
+  toast(enabled ? 'දිනපතා සවස 4:00 Auto-backup සක්‍රීය කරන ලදී ✅' : 'Auto-backup අක්‍රිය කරන ලදී', 'ok');
   render();
+}
+
+async function selectBackupFolder(){
+  if(window.BackupService && typeof window.BackupService.selectBackupFolder === 'function'){
+    await window.BackupService.selectBackupFolder();
+    render();
+  } else {
+    toast('BackupService module load වී නොමැත', 'err');
+  }
+}
+
+async function triggerTestAutoBackup(){
+  if(window.BackupService && typeof window.BackupService.performBackup === 'function'){
+    toast('ස්වයංක්‍රීය Backup ක්‍රියාවලිය පරීක්ෂා කරමින් පවතී... ⏳');
+    await window.BackupService.performBackup({ isAuto: true });
+    render();
+  } else {
+    toast('BackupService module load වී නොමැත', 'err');
+  }
+}
+
+function updateAutoBackupTime(val){
+  if(val){
+    localStorage.setItem('pos.autoBackupTime', val);
+    toast(`ස්වයංක්‍රීය Backup වේලාව ${val} ලෙස යාවත්කාලීන විය ✅`, 'ok');
+  }
 }
 
 function downloadBackup(){
@@ -1117,4 +1209,7 @@ window.testPrintHardware = testPrintHardware;
 window.kickCashDrawer = kickCashDrawer;
 window.setHwPaperWidth = setHwPaperWidth;
 window.setHwAutoPrint = setHwAutoPrint;
+window.selectBackupFolder = selectBackupFolder;
+window.triggerTestAutoBackup = triggerTestAutoBackup;
+window.updateAutoBackupTime = updateAutoBackupTime;
 window.setHwAutoDrawer = setHwAutoDrawer;

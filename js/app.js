@@ -62,6 +62,10 @@ function initApp(){
     window.Offline.init();
   }
 
+  if(window.BackupService && typeof window.BackupService.init === 'function'){
+    window.BackupService.init();
+  }
+
   if(typeof initLoginEnhancements === 'function'){
     initLoginEnhancements();
   } else {
