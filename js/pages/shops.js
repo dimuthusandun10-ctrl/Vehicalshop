@@ -238,6 +238,12 @@ async function submitCreateShop(){
     return;
   }
 
+  const createBtn = document.querySelector('button[onclick*="submitCreateShop"]');
+  if(createBtn){
+    createBtn.disabled = true;
+    createBtn.textContent = 'සාදමින් පවතී... ⏳';
+  }
+
   const db = window.DB || {};
   if(!db.shops) db.shops = [];
 
@@ -260,32 +266,43 @@ async function submitCreateShop(){
 
   db.shops.push(newShop);
 
-  if(window.FB && window.FB.fbSet){
-    await window.FB.fbSet(window.FB.COL.shops, newShop.id, newShop);
-  }
+  // Initialize pristine 100% empty cache for this tenant
+  try {
+    localStorage.setItem('pos.localDB.' + shopId, JSON.stringify({
+      products: [],
+      customers: [],
+      suppliers: [],
+      sales: [],
+      grns: [],
+      returns: [],
+      shifts: [],
+      cashMoves: [],
+      payments: [],
+      supplierPayments: [],
+      interchanges: [],
+      scrapInventory: [],
+      users: [],
+      shops: db.shops,
+      counters: { invoice: 1, grn: 1, ret: 1, shift: 1, payment: 1, shop: nextNum },
+      shop: newShop,
+      savedAt: Date.now(),
+      shopId: shopId
+    }));
+  } catch(e){}
+
   if(typeof saveDB === 'function') saveDB();
 
+  // Close modal instantly with zero lag
   closeModal();
   toast(`නව සාප්පුව (${name}) සාර්ථකව නිර්මාණය විය! ✅`);
-
-  /* Prompt to assign an Admin immediately */
-  setTimeout(() => {
-    openModal(
-      '👤 Admin පත් කරන්නද?',
-      'Assign Admin Now?',
-      `<div style="text-align:center;padding:12px 0">
-         <div style="font-size:44px;margin-bottom:10px">🏪</div>
-         <div style="font-size:15px;font-weight:700;margin-bottom:6px">${esc(name)}</div>
-         <p style="color:var(--muted);font-size:12.5px;line-height:1.6">
-           මෙම නව සාප්පුව සඳහා කළමනාකාර පරිපාලකයෙකු (Admin) දැන්ම පත් කිරීමට කැමතිද?
-         </p>
-       </div>`,
-      `<button class="btn" onclick="closeModal();render()">පසුව (Later)</button>
-       <button class="btn btn-primary" onclick="closeModal();openAssignAdminModal('${shopId}')">👤 ඔව්, Admin පත් කරන්න</button>`
-    );
-  }, 250);
-
   render();
+
+  // Background sync to Firestore without blocking UI
+  if(window.FB && window.FB.fbSet){
+    window.FB.fbSet(window.FB.COL.shops, newShop.id, newShop).catch(err => {
+      console.warn('Background shop sync warning:', err);
+    });
+  }
 }
 
 /* =========================================================
@@ -385,95 +402,136 @@ function toggleAdminOpt(opt){
 async function submitAssignAdmin(shopId){
   const db = window.DB || {};
   const isNew = document.querySelector('input[name="adminOpt"]:checked')?.value === 'new';
+  const btn = document.querySelector('button[onclick*="submitAssignAdmin"]');
 
-  if(isNew){
-    const name = $('#naName')?.value.trim();
-    const username = $('#naUser')?.value.trim().toLowerCase();
-    const password = $('#naPass')?.value.trim();
-    const phone = $('#naPhone')?.value.trim();
-    const inputEmail = $('#naEmail')?.value.trim();
-    const email = (inputEmail && inputEmail.includes('@')) ? inputEmail : `${username}@autoparts.local`;
-
-    if(!name || !username || !password){
-      toast('කරුණාකර නම, username සහ මුරපදය පුරවන්න (*)', 'err');
-      return;
-    }
-    if(password.length < 6){
-      toast('මුරපදය සඳහා අවම වශයෙන් අකුරු/ඉලක්කම් 6ක් අවශ්‍යයි (Minimum 6 characters)', 'warn');
-      return;
-    }
-
-    if((db.users || []).some(u => !u.deleted && u.username && u.username.toLowerCase() === username)){
-      toast('මෙම username දැනටමත් භාවිතා කර ඇත', 'warn');
-      return;
-    }
-
-    const hashedPassword = window.Security ? await window.Security.hashPassword(password) : password;
-
-    const adminData = {
-      name,
-      username,
-      password: hashedPassword,
-      role: 'admin',
-      shopId: shopId,
-      active: true,
-      locked: false,
-      lockMessage: '',
-      lockedBy: null,
-      lockedAt: null,
-      phone,
-      email,
-      permissions: [
-        'billing', 'dashboard', 'pos', 'inventory',
-        'customers', 'lowstock', 'grn', 'returns',
-        'shifts', 'serial-search', 'reports', 
-        'settings', 'profile'
-      ]
-    };
-
-    if(window.FB && typeof window.FB.createUser === 'function'){
-      const res = await window.FB.createUser(email, password, adminData);
-      if(!res.ok){
-        toast('❌ පරිපාලක ගිණුම සෑදීම අසාර්ථක විය: ' + (res.error?.message || 'Error'), 'err');
-        return;
-      }
-      if(shopId && window.FB.fbUpdate){
-        await window.FB.fbUpdate(window.FB.COL.shops, shopId, {
-          adminUid: res.uid,
-          adminName: name
-        });
-      }
-    } else {
-      const newAdmin = { id: uid('U'), ...adminData };
-      if(!db.users) db.users = [];
-      db.users.push(newAdmin);
-      const targetId = newAdmin.authUid || newAdmin.id;
-      if(window.FB && window.FB.fbSet){
-        await window.FB.fbSet(window.FB.COL.users, targetId, newAdmin);
-      }
-    }
-  } else {
-    const adminId = $('#selExistingAdmin')?.value;
-    if(!adminId){
-      toast('කරුණාකර Admin කෙනෙකු තෝරන්න', 'err');
-      return;
-    }
-
-    const u = (db.users || []).find(x => x.id === adminId || x.authUid === adminId);
-    if(u){
-      u.shopId = shopId;
-      const uid = u.authUid || u.id;
-      if(window.FB && window.FB.fbUpdate){
-        await window.FB.fbUpdate(window.FB.COL.users, uid, { shopId: shopId });
-      }
-    }
+  if(btn){
+    btn.disabled = true;
+    btn.textContent = 'පත් කරමින් පවතී... ⏳';
   }
 
-  if(typeof saveDB === 'function') saveDB();
+  try {
+    if(isNew){
+      const name = $('#naName')?.value.trim();
+      const username = $('#naUser')?.value.trim().toLowerCase();
+      const password = $('#naPass')?.value.trim();
+      const phone = $('#naPhone')?.value.trim();
+      const inputEmail = $('#naEmail')?.value.trim();
+      const email = (inputEmail && inputEmail.includes('@')) ? inputEmail : `${username}@autoparts.local`;
 
-  closeModal();
-  toast('Admin සාර්ථකව පත් කරන ලදී! ✅');
-  render();
+      if(!name || !username || !password){
+        toast('කරුණාකර නම, username සහ මුරපදය පුරවන්න (*)', 'err');
+        if(btn){ btn.disabled = false; btn.textContent = '✅ පත් කරන්න (Assign Admin)'; }
+        return;
+      }
+      if(password.length < 6){
+        toast('මුරපදය සඳහා අවම වශයෙන් අකුරු/ඉලක්කම් 6ක් අවශ්‍යයි (Minimum 6 characters)', 'warn');
+        if(btn){ btn.disabled = false; btn.textContent = '✅ පත් කරන්න (Assign Admin)'; }
+        return;
+      }
+
+      if((db.users || []).some(u => !u.deleted && u.username && u.username.toLowerCase() === username)){
+        toast('මෙම username දැනටමත් භාවිතා කර ඇත', 'warn');
+        if(btn){ btn.disabled = false; btn.textContent = '✅ පත් කරන්න (Assign Admin)'; }
+        return;
+      }
+
+      const hashedPassword = window.Security ? await window.Security.hashPassword(password) : password;
+
+      const adminData = {
+        name,
+        username,
+        password: hashedPassword,
+        role: 'admin',
+        shopId: shopId,
+        active: true,
+        locked: false,
+        lockMessage: '',
+        lockedBy: null,
+        lockedAt: null,
+        phone,
+        email,
+        permissions: [
+          'billing', 'dashboard', 'pos', 'inventory',
+          'customers', 'lowstock', 'grn', 'returns',
+          'shifts', 'serial-search', 'reports', 
+          'settings', 'profile'
+        ]
+      };
+
+      if(window.FB && typeof window.FB.createUser === 'function'){
+        const res = await window.FB.createUser(email, password, adminData);
+        if(!res.ok){
+          toast('❌ පරිපාලක ගිණුම සෑදීම අසාර්ථක විය: ' + (res.error?.message || 'Error'), 'err');
+          if(btn){ btn.disabled = false; btn.textContent = '✅ පත් කරන්න (Assign Admin)'; }
+          return;
+        }
+
+        const createdAdmin = res.user || { id: res.uid, authUid: res.uid, ...adminData };
+        if(!db.users) db.users = [];
+        const existingIdx = db.users.findIndex(x => x.id === res.uid || x.authUid === res.uid);
+        if(existingIdx >= 0) db.users[existingIdx] = createdAdmin;
+        else db.users.push(createdAdmin);
+
+        const shop = (db.shops || []).find(s => s.id === shopId);
+        if(shop){
+          shop.adminUid = res.uid;
+          shop.adminName = name;
+        }
+
+        if(shopId && window.FB.fbUpdate){
+          window.FB.fbUpdate(window.FB.COL.shops, shopId, {
+            adminUid: res.uid,
+            adminName: name
+          }).catch(e => console.warn('Shop admin update warning:', e));
+        }
+      } else {
+        const newAdmin = { id: uid('U'), ...adminData };
+        if(!db.users) db.users = [];
+        db.users.push(newAdmin);
+        const shop = (db.shops || []).find(s => s.id === shopId);
+        if(shop){
+          shop.adminUid = newAdmin.id;
+          shop.adminName = name;
+        }
+        const targetId = newAdmin.authUid || newAdmin.id;
+        if(window.FB && window.FB.fbSet){
+          window.FB.fbSet(window.FB.COL.users, targetId, newAdmin).catch(e => console.warn(e));
+        }
+      }
+    } else {
+      const adminId = $('#selExistingAdmin')?.value;
+      if(!adminId){
+        toast('කරුණාකර Admin කෙනෙකු තෝරන්න', 'err');
+        if(btn){ btn.disabled = false; btn.textContent = '✅ පත් කරන්න (Assign Admin)'; }
+        return;
+      }
+
+      const u = (db.users || []).find(x => x.id === adminId || x.authUid === adminId);
+      if(u){
+        u.shopId = shopId;
+        const shop = (db.shops || []).find(s => s.id === shopId);
+        if(shop){
+          shop.adminUid = u.authUid || u.id;
+          shop.adminName = u.name;
+        }
+        const uid = u.authUid || u.id;
+        if(window.FB && window.FB.fbUpdate){
+          window.FB.fbUpdate(window.FB.COL.users, uid, { shopId: shopId }).catch(e => console.warn(e));
+          window.FB.fbUpdate(window.FB.COL.shops, shopId, { adminUid: uid, adminName: u.name }).catch(e => console.warn(e));
+        }
+      }
+    }
+
+    if(typeof saveDB === 'function') saveDB();
+
+    closeModal();
+    toast('Admin සාර්ථකව පත් කරන ලදී! ✅');
+    render();
+  } catch(err){
+    console.error('Assign admin error:', err);
+    toast('දෝෂයක් සිදු විය: ' + (err.message || 'Error'), 'err');
+    if(btn){ btn.disabled = false; btn.textContent = '✅ පත් කරන්න (Assign Admin)'; }
+  }
 }
 
 /* =========================================================
@@ -721,55 +779,74 @@ async function submitAddStaffForShop(shopId){
     return;
   }
 
+  const btn = document.querySelector('button[onclick*="submitAddStaffForShop"]');
+  if(btn){
+    btn.disabled = true;
+    btn.textContent = 'සුරකිමින් පවතී... ⏳';
+  }
+
   const db = window.DB || {};
   if((db.users || []).some(u => !u.deleted && u.username && u.username.toLowerCase() === username)){
     toast('මෙම username දැනටමත් පවතී', 'warn');
+    if(btn){ btn.disabled = false; btn.textContent = '➕ සුරකින්න (Save)'; }
     return;
   }
 
-  const hashedPassword = window.Security ? await window.Security.hashPassword(password) : password;
-  const email = `${username}@autoparts.local`;
+  try {
+    const hashedPassword = window.Security ? await window.Security.hashPassword(password) : password;
+    const email = `${username}@autoparts.local`;
 
-  const userData = {
-    name,
-    username,
-    password: hashedPassword,
-    role,
-    shopId,
-    active: true,
-    locked: false,
-    lockMessage: '',
-    lockedBy: null,
-    lockedAt: null,
-    phone,
-    email,
-    permissions: (typeof getDefaultPermissionsForRole === 'function')
-      ? getDefaultPermissionsForRole(role)
-      : ['billing', 'dashboard', 'pos', 'customers', 'lowstock', 'profile']
-  };
+    const userData = {
+      name,
+      username,
+      password: hashedPassword,
+      role,
+      shopId,
+      active: true,
+      locked: false,
+      lockMessage: '',
+      lockedBy: null,
+      lockedAt: null,
+      phone,
+      email,
+      permissions: (typeof getDefaultPermissionsForRole === 'function')
+        ? getDefaultPermissionsForRole(role)
+        : ['billing', 'dashboard', 'pos', 'customers', 'lowstock', 'profile']
+    };
 
-  if(window.FB && typeof window.FB.createUser === 'function'){
-    const res = await window.FB.createUser(email, password, userData);
-    if(!res.ok){
-      toast('❌ කාර්ය මණ්ඩල සාමාජිකයා සෑදීම අසාර්ථක විය: ' + (res.error?.message || 'Error'), 'err');
-      return;
+    if(window.FB && typeof window.FB.createUser === 'function'){
+      const res = await window.FB.createUser(email, password, userData);
+      if(!res.ok){
+        toast('❌ කාර්ය මණ්ඩල සාමාජිකයා සෑදීම අසාර්ථක විය: ' + (res.error?.message || 'Error'), 'err');
+        if(btn){ btn.disabled = false; btn.textContent = '➕ සුරකින්න (Save)'; }
+        return;
+      }
+      const createdUser = res.user || { id: res.uid, authUid: res.uid, ...userData };
+      if(!db.users) db.users = [];
+      const exIdx = db.users.findIndex(x => x.id === res.uid || x.authUid === res.uid);
+      if(exIdx >= 0) db.users[exIdx] = createdUser;
+      else db.users.push(createdUser);
+    } else {
+      const newUser = { id: uid('U'), ...userData };
+      if(!db.users) db.users = [];
+      db.users.push(newUser);
+      const targetId = newUser.authUid || newUser.id;
+      if(window.FB && window.FB.fbSet){
+        window.FB.fbSet(window.FB.COL.users, targetId, newUser).catch(e => console.warn(e));
+      }
     }
-  } else {
-    const newUser = { id: uid('U'), ...userData };
-    if(!db.users) db.users = [];
-    db.users.push(newUser);
-    const targetId = newUser.authUid || newUser.id;
-    if(window.FB && window.FB.fbSet){
-      await window.FB.fbSet(window.FB.COL.users, targetId, newUser);
-    }
+
+    if(typeof saveDB === 'function') saveDB();
+
+    closeModal();
+    toast(`සාමාජිකයා (${name}) සාර්ථකව එකතු කළා ✅`);
+    openManageShopStaffModal(shopId);
+    render();
+  } catch(err){
+    console.error('Add staff error:', err);
+    toast('දෝෂයක් සිදු විය: ' + (err.message || 'Error'), 'err');
+    if(btn){ btn.disabled = false; btn.textContent = '➕ සුරකින්න (Save)'; }
   }
-
-  if(typeof saveDB === 'function') saveDB();
-
-  closeModal();
-  toast(`සාමාජිකයා (${name}) සාර්ථකව එකතු කළා ✅`);
-  openManageShopStaffModal(shopId);
-  render();
 }
 
 /* =========================================================

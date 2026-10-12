@@ -15,6 +15,25 @@ function getLocalDB(){
           return data;
         }
       }
+      // Pristine tenant structure when shop cache is not yet created (never leak other shops)
+      return {
+        products: [],
+        customers: [],
+        suppliers: [],
+        sales: [],
+        grns: [],
+        returns: [],
+        shifts: [],
+        cashMoves: [],
+        payments: [],
+        supplierPayments: [],
+        interchanges: [],
+        scrapInventory: [],
+        users: [],
+        counters: { invoice: 1, grn: 1, ret: 1, shift: 1, payment: 1, shop: 1 },
+        savedAt: Date.now(),
+        shopId: shopId
+      };
     }
     const s = localStorage.getItem(LOCAL_KEY);
     if(s) return JSON.parse(s);
@@ -39,9 +58,9 @@ Object.assign(DB, {
     {id:'U2', name:'පරිපාලක',        username:'admin',      password:'$2a$10$c2b5qGhR4T0syGShhjaAzurwj8IuUUHPw5Mo2Kn/N.qRYN7./7Eh.', role:'admin',      active:true, locked:false, shopId:'SHOP-001'},
     {id:'U3', name:'කැෂියර්',         username:'cashier',    password:'$2a$10$c2b5qGhR4T0syGShhjaAzurwj8IuUUHPw5Mo2Kn/N.qRYN7./7Eh.', role:'cashier',    active:true, locked:false, shopId:'SHOP-001'}
   ],
-  products: window.INITIAL_PRODUCTS || [],
-  customers: window.INITIAL_CUSTOMERS || [],
-  suppliers: window.INITIAL_SUPPLIERS || [],
+  products: [],
+  customers: [],
+  suppliers: [],
   sales: [],
   grns: [],
   returns: [],
@@ -49,8 +68,8 @@ Object.assign(DB, {
   cashMoves: [],
   payments: [],
   supplierPayments: [],
-  interchanges: window.INITIAL_INTERCHANGES || [],
-  scrapInventory: window.INITIAL_SCRAP || [],
+  interchanges: [],
+  scrapInventory: [],
   counters: { invoice: 1, grn: 1, ret: 1, shift: 1, payment: 1, shop: 1 },
 
   isFirebaseConnected: false,
@@ -158,12 +177,7 @@ Object.assign(DB, {
     } else {
       // If completely fresh localStorage, seed with our default initial data
       if(window.INITIAL_SHOPS && (!this.shops || !this.shops.length)) this.shops = window.INITIAL_SHOPS;
-      if(window.INITIAL_PRODUCTS && !this.products.length) this.products = window.INITIAL_PRODUCTS;
-      if(window.INITIAL_CUSTOMERS && !this.customers.length) this.customers = window.INITIAL_CUSTOMERS;
-      if(window.INITIAL_SUPPLIERS && !this.suppliers.length) this.suppliers = window.INITIAL_SUPPLIERS;
       if(window.INITIAL_USERS && !this.users.length) this.users = window.INITIAL_USERS;
-      if(window.INITIAL_INTERCHANGES && !this.interchanges.length) this.interchanges = window.INITIAL_INTERCHANGES;
-      if(window.INITIAL_SCRAP && !this.scrapInventory.length) this.scrapInventory = window.INITIAL_SCRAP;
       this.persistLocal();
     }
 
@@ -255,13 +269,8 @@ Object.assign(DB, {
 
           cols.forEach((c, idx) => {
             const fetched = results[idx] || [];
-            if(fetched.length > 0){
-              this[c.key] = fetched;
-            } else if(!this[c.key] || this[c.key].length === 0){
-              if(c.key === 'interchanges') this[c.key] = window.INITIAL_INTERCHANGES || [];
-              else if(c.key === 'scrapInventory') this[c.key] = window.INITIAL_SCRAP || [];
-              else this[c.key] = [];
-            }
+            // Direct assignment: if empty in Firestore, empty for this shop!
+            this[c.key] = fetched;
           });
 
           this.sanitizeProductsCoreDeposit();
@@ -280,7 +289,10 @@ Object.assign(DB, {
           this.scrapInventory = [];
         }
 
-        if(window.FB && typeof window.FB.fbGetDirect === 'function'){
+        if(shopId){
+          const myShop = (this.shops || []).find(s => s.id === shopId);
+          if(myShop) this.shop = myShop;
+        } else if(window.FB && typeof window.FB.fbGetDirect === 'function'){
           try {
             const shopDoc = await window.FB.fbGetDirect(window.FB.COL.settings, 'shop');
             if(shopDoc) this.shop = shopDoc;
@@ -360,11 +372,8 @@ Object.assign(DB, {
 
     const cached = this.getLocalDB();
     if(!cached){
-      console.log('⚠️ No local cache — starting fresh with defaults');
+      console.log('⚠️ No local cache — starting fresh');
       if(window.INITIAL_SHOPS && (!this.shops || !this.shops.length)) this.shops = window.INITIAL_SHOPS;
-      if(window.INITIAL_PRODUCTS && !this.products.length) this.products = window.INITIAL_PRODUCTS;
-      if(window.INITIAL_CUSTOMERS && !this.customers.length) this.customers = window.INITIAL_CUSTOMERS;
-      if(window.INITIAL_SUPPLIERS && !this.suppliers.length) this.suppliers = window.INITIAL_SUPPLIERS;
       if(window.INITIAL_USERS && !this.users.length) this.users = window.INITIAL_USERS;
       return;
     }
@@ -581,14 +590,10 @@ function startPageListeners(page){
         } else {
           console.warn(`Shop listener error on ${colName}:`, err);
         }
-        if(colName === 'interchanges' && (!DB.interchanges || DB.interchanges.length === 0)){
-          DB.interchanges = window.INITIAL_INTERCHANGES || [];
-          DB.persistLocal();
-          rerenderIfActive();
-        } else if(colName === 'scrapInventory' && (!DB.scrapInventory || DB.scrapInventory.length === 0)){
-          DB.scrapInventory = window.INITIAL_SCRAP || [];
-          DB.persistLocal();
-          rerenderIfActive();
+        if(colName === 'interchanges' && (!DB.interchanges || !Array.isArray(DB.interchanges))){
+          DB.interchanges = [];
+        } else if(colName === 'scrapInventory' && (!DB.scrapInventory || !Array.isArray(DB.scrapInventory))){
+          DB.scrapInventory = [];
         }
       });
     } catch(e){}

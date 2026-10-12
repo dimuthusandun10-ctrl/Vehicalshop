@@ -301,6 +301,19 @@ function pgSettings(){
                 </button>
               </div>
             </div>
+
+            <!-- 4. Prepare for Selling / Production Clean Slate -->
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;background:rgba(16,185,129,0.08);padding:14px 16px;border-radius:8px;border:1px solid rgba(16,185,129,0.25)">
+              <div>
+                <b style="font-size:14px;color:#34d399">4. 🏭 සේවාදායකයාට විකිණීමට සූදානම් කිරීම (Prepare for Selling / Production Reset)</b>
+                <p style="margin:4px 0 0;font-size:12px;color:var(--muted)">
+                  නව සේවාදායකයෙකුට පද්ධතිය භාරදීමට පෙර සියලු පරීක්ෂණ දත්ත (Test Data) ඉවත් කර සාප්පුව 100% පිරිසිදු තත්ත්වයට (Pristine 0 State) පත් කරයි.
+                </p>
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="openProductionResetModal()" style="font-weight:700;padding:8px 18px;background:#059669;border-color:#059669">
+                🏭 විකිණීමට සූදානම් කරන්න
+              </button>
+            </div>
           </div>
         </div>
 
@@ -508,43 +521,100 @@ function editUser(id){
 
 async function saveUser(id){
   const name = $('#uFullName')?.value.trim();
-  const username = $('#uUsername')?.value.trim();
+  const username = $('#uUsername')?.value.trim().toLowerCase();
   const password = $('#uPass')?.value;
-  const role = $('#uRoleSelect')?.value;
+  const role = $('#uRoleSelect')?.value || 'cashier';
   const active = $('#uActive')?.checked;
 
   if(!name || !username || !password){ toast('සියලු තොරතුරු ඇතුලත් කරන්න','err'); return; }
 
+  const btn = document.querySelector('button[onclick*="saveUser"]');
+  if(btn){
+    btn.disabled = true;
+    btn.textContent = 'සුරකිමින් පවතී... ⏳';
+  }
+
   const db = window.DB || {};
   if(!db.users) db.users = [];
 
-  const existing = db.users.find(x => x.username === username && x.id !== id && x.authUid !== id);
-  if(existing){ toast('මෙම username එක දැනටමත් භාවිතයේ පවතී','err'); return; }
-
-  if(id){
-    const u = db.users.find(x => x.id === id || x.authUid === id);
-    if(u){
-      let finalPass = u.password;
-      if(password && password !== u.password){
-        finalPass = window.Security ? await window.Security.hashPassword(password) : password;
-      }
-      Object.assign(u, {name, username, password: finalPass, role, active});
-      const uid = u.authUid || u.id;
-      if(window.FB && window.FB.fbSet) await window.FB.fbSet(window.FB.COL.users, uid, u);
-    }
-  } else {
-    const newId = uid('U');
-    const finalPass = window.Security ? await window.Security.hashPassword(password) : password;
-    const newUser = { id: newId, name, username, password: finalPass, role, active };
-    db.users.push(newUser);
-    const targetId = newUser.authUid || newUser.id;
-    if(window.FB && window.FB.fbSet) await window.FB.fbSet(window.FB.COL.users, targetId, newUser);
+  const existing = db.users.find(x => x.username && x.username.toLowerCase() === username && x.id !== id && x.authUid !== id);
+  if(existing){ 
+    toast('මෙම username එක දැනටමත් භාවිතයේ පවතී','err'); 
+    if(btn){ btn.disabled = false; btn.textContent = '💾 සුරකින්න'; }
+    return; 
   }
 
-  if(typeof saveDB === 'function') saveDB();
-  closeModal();
-  render();
-  toast('පරිශීලක තොරතුරු සුරකින ලදී ✅');
+  const targetShopId = (typeof currentShopId === 'function' && currentShopId()) 
+    || state.user?.shopId 
+    || state.activeShopId 
+    || (state.activeShop && state.activeShop.id) 
+    || 'SHOP-001';
+
+  const perms = (typeof getDefaultPermissionsForRole === 'function')
+    ? getDefaultPermissionsForRole(role)
+    : ['billing', 'dashboard', 'pos', 'customers', 'lowstock', 'profile'];
+
+  try {
+    if(id){
+      const u = db.users.find(x => x.id === id || x.authUid === id);
+      if(u){
+        let finalPass = u.password;
+        if(password && password !== u.password){
+          finalPass = window.Security ? await window.Security.hashPassword(password) : password;
+        }
+        Object.assign(u, { name, username, password: finalPass, role, active: Boolean(active) });
+        if(!u.shopId && targetShopId) u.shopId = targetShopId;
+        if(!u.permissions) u.permissions = perms;
+        const uid = u.authUid || u.id;
+        if(window.FB && window.FB.fbSet){
+          window.FB.fbSet(window.FB.COL.users, uid, u).catch(e => console.warn(e));
+        }
+      }
+    } else {
+      const email = username.includes('@') ? username : `${username}@autoparts.local`;
+      const finalPass = window.Security ? await window.Security.hashPassword(password) : password;
+
+      const userData = {
+        name,
+        username,
+        password: finalPass,
+        role,
+        shopId: targetShopId,
+        active: Boolean(active),
+        permissions: perms
+      };
+
+      if(window.FB && typeof window.FB.createUser === 'function'){
+        const res = await window.FB.createUser(email, password, userData);
+        if(!res.ok){
+          toast('❌ පරිශීලකයා සෑදීම අසාර්ථක විය: ' + (res.error?.message || 'Error'), 'err');
+          if(btn){ btn.disabled = false; btn.textContent = '💾 සුරකින්න'; }
+          return;
+        }
+        const created = res.user || { id: res.uid, authUid: res.uid, ...userData };
+        const exIdx = db.users.findIndex(x => x.id === res.uid || x.authUid === res.uid);
+        if(exIdx >= 0) db.users[exIdx] = created;
+        else db.users.push(created);
+      } else {
+        const newId = uid('U');
+        const newUser = { id: newId, ...userData };
+        db.users.push(newUser);
+        const targetId = newUser.authUid || newUser.id;
+        if(window.FB && window.FB.fbSet){
+          window.FB.fbSet(window.FB.COL.users, targetId, newUser).catch(e => console.warn(e));
+        }
+      }
+    }
+
+    if(typeof saveDB === 'function') saveDB();
+    toast('පරිශීලක තොරතුරු සුරකින ලදී ✅');
+  } catch(err){
+    console.error('Error saving user:', err);
+    toast('දෝෂයක් සිදු විය: ' + (err.message || 'Error'), 'err');
+  } finally {
+    closeModal();
+    render();
+  }
 }
 
 async function delUser(id){
@@ -813,19 +883,76 @@ async function clearTransactions(){
     return;
   }
 
+  await executeProductionReset(false);
+}
+
+function openProductionResetModal(){
+  const shopId = (typeof currentShopId === 'function' && currentShopId()) || state.user?.shopId || state.activeShopId || 'SHOP-001';
+  const shopName = state.activeShop?.name || shopId;
+
+  openModal(
+    '🏭 සේවාදායකයාට විකිණීමට සූදානම් කිරීම',
+    'Prepare POS for Client Delivery / Clean Slate',
+    `<div style="display:flex;flex-direction:column;gap:14px">
+      <div style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);padding:12px 14px;border-radius:8px">
+        <div style="font-size:13.5px;font-weight:700;color:#34d399;margin-bottom:4px">
+          🏪 වත්මන් සාප්පුව: ${esc(shopName)} (<code>${esc(shopId)}</code>)
+        </div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.5">
+          නව සේවාදායකයෙකුට POS පද්ධතිය භාරදීමට පෙර සියලු පරීක්ෂණ දත්ත (Test Data) ඉවත් කර පිරිසිදු ආරම්භයක් ලබා දීමට මෙය භාවිතා කරන්න.
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <label style="border:1px solid var(--line);padding:12px;border-radius:8px;cursor:pointer;display:flex;gap:10px;align-items:flex-start;background:rgba(15,23,42,0.4)">
+          <input type="radio" name="resetMode" value="full" checked style="margin-top:3px">
+          <div>
+            <b style="font-size:13.5px;color:#f87171">🧹 සම්පූර්ණ 0 Reset (100% Clean Slate — Recommended for Selling)</b>
+            <div style="font-size:11.5px;color:var(--muted);margin-top:3px">
+              සියලු පරීක්ෂණ භාණ්ඩ (Products = 0), පාරිභෝගිකයින් (Customers = 0), සැපයුම්කරුවන් (Suppliers = 0), විකුණුම් (Sales = 0), GRN (0), Shifts (0) ඉවත් කර සාප්පුව සම්පූර්ණයෙන්ම හිස් කරයි. කවුන්ටර 1 ට සකසයි (INV-0001).
+            </div>
+          </div>
+        </label>
+
+        <label style="border:1px solid var(--line);padding:12px;border-radius:8px;cursor:pointer;display:flex;gap:10px;align-items:flex-start;background:rgba(15,23,42,0.4)">
+          <input type="radio" name="resetMode" value="transactions" style="margin-top:3px">
+          <div>
+            <b style="font-size:13.5px;color:#fbbf24">🧾 පරීක්ෂණ බිල්පත් සහ ගනුදෙනු පමණක් 0 කරන්න (Clear Test Invoices Only)</b>
+            <div style="font-size:11.5px;color:var(--muted);margin-top:3px">
+              දැනට ඇතුළත් කර ඇති භාණ්ඩ තොගය (Inventory) සහ සැපයුම්කරුවන් සුරැකේ. පරීක්ෂා කිරීමට දැමූ බිල්පත්, GRN, Shifts, Petty Cash සහ ණය ශේෂයන් පමණක් 0 බවට පත් කරයි.
+            </div>
+          </div>
+        </label>
+      </div>
+
+      <div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);padding:10px 12px;border-radius:8px;font-size:11.5px;color:#fca5a5">
+        ⚠️ <b>අවධානයයි:</b> මෙම ක්‍රියාවලිය ආපසු හැරවිය නොහැක. අනෙකුත් සාප්පු වල දත්ත (Other Shops) සුරැකේ.
+      </div>
+    </div>`,
+    `<button class="btn" onclick="closeModal()">අවලංගු (Cancel)</button>
+     <button class="btn btn-red" id="btnConfirmReset" onclick="submitProductionReset()">🚀 තහවුරු කර පිරිසිදු කරන්න (Execute Clean Slate)</button>`
+  );
+}
+
+async function submitProductionReset(){
+  const isFull = document.querySelector('input[name="resetMode"]:checked')?.value === 'full';
+  const btn = $('#btnConfirmReset');
+  if(btn){
+    btn.disabled = true;
+    btn.textContent = 'පිරිසිදු කරමින් පවතී... ⏳';
+  }
+  await executeProductionReset(isFull);
+}
+
+async function executeProductionReset(wipeInventory = true){
+  const shopId = (typeof currentShopId === 'function' && currentShopId()) || state.user?.shopId || state.activeShopId || 'SHOP-001';
+  const shopName = state.activeShop?.name || shopId;
   const db = window.DB || {};
 
-  // Strictly filter items belonging to this shop for remote deletion
-  const isShopDoc = (item) => Boolean(item && (!item.shopId || item.shopId === shopId));
-  const oldSales = (db.sales || []).filter(isShopDoc);
-  const oldGrns = (db.grns || []).filter(isShopDoc);
-  const oldReturns = (db.returns || []).filter(isShopDoc);
-  const oldShifts = (db.shifts || []).filter(isShopDoc);
-  const oldCashMoves = (db.cashMoves || []).filter(isShopDoc);
-  const oldPayments = (db.payments || []).filter(isShopDoc);
-  const oldSupplierPayments = (db.supplierPayments || []).filter(isShopDoc);
+  // 1. Stop all snapshot listeners immediately to avoid resurrection
+  if(typeof window.stopAllListeners === 'function') window.stopAllListeners();
 
-  // 1. Clear local memory for this shop
+  // 2. Clear in-memory DB arrays for current shop
   db.sales = [];
   db.grns = [];
   db.returns = [];
@@ -836,8 +963,13 @@ async function clearTransactions(){
   db.dailySummary = [];
   db.counters = { ...(db.counters || {}), invoice: 1, grn: 1, ret: 1, shift: 1, payment: 1 };
 
-  // Reset customer debts strictly for current shop
-  if(Array.isArray(db.customers)){
+  if(wipeInventory){
+    db.products = [];
+    db.customers = [];
+    db.suppliers = [];
+    db.interchanges = [];
+    db.scrapInventory = [];
+  } else if(Array.isArray(db.customers)){
     db.customers.forEach(c => {
       if(!c.shopId || c.shopId === shopId){
         c.balance = 0;
@@ -846,110 +978,124 @@ async function clearTransactions(){
     });
   }
 
-  // 2. Persist shop-isolated data to localStorage
-  const dataToPersist = {
-    products: db.products || [],
-    customers: db.customers || [],
-    suppliers: db.suppliers || [],
-    sales: [],
-    grns: [],
-    returns: [],
-    shifts: [],
-    cashMoves: [],
-    payments: [],
-    supplierPayments: [],
-    interchanges: db.interchanges || [],
-    scrapInventory: db.scrapInventory || [],
-    users: db.users || [],
-    shops: db.shops || [],
-    counters: db.counters,
-    shop: db.shop || {},
-    savedAt: Date.now(),
-    shopId: shopId
-  };
-
+  // 3. Clear local storage caches
   try {
-    // 1) Save current shop's isolated cache
-    localStorage.setItem('pos.localDB.' + shopId, JSON.stringify(dataToPersist));
-
-    // 2) Update autoparts_pos_db by PRESERVING all other shops' records
-    let globalDb = {};
-    try {
-      const raw = localStorage.getItem('autoparts_pos_db');
-      if(raw) globalDb = JSON.parse(raw);
-    } catch(e){}
-    const preserveOtherShops = (key) => (globalDb[key] || []).filter(item => item && item.shopId && item.shopId !== shopId);
-
-    globalDb.sales = preserveOtherShops('sales');
-    globalDb.grns = preserveOtherShops('grns');
-    globalDb.returns = preserveOtherShops('returns');
-    globalDb.shifts = preserveOtherShops('shifts');
-    globalDb.cashMoves = preserveOtherShops('cashMoves');
-    globalDb.payments = preserveOtherShops('payments');
-    globalDb.supplierPayments = preserveOtherShops('supplierPayments');
-    globalDb.dailySummary = preserveOtherShops('dailySummary');
-    globalDb.customers = [
-      ...preserveOtherShops('customers'),
-      ...(db.customers || []).filter(c => !c.shopId || c.shopId === shopId)
-    ];
-    globalDb.savedAt = Date.now();
-    localStorage.setItem('autoparts_pos_db', JSON.stringify(globalDb));
-
-    // Clean only this shop's active shift & drafts
     localStorage.removeItem('pos.activeShift');
     localStorage.removeItem('pos.grnDraft.' + shopId);
     localStorage.removeItem('pos.grnDraft');
 
-    if(typeof db._persistLocalNow === 'function') db._persistLocalNow();
+    // Dedicated shop cache
+    const cleanShopCache = {
+      products: db.products || [],
+      customers: db.customers || [],
+      suppliers: db.suppliers || [],
+      sales: [],
+      grns: [],
+      returns: [],
+      shifts: [],
+      cashMoves: [],
+      payments: [],
+      supplierPayments: [],
+      interchanges: db.interchanges || [],
+      scrapInventory: db.scrapInventory || [],
+      users: db.users || [],
+      shops: db.shops || [],
+      counters: db.counters,
+      shop: db.shop || {},
+      savedAt: Date.now(),
+      shopId: shopId
+    };
+    localStorage.setItem('pos.localDB.' + shopId, JSON.stringify(cleanShopCache));
+
+    // Strip this shop's wiped records from autoparts_pos_db
+    const raw = localStorage.getItem('autoparts_pos_db');
+    if(raw){
+      const globalDb = JSON.parse(raw);
+      const keepOthers = key => (globalDb[key] || []).filter(item => item && item.shopId && item.shopId !== shopId);
+      globalDb.sales = keepOthers('sales');
+      globalDb.grns = keepOthers('grns');
+      globalDb.returns = keepOthers('returns');
+      globalDb.shifts = keepOthers('shifts');
+      globalDb.cashMoves = keepOthers('cashMoves');
+      globalDb.payments = keepOthers('payments');
+      globalDb.supplierPayments = keepOthers('supplierPayments');
+      globalDb.dailySummary = keepOthers('dailySummary');
+      if(wipeInventory){
+        globalDb.products = keepOthers('products');
+        globalDb.customers = keepOthers('customers');
+        globalDb.suppliers = keepOthers('suppliers');
+        globalDb.interchanges = keepOthers('interchanges');
+        globalDb.scrapInventory = keepOthers('scrapInventory');
+      }
+      globalDb.savedAt = Date.now();
+      localStorage.setItem('autoparts_pos_db', JSON.stringify(globalDb));
+    }
   } catch(e){
-    console.warn('Clear transactions local persist warning:', e);
+    console.warn('Local reset persist warning:', e);
   }
 
-  // 3. If online and Firebase connected, delete transaction documents in Firestore (strictly matching shopId)
-  if(window.FB && window.FB.fbDelete && navigator.onLine){
-    toast('Firestore ගනුදෙනු දත්ත ඉවත් කරමින් පවතී... ⏳');
+  // 4. Remote Firestore deletion
+  if(window.FB && navigator.onLine){
+    toast('Cloud දත්ත පිරිසිදු කරමින් පවතී... ⏳');
     try {
-      const deleteLists = [
-        { col: window.FB.COL.sales, list: oldSales },
-        { col: window.FB.COL.grns, list: oldGrns },
-        { col: window.FB.COL.returns, list: oldReturns },
-        { col: window.FB.COL.shifts, list: oldShifts },
-        { col: window.FB.COL.cashMovements || 'cashMovements', list: oldCashMoves },
-        { col: window.FB.COL.creditPayments || 'creditPayments', list: oldPayments },
-        { col: window.FB.COL.supplierPayments || 'supplierPayments', list: oldSupplierPayments }
+      const colsToWipe = [
+        window.FB.COL.sales,
+        window.FB.COL.grns,
+        window.FB.COL.returns,
+        window.FB.COL.shifts,
+        window.FB.COL.cashMovements || 'cashMovements',
+        window.FB.COL.creditPayments || 'creditPayments',
+        window.FB.COL.supplierPayments || 'supplierPayments'
       ];
 
-      for(const item of deleteLists){
-        for(const doc of (item.list || [])){
-          if(doc && doc.id && (!doc.shopId || doc.shopId === shopId)){
-            try {
-              await window.FB.fbDelete(item.col, doc.id);
-            } catch(delErr){
-              console.warn('Doc delete warning:', doc.id, delErr);
-            }
-          }
+      if(wipeInventory){
+        colsToWipe.push(
+          window.FB.COL.products,
+          window.FB.COL.customers,
+          window.FB.COL.suppliers,
+          window.FB.COL.interchanges || 'interchanges',
+          window.FB.COL.scrapInventory || 'scrapInventory'
+        );
+      }
+
+      const mods = window.FB._getModules ? window.FB._getModules() : null;
+      const fsDb = window.FB._getDb ? window.FB._getDb() : null;
+      let deleteTasks = [];
+
+      if(mods?.fsMod && fsDb){
+        const { collection, getDocs, query, where } = mods.fsMod;
+        for(const colName of colsToWipe){
+          try {
+            const snap = await getDocs(query(collection(fsDb, colName), where('shopId', '==', shopId)));
+            snap.docs.forEach(d => deleteTasks.push({ col: colName, id: d.id }));
+          } catch(e){}
         }
       }
 
-      // Update customer balances in Firestore strictly for this shop
-      if(Array.isArray(db.customers) && window.FB.COL.customers){
+      // Execute in concurrent batches of 15
+      for(let i = 0; i < deleteTasks.length; i += 15){
+        const chunk = deleteTasks.slice(i, i + 15);
+        await Promise.allSettled(chunk.map(t => window.FB.fbDelete(t.col, t.id)));
+      }
+
+      // If inventory kept, update customer balances in Firestore
+      if(!wipeInventory && Array.isArray(db.customers) && window.FB.COL.customers){
         for(const c of db.customers){
           if(c && c.id && (!c.shopId || c.shopId === shopId)){
-            try {
-              await window.FB.fbSet(window.FB.COL.customers, c.id, c);
-            } catch(_){}
+            try { await window.FB.fbSet(window.FB.COL.customers, c.id, c); } catch(_){}
           }
         }
       }
     } catch(syncErr){
-      console.warn('Firestore transaction delete error:', syncErr);
+      console.warn('Firestore reset error:', syncErr);
     }
   }
 
-  toast(`'${shopName}' ගනුදෙනු දත්ත සාර්ථකව ඉවත් කරන ලදී! (අනෙකුත් සාප්පු සුරැකිව ඇත) ✅`, 'ok');
+  closeModal();
+  toast(`'${shopName}' සාර්ථකව පිරිසිදු කර සූදානම් කරන ලදී! ✅`, 'ok');
   setTimeout(() => {
     location.reload();
-  }, 1200);
+  }, 1000);
 }
 
 function resetToDemo(){
@@ -1213,3 +1359,7 @@ window.selectBackupFolder = selectBackupFolder;
 window.triggerTestAutoBackup = triggerTestAutoBackup;
 window.updateAutoBackupTime = updateAutoBackupTime;
 window.setHwAutoDrawer = setHwAutoDrawer;
+window.openProductionResetModal = openProductionResetModal;
+window.submitProductionReset = submitProductionReset;
+window.executeProductionReset = executeProductionReset;
+window.cleanProductionReset = openProductionResetModal;
