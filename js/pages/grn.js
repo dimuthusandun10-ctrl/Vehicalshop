@@ -258,104 +258,6 @@ function pgGRN(){
         </div>
       </div>
 
-      <!-- 💳 Payment Details Section -->
-      <div class="grn-payment-section" style="margin-top:16px;border-top:1px solid var(--line);padding-top:14px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
-          <div style="font-size:14px;font-weight:700;color:var(--txt);display:flex;align-items:center;gap:6px">
-            💳 ගෙවීම් විස්තර <small style="color:var(--muted);font-weight:400">(Payment Details)</small>
-          </div>
-          <span id="grnPaymentBadge">
-            ${grnGetPaymentBadgeHtml(grandTotal)}
-          </span>
-        </div>
-
-        <!-- 3 Segment Buttons for Payment Type -->
-        <div class="grn-pay-types" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px">
-          <button type="button" class="btn btn-sm ${grnState.paymentType==='credit'?'btn-primary':''}" 
-                  id="btnPayCredit" onclick="grnSetPayType('credit')" style="font-weight:700;font-size:12px;padding:8px 6px">
-            🔴 ණයට (Credit)
-          </button>
-          <button type="button" class="btn btn-sm ${grnState.paymentType==='full'?'btn-primary':''}" 
-                  id="btnPayFull" onclick="grnSetPayType('full')" style="font-weight:700;font-size:12px;padding:8px 6px">
-            🟢 සම්පූර්ණ ගෙවීම (Full)
-          </button>
-          <button type="button" class="btn btn-sm ${grnState.paymentType==='partial'?'btn-primary':''}" 
-                  id="btnPayPartial" onclick="grnSetPayType('partial')" style="font-weight:700;font-size:12px;padding:8px 6px">
-            🟡 කොටසක් ගෙවීම (Partial)
-          </button>
-        </div>
-
-        <!-- Controls Row: Payment Method & Paid Amount -->
-        <div id="grnPaymentControlsRow" style="display:${grnState.paymentType==='credit'?'none':'grid'};grid-template-columns:1fr 1fr;gap:12px;background:#0b1220;border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px">
-          <div>
-            <label class="grn-field-label">ගෙවන ක්‍රමය / Payment Method</label>
-            <select id="grnPaymentMethod" onchange="grnOnPaymentMethodChange()" style="width:100%;font-size:13px">
-              <option value="petty" ${grnState.paymentMethod==='petty'?'selected':''}>🪙 Petty Cash (පෙටි කෑෂ්)</option>
-              <option value="cash" ${grnState.paymentMethod==='cash'?'selected':''}>💵 Cash (සාමාන්‍ය මුදල්)</option>
-              <option value="cheque" ${grnState.paymentMethod==='cheque'?'selected':''}>📄 Cheque (චෙක්පත්)</option>
-              <option value="bank" ${grnState.paymentMethod==='bank'?'selected':''}>🏦 Bank Transfer (බැංකු හුවමාරු)</option>
-            </select>
-          </div>
-
-          <div>
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <label class="grn-field-label">දැන් ගෙවන මුදල (Paid Amount)</label>
-              ${grnState.paymentType==='partial'?`
-                <div style="display:flex;gap:4px">
-                  <button type="button" class="btn btn-sm" onclick="grnSetPresetPayment(0.5)" style="padding:2px 7px;font-size:10.5px;height:auto;background:rgba(59,130,246,0.15);color:#93c5fd;border:1px solid rgba(59,130,246,0.3)">
-                    50% (භාගයක්)
-                  </button>
-                  <button type="button" class="btn btn-sm" onclick="grnSetPresetPayment(0.25)" style="padding:2px 7px;font-size:10.5px;height:auto;background:rgba(59,130,246,0.15);color:#93c5fd;border:1px solid rgba(59,130,246,0.3)">
-                    25%
-                  </button>
-                </div>
-              `:''}
-            </div>
-            <input type="number" id="grnPaidAmount" step="0.01" min="0" 
-                   value="${grnState.paymentType==='full' ? (grandTotal > 0 ? grandTotal.toFixed(2) : '') : (grnState.paidAmount > 0 ? Number(grnState.paidAmount).toFixed(2) : '')}" 
-                   placeholder="0.00" 
-                   ${grnState.paymentType==='full'?'readonly style="background:#141f33;opacity:0.9"':''}
-                   oninput="grnOnPaidAmountInput(this.value)">
-          </div>
-        </div>
-
-        <!-- Cheque Info Box (Shown when Method == Cheque) -->
-        <div id="grnChequeFieldsBox" style="display:${(grnState.paymentType!=='credit'&&grnState.paymentMethod==='cheque')?'block':'none'};background:#111c30;border:1px dashed #3b82f6;border-radius:10px;padding:12px;margin-bottom:12px">
-          <div style="font-size:12px;font-weight:700;color:#93c5fd;margin-bottom:8px">
-            📄 චෙක්පත් විස්තර (Cheque Details - Post-dated Cheque Ledger එකට එකතු වේ)
-          </div>
-          <div class="grid3" style="gap:10px">
-            <div>
-              <label class="grn-field-label">චෙක්පත් අංකය / Cheque No *</label>
-              <input id="grnChequeNo" value="${esc(grnState.chequeNo||'')}" placeholder="උදා: 789456" oninput="grnOnChequeFieldChange()">
-            </div>
-            <div>
-              <label class="grn-field-label">බැංකුව / Bank</label>
-              <input id="grnChequeBank" value="${esc(grnState.chequeBank||'')}" placeholder="උදා: Commercial, BOC..." oninput="grnOnChequeFieldChange()">
-            </div>
-            <div>
-              <label class="grn-field-label">දිනය / Cheque Date *</label>
-              <input type="date" id="grnChequeDate" value="${grnState.chequeDate||today()}" onchange="grnOnChequeFieldChange()">
-            </div>
-          </div>
-        </div>
-
-        <!-- Live Payment Calculation Summary Strip -->
-        <div class="grn-payment-calc-strip" style="display:flex;justify-content:space-between;align-items:center;background:#060d19;border:1px solid var(--line);padding:10px 14px;border-radius:8px;font-size:13px;flex-wrap:wrap;gap:8px">
-          <div>
-            <span style="color:var(--muted)">මුළු බිල (Total):</span>
-            <b id="grnDispTotal" style="color:var(--primary);margin-left:5px">${money(grandTotal)}</b>
-          </div>
-          <div>
-            <span style="color:var(--muted)">දැන් ගෙවන මුදල (Paid Now):</span>
-            <b id="grnDispPaid" style="color:#34d399;margin-left:5px">${money(grnGetEffectivePaidAmount(grandTotal))}</b>
-          </div>
-          <div>
-            <span style="color:var(--muted)">සැපයුම්කරුට හිඟ මුදල (Balance Due):</span>
-            <b id="grnDispDue" style="color:#fca5a5;margin-left:5px">${money(Math.max(0, grandTotal - grnGetEffectivePaidAmount(grandTotal)))}</b>
-          </div>
-        </div>
-      </div>
     </div>
 
     <!-- 5. Sticky Footer -->
@@ -369,9 +271,9 @@ function pgGRN(){
         <span>Draft</span>
       </button>
       <button type="button" class="btn btn-green btn-save grn-btn-confirm" id="grnConfirmBtn"
-              ${grnItems.length ? '' : 'disabled'} onclick="grnConfirmModal()">
-        <span>✅</span>
-        <span>තහවුරු</span>
+              ${grnItems.length ? '' : 'disabled'} onclick="grnConfirmModal()" style="display:flex;align-items:center;justify-content:center;gap:8px">
+        <span>💳</span>
+        <span>ගෙවීම් සහ තහවුරු කිරීම (Payment & Confirm)</span>
       </button>
     </div>
 
@@ -1202,46 +1104,67 @@ function grnSetPayType(type){
     }
   }
 
-  // Update button active styles
-  ['btnPayCredit', 'btnPayFull', 'btnPayPartial'].forEach(btnId => {
+  // Update button active styles (supports both modal & inline IDs)
+  ['btnModalPayCredit', 'btnModalPayFull', 'btnModalPayPartial', 'btnPayCredit', 'btnPayFull', 'btnPayPartial'].forEach(btnId => {
     const b = document.getElementById(btnId);
     if(b) b.classList.remove('btn-primary');
   });
-  if(type === 'credit') document.getElementById('btnPayCredit')?.classList.add('btn-primary');
-  if(type === 'full') document.getElementById('btnPayFull')?.classList.add('btn-primary');
-  if(type === 'partial') document.getElementById('btnPayPartial')?.classList.add('btn-primary');
+  if(type === 'credit'){
+    document.getElementById('btnModalPayCredit')?.classList.add('btn-primary');
+    document.getElementById('btnPayCredit')?.classList.add('btn-primary');
+  }
+  if(type === 'full'){
+    document.getElementById('btnModalPayFull')?.classList.add('btn-primary');
+    document.getElementById('btnPayFull')?.classList.add('btn-primary');
+  }
+  if(type === 'partial'){
+    document.getElementById('btnModalPayPartial')?.classList.add('btn-primary');
+    document.getElementById('btnPayPartial')?.classList.add('btn-primary');
+  }
 
   // Show/hide controls row
-  const row = document.getElementById('grnPaymentControlsRow');
-  if(row) row.style.display = (type === 'credit') ? 'none' : 'grid';
+  ['grnModalPaymentControlsRow', 'grnPaymentControlsRow'].forEach(rowId => {
+    const row = document.getElementById(rowId);
+    if(row) row.style.display = (type === 'credit') ? 'none' : 'grid';
+  });
+
+  // Show/hide preset wrap in modal
+  const presetWrap = document.getElementById('grnModalPresetWrap');
+  if(presetWrap) presetWrap.style.display = (type === 'partial') ? 'flex' : 'none';
 
   // Update paid amount input
-  const paidInp = document.getElementById('grnPaidAmount');
-  if(paidInp){
-    paidInp.value = type === 'credit' ? '' : (grnState.paidAmount > 0 ? Number(grnState.paidAmount).toFixed(2) : '');
-    paidInp.readOnly = (type === 'full');
-    paidInp.style.background = (type === 'full') ? '#141f33' : '';
-    paidInp.style.opacity = (type === 'full') ? '0.9' : '';
-  }
+  ['grnModalPaidAmount', 'grnPaidAmount'].forEach(inpId => {
+    const paidInp = document.getElementById(inpId);
+    if(paidInp){
+      paidInp.value = type === 'credit' ? '' : (grnState.paidAmount > 0 ? Number(grnState.paidAmount).toFixed(2) : '');
+      paidInp.readOnly = (type === 'full');
+      paidInp.style.background = (type === 'full') ? '#141f33' : '#0b1220';
+      paidInp.style.opacity = (type === 'full') ? '0.9' : '1';
+    }
+  });
 
   // Show/hide cheque box
-  const chqBox = document.getElementById('grnChequeFieldsBox');
-  if(chqBox){
-    chqBox.style.display = (type !== 'credit' && grnState.paymentMethod === 'cheque') ? 'block' : 'none';
-  }
+  ['grnModalChequeFieldsBox', 'grnChequeFieldsBox'].forEach(boxId => {
+    const chqBox = document.getElementById(boxId);
+    if(chqBox){
+      chqBox.style.display = (type !== 'credit' && grnState.paymentMethod === 'cheque') ? 'block' : 'none';
+    }
+  });
 
   grnRecalcPaymentDisplays(grandTotal);
   grnOnFieldChange();
 }
 
 function grnOnPaymentMethodChange(){
-  const sel = document.getElementById('grnPaymentMethod');
+  const sel = document.getElementById('grnModalPaymentMethod') || document.getElementById('grnPaymentMethod');
   if(sel) grnState.paymentMethod = sel.value;
 
-  const chqBox = document.getElementById('grnChequeFieldsBox');
-  if(chqBox){
-    chqBox.style.display = (grnState.paymentType !== 'credit' && grnState.paymentMethod === 'cheque') ? 'block' : 'none';
-  }
+  ['grnModalChequeFieldsBox', 'grnChequeFieldsBox'].forEach(boxId => {
+    const chqBox = document.getElementById(boxId);
+    if(chqBox){
+      chqBox.style.display = (grnState.paymentType !== 'credit' && grnState.paymentMethod === 'cheque') ? 'block' : 'none';
+    }
+  });
 
   const grandTotal = grnItems.reduce((a, r) => a + Number(r.total || 0), 0);
   grnRecalcPaymentDisplays(grandTotal);
@@ -1253,8 +1176,10 @@ function grnSetPresetPayment(fraction){
   const amt = Math.round(grandTotal * fraction * 100) / 100;
   grnState.paidAmount = amt;
 
-  const paidInp = document.getElementById('grnPaidAmount');
-  if(paidInp) paidInp.value = amt.toFixed(2);
+  ['grnModalPaidAmount', 'grnPaidAmount'].forEach(inpId => {
+    const paidInp = document.getElementById(inpId);
+    if(paidInp) paidInp.value = amt.toFixed(2);
+  });
 
   grnRecalcPaymentDisplays(grandTotal);
   grnOnFieldChange();
@@ -1272,9 +1197,9 @@ function grnOnPaidAmountInput(val){
 }
 
 function grnOnChequeFieldChange(){
-  grnState.chequeNo = document.getElementById('grnChequeNo')?.value?.trim() || '';
-  grnState.chequeBank = document.getElementById('grnChequeBank')?.value?.trim() || '';
-  grnState.chequeDate = document.getElementById('grnChequeDate')?.value || today();
+  grnState.chequeNo = (document.getElementById('grnModalChequeNo') || document.getElementById('grnChequeNo'))?.value?.trim() || '';
+  grnState.chequeBank = (document.getElementById('grnModalChequeBank') || document.getElementById('grnChequeBank'))?.value?.trim() || '';
+  grnState.chequeDate = (document.getElementById('grnModalChequeDate') || document.getElementById('grnChequeDate'))?.value || today();
   grnOnFieldChange();
 }
 
@@ -1286,21 +1211,23 @@ function grnRecalcPaymentDisplays(grandTotal){
   // If Full Payment, keep paidAmount in sync with grandTotal
   if(grnState.paymentType === 'full'){
     grnState.paidAmount = grandTotal;
-    const paidInp = document.getElementById('grnPaidAmount');
-    if(paidInp) paidInp.value = grandTotal > 0 ? grandTotal.toFixed(2) : '';
+    ['grnModalPaidAmount', 'grnPaidAmount'].forEach(inpId => {
+      const paidInp = document.getElementById(inpId);
+      if(paidInp) paidInp.value = grandTotal > 0 ? grandTotal.toFixed(2) : '';
+    });
   }
 
   const effectivePaid = grnGetEffectivePaidAmount(grandTotal);
   const balanceDue = Math.max(0, grandTotal - effectivePaid);
 
-  const dispTotal = document.getElementById('grnDispTotal');
+  const dispTotal = document.getElementById('grnModalDispTotal') || document.getElementById('grnDispTotal');
   if(dispTotal) dispTotal.textContent = money(grandTotal);
 
-  const dispPaid = document.getElementById('grnDispPaid');
+  const dispPaid = document.getElementById('grnModalDispPaid') || document.getElementById('grnDispPaid');
   if(dispPaid) dispPaid.textContent = money(effectivePaid);
 
-  const dispDue = document.getElementById('grnDispDue');
-  if(dispDue) dispDue.textContent = money(balanceDue);
+  const dispDue = document.getElementById('grnModalDispDue') || document.getElementById('grnDispDue');
+  if(dispDue) dispDue.textContent = money(balanceDue) + (balanceDue > 0 ? ' (ණයට / Credit)' : ' (පියවා ඇත)');
 
   const badgeEl = document.getElementById('grnPaymentBadge');
   if(badgeEl) badgeEl.innerHTML = grnGetPaymentBadgeHtml(grandTotal);
@@ -1545,78 +1472,151 @@ function grnConfirmModal(){
   }).join('');
 
   const modalBody = `
-    <div class="grn-confirm-summary">
-      <div class="grn-confirm-row">
-        <span>GRN අංකය:</span> <b>${nextNo}</b>
-      </div>
-      <div class="grn-confirm-row">
-        <span>Supplier / සැපයුම්කරු:</span> <b>${esc(sup)}</b>
-      </div>
-      <div class="grn-confirm-row">
-        <span>Invoice No / ඉන්වොයිසිය:</span> <b>${esc(invNo || 'නැත (None)')}</b>
-      </div>
-      <div class="grn-confirm-row">
-        <span>දිනය / Date:</span> <b>${dateVal}</b>
-      </div>
-      <hr style="margin:8px 0;border:none;border-top:1px solid var(--line)">
-      <div class="grn-confirm-row">
-        <span>භාණ්ඩ ගණන (Items):</span> <b>${grnItems.length}</b>
-      </div>
-      <div class="grn-confirm-row">
-        <span>මුළු ඒකක (Total Units):</span> <b>${totalUnits} pcs</b>
-      </div>
-      <div class="grn-confirm-row" style="font-size:15px;color:var(--primary);margin-top:4px">
-        <span>මුළු එකතුව (Grand Total):</span> <b>${money(grandTotal)}</b>
-      </div>
-    </div>
-
-    <!-- 💳 Payment Breakdown in Modal -->
-    <div style="background:rgba(255,255,255,0.03);border:1px solid var(--line);border-radius:10px;padding:12px;margin:12px 0">
-      <div style="font-size:12.5px;font-weight:700;color:#38bdf8;margin-bottom:8px">💳 ගෙවීම් විස්තර (Payment Summary)</div>
-      <div class="grn-confirm-row">
-        <span>ගෙවීමේ ආකාරය:</span> <b>${payTypeLabels[payType] || payType}</b>
-      </div>
-      ${effectivePaid > 0 ? `
-        <div class="grn-confirm-row">
-          <span>ගෙවන ක්‍රමය:</span> <b>${payMethodLabels[payMethod] || payMethod}</b>
-        </div>
-        <div class="grn-confirm-row" style="color:#34d399">
-          <span>දැන් ගෙවන මුදල (Paid Now):</span> <b>${money(effectivePaid)}</b>
-        </div>
-        ${payMethod === 'cheque' ? `
-          <div class="grn-confirm-row" style="font-size:12px;color:var(--muted)">
-            <span>චෙක්පත:</span> <b>${esc(grnState.chequeNo || 'CHQ-')} (${esc(grnState.chequeBank || 'Bank')} · ${grnState.chequeDate || today()})</b>
+    <div class="grn-payment-modal-body">
+      <!-- 1. Invoice Header Summary Box -->
+      <div class="grn-confirm-summary" style="background:#0b1220;border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;border-bottom:1px dashed var(--line);padding-bottom:8px">
+          <div>
+            <span style="font-size:11px;color:var(--muted)">GRN අංකය:</span>
+            <b style="color:var(--primary);font-size:16px;margin-left:4px">${nextNo}</b>
           </div>
-        ` : ''}
-      ` : ''}
-      <div class="grn-confirm-row" style="color:${balanceDue > 0 ? '#fca5a5' : '#34d399'};font-weight:700;margin-top:4px">
-        <span>සැපයුම්කරුට හිඟ මුදල (Balance Due):</span>
-        <b>${money(balanceDue)} ${balanceDue > 0 ? '(ණයට / Credit)' : '(සම්පූර්ණ පියවා ඇත)'}</b>
+          <div>
+            <span style="font-size:11px;color:var(--muted)">දිනය:</span>
+            <b style="font-size:13px;margin-left:4px">${dateVal}</b>
+          </div>
+        </div>
+        <div class="grn-confirm-row" style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
+          <span style="color:var(--muted)">Supplier / සැපයුම්කරු:</span> <b>${esc(sup)}</b>
+        </div>
+        <div class="grn-confirm-row" style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
+          <span style="color:var(--muted)">Invoice No / ඉන්වොයිසිය:</span> <b>${esc(invNo || 'නැත (None)')}</b>
+        </div>
+        <div class="grn-confirm-row" style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
+          <span style="color:var(--muted)">භාණ්ඩ එකතුව:</span> <b>${grnItems.length} items (${totalUnits} pcs)</b>
+        </div>
+        <div class="grn-confirm-row" style="display:flex;justify-content:space-between;align-items:center;font-size:15px;color:var(--primary);margin-top:6px;padding-top:8px;border-top:1px solid var(--line)">
+          <span>මුළු එකතුව (Grand Total):</span>
+          <b style="font-size:20px;font-weight:800">${money(grandTotal)}</b>
+        </div>
       </div>
-    </div>
 
-    <div class="grn-wAC-preview-box">
-      <div class="grn-wAC-title">⚖️ Weighted Average Cost (WAC) Update</div>
-      <div class="grn-wac-list">
-        ${wacListHtml}
+      <!-- 2. Interactive Payment Section (Separate Popup as requested) -->
+      <div style="background:#0f172a;border:1px solid rgba(56,189,248,0.3);border-radius:12px;padding:14px;margin-bottom:12px;box-shadow:0 4px 15px rgba(0,0,0,0.3)">
+        <div style="font-size:13px;font-weight:700;color:#38bdf8;margin-bottom:10px;display:flex;align-items:center;gap:6px">
+          💳 ගෙවීමේ ආකාරය තෝරන්න (Select Payment Settlement)
+        </div>
+
+        <!-- 3 Segment Buttons -->
+        <div class="grn-pay-types" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px">
+          <button type="button" class="btn btn-sm ${payType==='credit'?'btn-primary':''}"
+                  id="btnModalPayCredit" onclick="grnSetPayType('credit')" style="font-weight:700;font-size:12px;padding:8px 6px">
+            🔴 ණයට (Credit)
+          </button>
+          <button type="button" class="btn btn-sm ${payType==='full'?'btn-primary':''}"
+                  id="btnModalPayFull" onclick="grnSetPayType('full')" style="font-weight:700;font-size:12px;padding:8px 6px">
+            🟢 සම්පූර්ණ ගෙවීම (Full)
+          </button>
+          <button type="button" class="btn btn-sm ${payType==='partial'?'btn-primary':''}"
+                  id="btnModalPayPartial" onclick="grnSetPayType('partial')" style="font-weight:700;font-size:12px;padding:8px 6px">
+            🟡 කොටසක් ගෙවීම (Partial)
+          </button>
+        </div>
+
+        <!-- Controls Row: Payment Method & Paid Amount -->
+        <div id="grnModalPaymentControlsRow" style="display:${payType==='credit'?'none':'grid'};grid-template-columns:1fr 1fr;gap:12px;background:#060d19;border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px">
+          <div>
+            <label class="grn-field-label" style="font-size:11.5px;color:var(--muted);font-weight:600">ගෙවන ක්‍රමය / Payment Method</label>
+            <select id="grnModalPaymentMethod" onchange="grnOnPaymentMethodChange()" style="width:100%;font-size:13px">
+              <option value="petty" ${payMethod==='petty'?'selected':''}>🪙 Petty Cash (පෙටි කෑෂ්)</option>
+              <option value="cash" ${payMethod==='cash'?'selected':''}>💵 Cash (සාමාන්‍ය මුදල්)</option>
+              <option value="cheque" ${payMethod==='cheque'?'selected':''}>📄 Cheque (චෙක්පත්)</option>
+              <option value="bank" ${payMethod==='bank'?'selected':''}>🏦 Bank Transfer (බැංකු හුවමාරු)</option>
+            </select>
+          </div>
+
+          <div>
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <label class="grn-field-label" style="font-size:11.5px;color:var(--muted);font-weight:600">දැන් ගෙවන මුදල (Paid Amount)</label>
+              <div id="grnModalPresetWrap" style="display:${payType==='partial'?'flex':'none'};gap:4px">
+                <button type="button" class="btn btn-sm" onclick="grnSetPresetPayment(0.5)" style="padding:2px 7px;font-size:10.5px;height:auto;background:rgba(59,130,246,0.15);color:#93c5fd;border:1px solid rgba(59,130,246,0.3)">
+                  50% (භාගයක්)
+                </button>
+                <button type="button" class="btn btn-sm" onclick="grnSetPresetPayment(0.25)" style="padding:2px 7px;font-size:10.5px;height:auto;background:rgba(59,130,246,0.15);color:#93c5fd;border:1px solid rgba(59,130,246,0.3)">
+                  25%
+                </button>
+              </div>
+            </div>
+            <input type="number" id="grnModalPaidAmount" step="0.01" min="0" max="${grandTotal}"
+                   value="${payType==='full' ? (grandTotal > 0 ? grandTotal.toFixed(2) : '') : (grnState.paidAmount > 0 ? Number(grnState.paidAmount).toFixed(2) : '')}"
+                   placeholder="0.00"
+                   ${payType==='full'?'readonly style="background:#141f33;opacity:0.9"':'style="background:#0b1220"'}
+                   oninput="grnOnPaidAmountInput(this.value)">
+          </div>
+        </div>
+
+        <!-- Cheque Info Box (Shown when Method == Cheque) -->
+        <div id="grnModalChequeFieldsBox" style="display:${(payType!=='credit'&&payMethod==='cheque')?'block':'none'};background:#111c30;border:1px dashed #3b82f6;border-radius:10px;padding:12px;margin-bottom:12px">
+          <div style="font-size:12px;font-weight:700;color:#93c5fd;margin-bottom:8px">
+            📄 චෙක්පත් විස්තර (Cheque Details - Post-dated Cheque Ledger එකට එකතු වේ)
+          </div>
+          <div class="grid3" style="gap:10px">
+            <div>
+              <label class="grn-field-label" style="font-size:11px">චෙක්පත් අංකය / Cheque No *</label>
+              <input id="grnModalChequeNo" value="${esc(grnState.chequeNo||'')}" placeholder="උදා: 789456" oninput="grnOnChequeFieldChange()">
+            </div>
+            <div>
+              <label class="grn-field-label" style="font-size:11px">බැංකුව / Bank</label>
+              <input id="grnModalChequeBank" value="${esc(grnState.chequeBank||'')}" placeholder="උදා: Commercial, BOC..." oninput="grnOnChequeFieldChange()">
+            </div>
+            <div>
+              <label class="grn-field-label" style="font-size:11px">දිනය / Cheque Date *</label>
+              <input type="date" id="grnModalChequeDate" value="${grnState.chequeDate||today()}" onchange="grnOnChequeFieldChange()">
+            </div>
+          </div>
+        </div>
+
+        <!-- Live Payment Calculation Strip -->
+        <div class="grn-payment-calc-strip" style="display:flex;justify-content:space-between;align-items:center;background:#060d19;border:1px solid var(--line);padding:10px 14px;border-radius:8px;font-size:13px;flex-wrap:wrap;gap:8px">
+          <div>
+            <span style="color:var(--muted)">මුළු බිල:</span>
+            <b id="grnModalDispTotal" style="color:var(--primary);margin-left:5px">${money(grandTotal)}</b>
+          </div>
+          <div>
+            <span style="color:var(--muted)">දැන් ගෙවන මුදල:</span>
+            <b id="grnModalDispPaid" style="color:#34d399;margin-left:5px">${money(effectivePaid)}</b>
+          </div>
+          <div>
+            <span style="color:var(--muted)">සැපයුම්කරුට හිඟ මුදල:</span>
+            <b id="grnModalDispDue" style="color:${balanceDue > 0 ? '#fca5a5' : '#34d399'};margin-left:5px">
+              ${money(balanceDue)} ${balanceDue > 0 ? '(ණයට / Credit)' : '(පියවා ඇත)'}
+            </b>
+          </div>
+        </div>
       </div>
-    </div>
 
-    <div class="grn-confirm-warning">
-      ⚠️ තහවුරු කිරීමෙන් පසු භාණ්ඩ නැවත ආපසු ගැනීමට නොහැක. (Stock, WAC & Ledger will update immediately)
+      <!-- 3. Collapsible WAC Stock Update Preview -->
+      <details style="background:rgba(255,255,255,0.02);border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin-bottom:8px">
+        <summary style="font-size:12px;color:var(--muted);cursor:pointer;font-weight:600">
+          ⚖️ WAC Stock & Cost Update Preview (${wacItems.length} items)
+        </summary>
+        <div class="grn-wac-list" style="margin-top:8px">
+          ${wacListHtml}
+        </div>
+      </details>
     </div>`;
 
   const modalFooter = `
     <button type="button" class="btn" onclick="closeModal()">අවලංගු / Cancel</button>
-    <button type="button" class="btn btn-green" onclick="grnSave()">✅ තහවුරු කරන්න / Confirm & Save</button>`;
+    <button type="button" class="btn btn-green btn-save" onclick="grnSave()" style="font-weight:700;padding:8px 18px;display:inline-flex;align-items:center;gap:6px">
+      <span>✅</span>
+      <span>GRN එක තහවුරු කර සුරකින්න (Confirm & Save)</span>
+    </button>`;
 
-  openModal('✅ GRN තහවුරු කරන්න?', 'Confirm Goods Received Note', modalBody, modalFooter);
+  openModal('💳 GRN ගෙවීම් සහ තහවුරු කිරීම', 'GRN Payment & Settlement', modalBody, modalFooter);
 }
 
-/* ---------- Save GRN & Execute WAC Stock Update ---------- */
+/* ---------- Save GRN & Execute WAC Stock Update (Fail-safe Local-First) ---------- */
 async function grnSave(){
-  // GRN does not require an active shift — inventory action, not cash drawer
-
   if(!grnItems.length) return;
 
   const db = window.DB || {};
@@ -1633,16 +1633,18 @@ async function grnSave(){
   const balanceDue = Math.max(0, grandTotal - effectivePaid);
   const payType = grnState.paymentType || 'credit';
   const payMethod = payType === 'credit' ? 'credit' : (grnState.paymentMethod || 'cash');
-  const chequeNo = (payMethod === 'cheque') ? (grnState.chequeNo || $('#grnChequeNo')?.value?.trim() || '') : '';
-  const chequeBank = (payMethod === 'cheque') ? (grnState.chequeBank || $('#grnChequeBank')?.value?.trim() || '') : '';
-  const chequeDate = (payMethod === 'cheque') ? (grnState.chequeDate || $('#grnChequeDate')?.value || today()) : '';
+
+  const chequeNo = (payMethod === 'cheque') ? (grnState.chequeNo || $('#grnModalChequeNo')?.value?.trim() || $('#grnChequeNo')?.value?.trim() || '') : '';
+  const chequeBank = (payMethod === 'cheque') ? (grnState.chequeBank || $('#grnModalChequeBank')?.value?.trim() || $('#grnChequeBank')?.value?.trim() || '') : '';
+  const chequeDate = (payMethod === 'cheque') ? (grnState.chequeDate || $('#grnModalChequeDate')?.value || $('#grnChequeDate')?.value || today()) : '';
 
   if(payMethod === 'cheque' && effectivePaid > 0 && !chequeNo){
     toast('කරුණාකර චෙක්පත් අංකය ඇතුළත් කරන්න (Cheque No is required)', 'err');
     return;
   }
 
-  /* 1. Update Product WAC and Stock */
+  /* 1. Update Product WAC and Stock in Local In-Memory DB */
+  const updatedProducts = [];
   for(const r of grnItems){
     const p = db.getProd ? db.getProd(r.pid) : (db.products || []).find(x => x.id === r.pid);
     if(p){
@@ -1658,30 +1660,18 @@ async function grnSave(){
 
       p.cost = Math.round(weightedCost * 100) / 100;
       p.qty = totalQty;
-
-      if(window.FB && window.FB.fbUpdate){
-        await window.FB.fbUpdate(window.FB.COL.products, p.id, {
-          qty: p.qty,
-          cost: p.cost
-        });
-      }
+      updatedProducts.push(p);
     }
   }
 
-  /* 2. Update Supplier Accounts Payable balance */
+  /* 2. Update Supplier Accounts Payable Balance in Local DB */
   const supObj = (db.suppliers || []).find(s => s.name === sup);
   const supId = supObj ? supObj.id : (sup === 'වෙනත්' ? 'SUP-WALKIN' : '');
-
   if(supObj){
     supObj.payable = (supObj.payable || 0) + balanceDue;
-    if(window.FB && window.FB.fbUpdate){
-      window.FB.fbUpdate(window.FB.COL.suppliers, supObj.id, {
-        payable: supObj.payable
-      });
-    }
   }
 
-  /* 3. Build & Save GRN Record */
+  /* 3. Build & Save GRN Record in Local DB */
   if(!db.counters) db.counters = {};
   const grnNo = 'GRN-' + pad(db.counters.grn = (db.counters.grn || 0) + 1);
 
@@ -1712,16 +1702,13 @@ async function grnSave(){
   if(!db.grns) db.grns = [];
   db.grns.push(grnRecord);
 
-  if(window.FB && window.FB.fbAdd){
-    await (window.shopAdd ? window.shopAdd(window.FB.COL.grns, grnRecord) : window.FB.fbAdd(window.FB.COL.grns, grnRecord));
-  }
-
-  /* 4. Record Payment in supplierPayments Ledger if paidAmount > 0 */
+  /* 4. Record Supplier Payment if paidAmount > 0 */
+  let payRecord = null;
   if(effectivePaid > 0){
     if(!db.supplierPayments) db.supplierPayments = [];
-    const payRecord = {
+    payRecord = {
       id: uid('PAY'),
-      shopId: (typeof currentShopId === 'function' && currentShopId()) ? currentShopId() : (window.state?.user?.shopId || 'SHOP-001'),
+      shopId: grnRecord.shopId,
       supplierId: supId,
       supplierName: sup,
       grnId: grnRecord.id,
@@ -1739,21 +1726,56 @@ async function grnSave(){
       chequeDate
     };
     db.supplierPayments.push(payRecord);
-    try {
+
+    /* 4.1 If Petty Cash, also record in cash movements */
+    if(payMethod === 'petty'){
+      if(!db.cashMoves) db.cashMoves = [];
+      const cashMoveRecord = {
+        id: uid('CM'),
+        shopId: grnRecord.shopId,
+        type: 'cash_out',
+        amount: effectivePaid,
+        reason: `GRN ගෙවීම (${grnRecord.no} - ${sup})`,
+        category: 'Supplier Payment',
+        date: dateVal,
+        timestamp: new Date().toISOString(),
+        shiftId: window.state?.activeShift?.id || null,
+        staff: window.state?.user?.name || 'Staff'
+      };
+      db.cashMoves.push(cashMoveRecord);
       if(window.shopAdd){
-        await window.shopAdd(window.FB.COL.supplierPayments, payRecord);
-      } else if(window.FB && typeof window.FB.fbSet === 'function'){
-        await window.FB.fbSet(window.FB.COL.supplierPayments, payRecord.id, payRecord);
+        window.shopAdd('cashMovements', cashMoveRecord).catch(e=>console.warn(e));
       }
-    } catch(err){
-      console.warn('supplierPayment save error:', err);
     }
   }
 
+  /* 5. Persist Local Database IMMEDIATELY (Fail-Safe Local First!) */
   if(typeof saveDB === 'function') saveDB(true);
   if(window.DB && typeof window.DB._persistLocalNow === 'function') window.DB._persistLocalNow();
+  if(window.DB && typeof window.DB.persistLocal === 'function') window.DB.persistLocal();
 
-  /* 5. Clear Draft & State */
+  /* 6. Asynchronously sync to Firestore without blocking UI */
+  (async () => {
+    try {
+      if(window.FB && window.FB.fbUpdate){
+        for(const p of updatedProducts){
+          window.FB.fbUpdate(window.FB.COL.products, p.id, { qty: p.qty, cost: p.cost }).catch(e=>console.warn(e));
+        }
+      }
+      if(supObj && window.FB && window.FB.fbUpdate){
+        window.FB.fbUpdate(window.FB.COL.suppliers, supObj.id, { payable: supObj.payable }).catch(e=>console.warn(e));
+      }
+      if(window.FB && window.FB.fbAdd){
+        const addFn = window.shopAdd || window.FB.fbAdd;
+        await addFn(window.FB.COL.grns, grnRecord);
+        if(payRecord) await addFn(window.FB.COL.supplierPayments, payRecord);
+      }
+    } catch(err){
+      console.warn('Background Firestore sync warning:', err);
+    }
+  })();
+
+  /* 7. Clear Draft & Reset State for the Next GRN! */
   try {
     localStorage.removeItem(grnGetDraftKey());
   } catch(e){}
@@ -1773,10 +1795,249 @@ async function grnSave(){
   grnState.chequeBank = '';
   grnState.chequeDate = today();
 
+  /* 8. Close Payment Modal and Re-render GRN page (Clear and ready for next GRN!) */
   closeModal();
   render();
-  const payMsg = effectivePaid > 0 ? ` (ගෙවීම: ${money(effectivePaid)} - ${payMethod.toUpperCase()})` : ' (ණයට - Credit)';
-  toast(`GRN ${grnRecord.no} සාර්ථකව සුරකින ලදී ✅${payMsg}`);
+
+  /* 9. Open Dedicated Completion Screen / Receipt Modal */
+  grnShowSuccessModal(grnRecord);
+}
+
+/* ---------- Completion / Success Modal & Receipt ---------- */
+function grnShowSuccessModal(grn){
+  if(!grn) return;
+  const db = window.DB || {};
+  const supName = grn.supplier || 'Walk-in Supplier';
+  const items = grn.items || [];
+
+  const bodyHtml = `
+    <div class="grn-success-wrap" style="text-align:center;padding:6px 0">
+      <div style="width:64px;height:64px;margin:0 auto 12px;background:rgba(16,185,129,0.15);border:2px solid #10b981;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:32px">
+        ✅
+      </div>
+      <h2 style="margin:0 0 4px;font-size:20px;color:#34d399">GRN සාර්ථකව සම්පූර්ණ කරන ලදී!</h2>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:14px">තොග සහ සැපයුම්කරුගේ ලෙජරය යාවත්කාලීන විය (Stock & Ledger Updated)</div>
+
+      <!-- Receipt Voucher Card -->
+      <div class="card" style="text-align:left;background:#0b1220;border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;border-bottom:1px dashed var(--line);padding-bottom:8px">
+          <div>
+            <div style="font-size:11px;color:var(--muted)">GRN අංකය:</div>
+            <div style="font-size:17px;font-weight:800;color:var(--primary)">${esc(grn.no)}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:11px;color:var(--muted)">දිනය සහ වේලාව:</div>
+            <div style="font-size:12.5px;font-weight:600">${grn.date} · ${new Date(grn.createdAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:12.5px;margin-bottom:10px">
+          <div>
+            <span style="color:var(--muted)">සැපයුම්කරු:</span>
+            <div style="font-weight:700;color:var(--txt)">${esc(supName)}</div>
+          </div>
+          <div>
+            <span style="color:var(--muted)">ඉන්වොයිස් අංකය:</span>
+            <div style="font-weight:600">${esc(grn.invoiceNo || 'නැත (None)')}</div>
+          </div>
+        </div>
+
+        <!-- Items Table Snapshot -->
+        <div style="max-height:150px;overflow-y:auto;border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:4px 8px;margin-bottom:10px;background:#060d19">
+          <table style="width:100%;font-size:12px">
+            <thead>
+              <tr style="color:var(--muted);border-bottom:1px solid var(--line)">
+                <th style="text-align:left;padding:4px">භාණ්ඩය</th>
+                <th style="text-align:center;padding:4px">ප්‍රමාණය</th>
+                <th style="text-align:right;padding:4px">පිරිවැය</th>
+                <th style="text-align:right;padding:4px">එකතුව</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${items.map(it => `
+                <tr style="border-bottom:1px solid rgba(255,255,255,0.03)">
+                  <td style="padding:4px"><b>${esc(it.code || '')}</b> <small style="color:var(--muted)">${esc(it.name || '')}</small></td>
+                  <td style="text-align:center;padding:4px">${it.qty}</td>
+                  <td style="text-align:right;padding:4px">${money(it.cost)}</td>
+                  <td style="text-align:right;padding:4px;font-weight:600">${money(it.total)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Financial Summary -->
+        <div style="background:rgba(255,255,255,0.03);border-radius:8px;padding:10px;font-size:12.5px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+            <span style="color:var(--muted)">මුළු එකතුව (Grand Total):</span>
+            <b style="font-size:15px;color:var(--primary)">${money(grn.total)}</b>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+            <span style="color:var(--muted)">දැන් ගෙවූ මුදල (Paid Now):</span>
+            <b style="color:${(grn.paidAmount||0)>0?'#34d399':'var(--muted)'}">
+              ${money(grn.paidAmount||0)} ${grn.paymentMethod ? `(${grn.paymentMethod.toUpperCase()})` : ''}
+            </b>
+          </div>
+          ${grn.chequeNo ? `
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:11.5px;color:var(--muted)">
+              <span>චෙක්පත් විස්තර:</span>
+              <b>${esc(grn.chequeNo)} (${esc(grn.chequeBank||'Bank')} · ${grn.chequeDate})</b>
+            </div>
+          ` : ''}
+          <div style="display:flex;justify-content:space-between;border-top:1px dashed var(--line);padding-top:6px;margin-top:4px">
+            <span style="color:${(grn.dueAmount||0)>0?'#fca5a5':'#34d399'};font-weight:600">සැපයුම්කරුට හිඟ ශේෂය (Balance Due):</span>
+            <b style="color:${(grn.dueAmount||0)>0?'#fca5a5':'#34d399'}">
+              ${money(grn.dueAmount||0)} ${(grn.dueAmount||0)>0?'(ණයට / Credit)':'(පියවා ඇත)'}
+            </b>
+          </div>
+        </div>
+      </div>
+    </div>`;
+
+  const footerHtml = `
+    <button type="button" class="btn btn-blue" onclick="grnPrintReceipt('${grn.id}')" style="display:flex;align-items:center;gap:6px">
+      🖨️ GRN බිල Print කරන්න
+    </button>
+    <button type="button" class="btn btn-green" onclick="closeModal();$('#grnSupplier')?.focus();" style="display:flex;align-items:center;gap:6px;font-weight:700">
+      ➕ අලුත් GRN එකක් (New GRN)
+    </button>
+    <button type="button" class="btn" onclick="closeModal();grnShowHistory();">
+      📜 ඉතිහාසය (History)
+    </button>`;
+
+  openModal('✅ GRN සාර්ථකයි', 'GRN Completion Receipt', bodyHtml, footerHtml);
+}
+
+/* ---------- GRN Voucher Print Function ---------- */
+function grnPrintReceipt(grnId){
+  const db = window.DB || {};
+  const grn = (db.grns || []).find(g => g.id === grnId);
+  if(!grn){
+    toast('GRN වාර්තාව හමු නොවීය', 'err');
+    return;
+  }
+
+  // Check Bluetooth thermal printer
+  if(typeof Printer !== 'undefined' && Printer.isConnected && typeof Printer.printRaw === 'function'){
+    try {
+      const shop = (db.shops || [])[0] || { name: 'Auto Parts & Motors' };
+      const lines = [];
+      lines.push(shop.name || 'VEHICLE PARTS');
+      lines.push('--------------------------------');
+      lines.push(`GRN: ${grn.no}`);
+      lines.push(`Date: ${grn.date}`);
+      lines.push(`Supplier: ${grn.supplier || ''}`);
+      if(grn.invoiceNo) lines.push(`Inv No: ${grn.invoiceNo}`);
+      lines.push('--------------------------------');
+      (grn.items || []).forEach(it => {
+        lines.push(`${(it.code || '').slice(0, 14)} x${it.qty}`);
+        lines.push(`  @${money(it.cost)} = ${money(it.total)}`);
+      });
+      lines.push('--------------------------------');
+      lines.push(`TOTAL:  ${money(grn.total)}`);
+      lines.push(`PAID:   ${money(grn.paidAmount || 0)} (${(grn.paymentMethod || 'CREDIT').toUpperCase()})`);
+      lines.push(`DUE:    ${money(grn.dueAmount || 0)}`);
+      lines.push('================================');
+      lines.push('   STOCK UPDATED SUCCESS   ');
+      lines.push('\n\n\n');
+      Printer.printRaw(lines.join('\n'));
+      toast('Thermal Printer එකට යවන ලදී', 'ok');
+      return;
+    } catch(e){
+      console.warn('Thermal print fallback:', e);
+    }
+  }
+
+  // Browser standard print window
+  const win = window.open('', '_blank', 'width=700,height=800');
+  if(!win){
+    toast('Popup අවහිර කර ඇත (Please allow popups to print)', 'err');
+    return;
+  }
+  const shop = (db.shops || [])[0] || { name: 'Auto Parts POS', phone: '' };
+  win.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>GRN Voucher - ${esc(grn.no)}</title>
+      <style>
+        body { font-family: 'Inter', -apple-system, sans-serif; padding: 24px; color: #111; max-width: 650px; margin: 0 auto; }
+        .hdr { text-align: center; border-bottom: 2px solid #000; padding-bottom: 12px; margin-bottom: 16px; }
+        .hdr h1 { margin: 0; font-size: 22px; }
+        .hdr p { margin: 3px 0; font-size: 13px; color: #555; }
+        .meta { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 16px; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 16px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background: #f4f4f4; }
+        .totals { margin-top: 12px; border-top: 2px solid #222; padding-top: 10px; font-size: 14px; }
+        .row { display: flex; justify-content: space-between; padding: 3px 0; }
+        .row.grand { font-size: 16px; font-weight: bold; border-top: 1px solid #000; margin-top: 6px; padding-top: 6px; }
+        .footer { margin-top: 36px; display: flex; justify-content: space-between; font-size: 12px; padding-top: 24px; }
+        .sig { border-top: 1px dashed #666; width: 160px; text-align: center; padding-top: 4px; }
+        @media print { button { display: none; } }
+      </style>
+    </head>
+    <body>
+      <div class="hdr">
+        <h1>${esc(shop.name)}</h1>
+        <p>GOODS RECEIVED NOTE (GRN) VOUCHER</p>
+        <p>${shop.phone ? 'Tel: ' + esc(shop.phone) : ''}</p>
+      </div>
+      <div class="meta">
+        <div>
+          <b>GRN No:</b> ${esc(grn.no)}<br>
+          <b>Supplier:</b> ${esc(grn.supplier || 'N/A')}<br>
+          <b>Invoice No:</b> ${esc(grn.invoiceNo || 'N/A')}
+        </div>
+        <div style="text-align:right">
+          <b>Date:</b> ${grn.date}<br>
+          <b>Time:</b> ${new Date(grn.createdAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}<br>
+          <b>Status:</b> ${(grn.paymentStatus || 'CREDIT').toUpperCase()}
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Code</th>
+            <th>Item Details</th>
+            <th style="text-align:center">Qty</th>
+            <th style="text-align:right">Unit Cost</th>
+            <th style="text-align:right">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${(grn.items || []).map((it, idx) => `
+            <tr>
+              <td>${idx + 1}</td>
+              <td><b>${esc(it.code || '')}</b></td>
+              <td>${esc(it.name || '')}</td>
+              <td style="text-align:center">${it.qty}</td>
+              <td style="text-align:right">${money(it.cost)}</td>
+              <td style="text-align:right">${money(it.total)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+      <div class="totals">
+        <div class="row"><span>Gross Subtotal:</span><span>${money(grn.subtotal || grn.total)}</span></div>
+        ${grn.discount > 0 ? `<div class="row"><span>Discount:</span><span>- ${money(grn.discount)}</span></div>` : ''}
+        <div class="row grand"><span>Grand Total:</span><span>${money(grn.total)}</span></div>
+        <div class="row" style="color:green"><span>Paid Now (${esc((grn.paymentMethod || 'credit').toUpperCase())}):</span><span>${money(grn.paidAmount || 0)}</span></div>
+        <div class="row" style="color:#d9534f;font-weight:bold"><span>Balance Due (Credit):</span><span>${money(grn.dueAmount || 0)}</span></div>
+      </div>
+      <div class="footer">
+        <div class="sig">Prepared By (Storekeeper)</div>
+        <div class="sig">Authorized By (Manager)</div>
+        <div class="sig">Supplier Signature</div>
+      </div>
+      <script>
+        window.onload = function(){ window.print(); };
+      </script>
+    </body>
+    </html>
+  `);
+  win.document.close();
 }
 
 /* ---------- History Modal & Details Viewer ---------- */
@@ -2125,4 +2386,7 @@ window.grnOnChequeFieldChange = grnOnChequeFieldChange;
 window.grnRecalcPaymentDisplays = grnRecalcPaymentDisplays;
 window.grnGetEffectivePaidAmount = grnGetEffectivePaidAmount;
 window.grnGetPaymentBadgeHtml = grnGetPaymentBadgeHtml;
+window.grnShowSuccessModal = grnShowSuccessModal;
+window.grnPrintReceipt = grnPrintReceipt;
+
 

@@ -136,7 +136,7 @@ function registerPwaServiceWorker(){
   });
 }
 
-const CURRENT_APP_VERSION = 'v2.6.0';
+const CURRENT_APP_VERSION = 'v2.6.1';
 try {
   if(localStorage.getItem('pos.appVersion') !== CURRENT_APP_VERSION){
     localStorage.setItem('pos.appVersion', CURRENT_APP_VERSION);

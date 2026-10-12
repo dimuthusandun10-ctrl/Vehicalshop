@@ -2863,12 +2863,14 @@ tbody tr:hover td{background:#1a2438}
     padding: 8px 10px !important;
     font-size: 12.5px !important;
   }
-  #grnPaymentControlsRow {
+  #grnPaymentControlsRow,
+  #grnModalPaymentControlsRow {
     grid-template-columns: 1fr !important;
     gap: 10px !important;
     padding: 10px !important;
   }
-  #grnChequeFieldsBox .grid3 {
+  #grnChequeFieldsBox .grid3,
+  #grnModalChequeFieldsBox .grid3 {
     grid-template-columns: 1fr !important;
     gap: 8px !important;
   }
