@@ -1273,4 +1273,49 @@
     color: var(--muted) !important;
     font-family: 'Inter', monospace !important;
   }
+
+  /* Payment Section Mobile Rules */
+  .grn-pay-types {
+    grid-template-columns: 1fr !important;
+    gap: 6px !important;
+  }
+  .grn-pay-types button {
+    padding: 8px 10px !important;
+    font-size: 12.5px !important;
+  }
+  #grnPaymentControlsRow {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+    padding: 10px !important;
+  }
+  #grnChequeFieldsBox .grid3 {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
+  .grn-payment-calc-strip {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 6px !important;
+  }
+  .grn-payment-calc-strip > div {
+    display: flex !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+  }
 }
+
+/* GRN Payment Details Styles */
+.grn-pay-types button.btn-primary {
+  background: var(--primary) !important;
+  color: #fff !important;
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+}
+
+.grn-payment-calc-strip {
+  border: 1px solid var(--line);
+  background: #060d19;
+  border-radius: 8px;
+  padding: 10px 14px;
+}
+
