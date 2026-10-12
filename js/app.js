@@ -136,7 +136,7 @@ function registerPwaServiceWorker(){
   });
 }
 
-const CURRENT_APP_VERSION = 'v2.5.5';
+const CURRENT_APP_VERSION = 'v2.5.6';
 
 async function checkForCloudflareUpdates(){
   if(typeof navigator !== 'undefined' && !navigator.onLine) return;

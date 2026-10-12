@@ -384,6 +384,18 @@
   color: #1a1206;
   font-weight: 700;
 }
+#discVal {
+  background: #0b1220;
+  color: var(--txt);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+#discVal:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.25);
+}
 .quick-cash {
   display: grid;
   grid-template-columns: repeat(4, 1fr);

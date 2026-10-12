@@ -821,6 +821,7 @@ function removeItem(pid){
 function clearCart(){
   if(state.cart.length && !confirm('බිල හිස් කරන්නද? (Clear Cart)')) return;
   state.cart = [];
+  window._discVal = '';
   window._shownCrossSellFor = new Set();
   const csToast = $('#crossSellToast');
   if(csToast) csToast.remove();
@@ -839,11 +840,16 @@ function calcTotals(){
   }, 0);
 
   let disc = 0;
-  const val = parseFloat(window._discVal) || 0;
-  if(window._discType === 'fixed') {
-    disc = val;
-  } else {
+  const isPercent = (window._discType || 'percent') === 'percent';
+  let val = parseFloat(window._discVal) || 0;
+  if(val < 0) val = 0;
+
+  if(isPercent) {
+    if(val > 100) val = 100;
     disc = sub * (val / 100);
+  } else {
+    if(val > sub) val = sub;
+    disc = val;
   }
   disc = Math.min(disc, sub);
 
@@ -853,6 +859,151 @@ function calcTotals(){
 
   return { sub, disc, coreDeduction, tax, total };
 }
+
+/* Discount management helpers (preserve focus, restrict to numbers, enforce 100% and subtotal limits) */
+function setDiscountType(type){
+  window._discType = type;
+  const isPercent = type === 'percent';
+  const sub = state.cart.reduce((a,c) => a + c.price * c.qty, 0);
+
+  let val = parseFloat(window._discVal);
+  if(!isNaN(val)){
+    if(isPercent && val > 100){
+      window._discVal = '100';
+    } else if(!isPercent && val > sub){
+      window._discVal = sub > 0 ? String(sub) : '';
+    }
+  }
+
+  const inp = document.getElementById('discVal');
+  if(inp){
+    inp.value = window._discVal || '';
+    inp.placeholder = isPercent ? '0 - 100%' : (sub > 0 ? `උපරිම ${sub}` : 'වට්ටම');
+    inp.title = isPercent ? 'ප්‍රතිශතය උපරිම 100%' : (sub > 0 ? `ස්ථාවර වට්ටම උපරිම ${money(sub)}` : 'ස්ථාවර වට්ටම');
+  }
+
+  const toggle = document.querySelector('.discount-toggle');
+  if(toggle){
+    const btns = toggle.querySelectorAll('button');
+    if(btns.length >= 2){
+      btns[0].classList.toggle('active', isPercent);
+      btns[1].classList.toggle('active', !isPercent);
+    }
+  }
+
+  updateCartTotalsUI();
+}
+
+function onDiscountKeyDown(e){
+  // Allow navigation & editing keys
+  const navKeys = ['Backspace', 'Tab', 'Delete', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Enter', 'Escape', 'Home', 'End'];
+  if(navKeys.includes(e.key)) return;
+
+  // Allow copy/paste/select-all
+  if((e.ctrlKey || e.metaKey) && ['a', 'c', 'v', 'x', 'z'].includes(e.key.toLowerCase())) return;
+
+  // Disallow invalid characters for positive numbers ('-', '+', 'e', 'E')
+  if(e.key === '-' || e.key === '+' || e.key.toLowerCase() === 'e'){
+    e.preventDefault();
+    return;
+  }
+
+  // Allow only single decimal point
+  if(e.key === '.'){
+    const val = e.target.value || '';
+    if(val.includes('.')){
+      e.preventDefault();
+    }
+    return;
+  }
+
+  // Allow only digits 0-9
+  if(!/^[0-9]$/.test(e.key)){
+    e.preventDefault();
+  }
+}
+
+function handleDiscountInput(el){
+  if(!el) return;
+  const isPercent = (window._discType || 'percent') === 'percent';
+  const sub = state.cart.reduce((a,c) => a + c.price * c.qty, 0);
+
+  // Sanitize input: allow only digits and at most one decimal point
+  let raw = el.value.replace(/[^0-9.]/g, '');
+  const parts = raw.split('.');
+  if(parts.length > 2){
+    raw = parts[0] + '.' + parts.slice(1).join('');
+  }
+
+  let numVal = parseFloat(raw);
+
+  if(!isNaN(numVal)){
+    if(isPercent){
+      // Maximum 100%
+      if(numVal > 100){
+        raw = '100';
+      }
+    } else {
+      // Maximum is subtotal of cart items
+      if(numVal > sub){
+        raw = sub > 0 ? String(sub) : '0';
+      }
+    }
+  }
+
+  // Update input field if sanitized or clamped
+  if(el.value !== raw){
+    const cursor = el.selectionStart;
+    el.value = raw;
+    try {
+      el.setSelectionRange(cursor, cursor);
+    } catch(err){}
+  }
+
+  window._discVal = raw;
+  updateCartTotalsUI();
+}
+
+function updateCartTotalsUI(){
+  const {sub, disc, coreDeduction, tax, total} = calcTotals();
+
+  // Discount row
+  const discRow = document.getElementById('cartSumDisc');
+  if(discRow){
+    discRow.style.display = disc > 0 ? 'flex' : 'none';
+    const discAmt = discRow.querySelector('.disc-amt');
+    if(discAmt) discAmt.textContent = `− ${money(disc)}`;
+  }
+
+  // Tax row
+  const taxRow = document.getElementById('cartSumTax');
+  if(taxRow){
+    taxRow.style.display = tax > 0 ? 'flex' : 'none';
+    const taxAmt = taxRow.querySelector('.tax-amt');
+    if(taxAmt) taxAmt.textContent = money(tax);
+  }
+
+  // Total row
+  const totalVal = document.getElementById('cartSumTotalVal');
+  if(totalVal){
+    totalVal.textContent = money(total);
+  }
+
+  // Checkout button
+  const checkoutBtn = document.getElementById('cartCheckoutBtn');
+  if(checkoutBtn){
+    checkoutBtn.disabled = !state.cart.length;
+    checkoutBtn.innerHTML = `💳 ගෙවීමට (F4) → ${money(total)}`;
+  }
+
+  updateFab();
+}
+
+// Expose helpers globally
+window.setDiscountType = setDiscountType;
+window.onDiscountKeyDown = onDiscountKeyDown;
+window.handleDiscountInput = handleDiscountInput;
+window.updateCartTotalsUI = updateCartTotalsUI;
 
 function renderCart(){
   const box = $('#cartItems'); if(!box) return;
@@ -904,27 +1055,63 @@ function renderCart(){
       : '<div class="empty"><div class="e">🛒</div>භාණ්ඩ එකතු කර නැත<br><small>වම් පසින් භාණ්ඩයක් තෝරන්න</small></div>');
 
   const {sub, disc, coreDeduction, tax, total} = calcTotals();
+  const isPercent = (window._discType || 'percent') === 'percent';
+
+  // Clamp _discVal if cart items changed
+  let numVal = parseFloat(window._discVal);
+  if(!isNaN(numVal)){
+    if(isPercent && numVal > 100){
+      window._discVal = '100';
+    } else if(!isPercent && numVal > sub){
+      window._discVal = sub > 0 ? String(sub) : '';
+    }
+  }
+
+  // Remember focus if discVal was focused
+  const wasDiscFocused = (document.activeElement && document.activeElement.id === 'discVal');
+  const selStart = wasDiscFocused ? document.activeElement.selectionStart : null;
+
   const sum = $('#cartSum');
   if(sum) sum.innerHTML = `
     <div class="srow"><span>උප එකතුව / Subtotal</span><b>${money(sub)}</b></div>
     ${coreDeduction > 0 ? `<div class="srow"><span>🔋 පරණ කොටස් අඩුකිරීම</span><b style="color:var(--green)">− ${money(coreDeduction)}</b></div>` : ''}
-    ${disc > 0 ? `<div class="srow"><span>වට්ටම / Discount</span><b style="color:var(--red)">− ${money(disc)}</b></div>` : ''}
-    ${tax > 0 ? `<div class="srow"><span>බදු / Tax (${DB?.shop?.tax}%)</span><b>${money(tax)}</b></div>` : ''}
-    <div class="srow total" style="font-size:24px"><span>මුළු එකතුව</span><span>${money(total)}</span></div>
+    <div class="srow" id="cartSumDisc" style="${disc > 0 ? 'display:flex' : 'display:none'}">
+      <span>වට්ටම / Discount</span><b class="disc-amt" style="color:var(--red)">− ${money(disc)}</b>
+    </div>
+    ${(DB?.shop?.tax > 0) ? `
+      <div class="srow" id="cartSumTax" style="${tax > 0 ? 'display:flex' : 'display:none'}">
+        <span>බදු / Tax (${DB?.shop?.tax}%)</span><b class="tax-amt">${money(tax)}</b>
+      </div>` : ''}
+    <div class="srow total" id="cartSumTotal" style="font-size:24px">
+      <span>මුළු එකතුව</span><span id="cartSumTotalVal">${money(total)}</span>
+    </div>
     ${hasPermission('discounts') ? `
     <div style="display:flex;gap:7px;margin-top:10px;align-items:center">
       <div class="discount-toggle" style="flex:1">
-        <button type="button" class="${(window._discType||'percent')==='percent'?'active':''}" onclick="window._discType='percent';renderCart()">% ප්‍රතිශතය</button>
-        <button type="button" class="${window._discType==='fixed'?'active':''}" onclick="window._discType='fixed';renderCart()">රු. ස්ථාවර</button>
+        <button type="button" class="${isPercent ? 'active' : ''}" onclick="setDiscountType('percent')">% ප්‍රතිශතය</button>
+        <button type="button" class="${!isPercent ? 'active' : ''}" onclick="setDiscountType('fixed')">රු. ස්ථාවර</button>
       </div>
-      <input id="discVal" type="number" placeholder="වට්ටම" min="0" style="width:105px;padding:7px;font-size:13px"
-             value="${window._discVal||''}" oninput="window._discVal=this.value;renderCart()">
+      <input id="discVal" type="text" inputmode="decimal" 
+             placeholder="${isPercent ? '0 - 100%' : (sub > 0 ? 'උපරිම ' + sub : 'වට්ටම')}" 
+             title="${isPercent ? 'ප්‍රතිශතය උපරිම 100%' : (sub > 0 ? 'ස්ථාවර වට්ටම උපරිම ' + money(sub) : 'ස්ථාවර වට්ටම')}"
+             style="width:105px;padding:7px;font-size:13px;text-align:right;font-weight:600"
+             value="${window._discVal || ''}" 
+             onkeydown="onDiscountKeyDown(event)"
+             oninput="handleDiscountInput(this)">
     </div>` : ''}
-    <button class="btn btn-green" style="width:100%;margin-top:10px;padding:12px;font-size:15px;font-weight:700" ${state.cart.length?'':'disabled'} onclick="openCheckout()">
+    <button id="cartCheckoutBtn" class="btn btn-green" style="width:100%;margin-top:10px;padding:12px;font-size:15px;font-weight:700" ${state.cart.length?'':'disabled'} onclick="openCheckout()">
       💳 ගෙවීමට (F4) → ${money(total)}
     </button>
     ${state.held.length?`<button class="btn btn-sm btn-blue" style="width:100%;margin-top:7px" onclick="showHeld()">⏸️ රඳවා ඇති බිල්පත් (${state.held.length})</button>`:''}
   `;
+
+  if(wasDiscFocused){
+    const newInp = document.getElementById('discVal');
+    if(newInp){
+      newInp.focus();
+      try { newInp.setSelectionRange(selStart, selStart); } catch(e){}
+    }
+  }
 
   // Update FAB badge and state
   updateFab();
@@ -1072,10 +1259,13 @@ function holdBill(){
     items: JSON.parse(JSON.stringify(state.cart)),
     time: new Date().toLocaleTimeString(),
     heldAt: Date.now(),
-    customerId: $('#cartCustomer')?.value || state.cartCustomer || null
+    customerId: $('#cartCustomer')?.value || state.cartCustomer || null,
+    discVal: window._discVal || '',
+    discType: window._discType || 'percent'
   });
 
   state.cart = [];
+  window._discVal = '';
   window._shownCrossSellFor = new Set();
   const csToast = $('#crossSellToast');
   if(csToast) csToast.remove();
@@ -1097,6 +1287,8 @@ function showHeld(){
 
 function recall(i){
   state.cart = state.held[i].items;
+  window._discVal = state.held[i].discVal || '';
+  window._discType = state.held[i].discType || 'percent';
   if(state.held[i].customerId){
     state.cartCustomer = state.held[i].customerId;
   }
