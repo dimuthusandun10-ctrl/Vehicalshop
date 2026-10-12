@@ -181,10 +181,21 @@ function pgSettings(){
 
         <!-- Data Clearing & Maintenance Options -->
         <div class="card" style="background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.3);border-radius:12px;padding:16px">
-          <h4 style="margin:0 0 6px;color:#fca5a5;font-size:15px">🗑️ දත්ත පිරිසිදු කිරීම සහ නඩත්තුව (Data Reset & Clear)</h4>
-          <p style="color:var(--muted);font-size:12px;margin:0 0 14px">
-            පරීක්ෂණ ගනුදෙනු මකා දැමීම හෝ පද්ධතිය ආරම්භක තත්ත්වයට පත් කිරීම සඳහා පහත විකල්ප භාවිතා කරන්න.
-          </p>
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid rgba(239,68,68,0.2)">
+            <div>
+              <h4 style="margin:0 0 4px;color:#fca5a5;font-size:15px">🗑️ දත්ත පිරිසිදු කිරීම සහ නඩත්තුව (Shop-Isolated Reset)</h4>
+              <p style="color:var(--muted);font-size:12px;margin:0">
+                පරීක්ෂණ ගනුදෙනු මකා දැමීම හෝ සාප්පුව ආරම්භක තත්ත්වයට පත් කිරීම සඳහා පහත විකල්ප භාවිතා කරන්න.
+              </p>
+            </div>
+            <span class="pill" style="background:rgba(59,130,246,0.15);color:#93c5fd;border:1px solid rgba(59,130,246,0.3);font-size:12px;padding:4px 10px;font-weight:600">
+              🏬 වත්මන් සාප්පුව: ${esc(state.activeShop?.name || 'Default Shop')} (${esc(state.activeShopId || 'SHOP-001')})
+            </span>
+          </div>
+
+          <div style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);border-radius:8px;padding:8px 12px;margin-bottom:14px;font-size:12px;color:#6ee7b7;display:flex;align-items:center;gap:6px">
+            🛡️ <b>සාප්පු හුදකලා බව (Strict Shop Isolation):</b> මෙම සාප්පුවේ දත්ත Clear කළද අනෙකුත් සාප්පු වල දත්ත (Other Shops) කිසිවිටෙකත් මකා නොදැමේ.
+          </div>
 
           <div style="display:flex;flex-direction:column;gap:12px">
             <!-- 1. Clear Transactions only -->
@@ -216,14 +227,19 @@ function pgSettings(){
             <!-- 3. Wipe Local Storage Cache -->
             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;background:rgba(15,23,42,0.6);padding:12px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.06)">
               <div>
-                <b style="font-size:13.5px;color:var(--txt)">3. බ්‍රවුසරයේ Local Cache ඉවත් කරන්න (Wipe Local Storage)</b>
+                <b style="font-size:13.5px;color:var(--txt)">3. මෙම සාප්පුවේ Local Cache ඉවත් කරන්න (Wipe This Shop Cache)</b>
                 <p style="margin:3px 0 0;font-size:11.5px;color:var(--muted)">
-                  මෙම බ්‍රවුසරයේ සුරකින ලද සියලුම Local Storage දත්ත හා Cache එකවර ඉවත් කරයි.
+                  වත්මන් සාප්පුවේ browser cache ඉවත් කර Cloud වෙතින් නැවුම් දත්ත ලබා ගනී. <span style="color:#6ee7b7;font-weight:600">අනෙකුත් සාප්පු වල cache සුරැකේ.</span>
                 </p>
               </div>
-              <button class="btn btn-muted btn-sm" onclick="wipeLocalCache()" style="font-weight:600;padding:7px 16px">
-                🧹 Wipe Local Cache
-              </button>
+              <div style="display:flex;gap:8px;align-items:center">
+                <button class="btn btn-muted btn-sm" onclick="wipeLocalCache()" style="font-weight:600;padding:7px 16px">
+                  🧹 Wipe Shop Cache
+                </button>
+                <button class="btn btn-sm" onclick="wipeAllLocalCache()" style="background:transparent;border:1px solid rgba(255,255,255,0.15);color:var(--muted);font-size:11px;padding:6px 10px" title="සියලු සාප්පු වල cache එකවර මකා දමන්න">
+                  🌐 All Shops
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -600,8 +616,12 @@ async function importBackup(file){
       let restoredCount = 0;
       arrayKeys.forEach(k => {
         if(Array.isArray(source[k])){
-          db[k] = source[k];
-          restoredCount += source[k].length;
+          // Strictly stamp current shopId on every restored entity
+          db[k] = source[k].map(item => ({
+            ...item,
+            shopId: item.shopId || shopId
+          }));
+          restoredCount += db[k].length;
         }
       });
 
@@ -613,7 +633,7 @@ async function importBackup(file){
         db.shop = data.shop;
       }
 
-      // 1. Immediately persist to localStorage for both current shopId and global LOCAL_KEY
+      // 1. Immediately persist to localStorage for current shopId and merge preserving other shops
       const dataToPersist = {
         products: db.products || [],
         customers: db.customers || [],
@@ -636,8 +656,35 @@ async function importBackup(file){
       };
 
       try {
+        // Dedicated shop cache
         localStorage.setItem('pos.localDB.' + shopId, JSON.stringify(dataToPersist));
-        localStorage.setItem('autoparts_pos_db', JSON.stringify(dataToPersist));
+
+        // Merge into global cache PRESERVING other shops
+        let globalDb = {};
+        try {
+          const raw = localStorage.getItem('autoparts_pos_db');
+          if(raw) globalDb = JSON.parse(raw);
+        } catch(e){}
+        const mergeCol = (key, currentList) => {
+          const others = (globalDb[key] || []).filter(item => item && item.shopId && item.shopId !== shopId);
+          return [...others, ...(currentList || [])];
+        };
+        globalDb.products = mergeCol('products', db.products);
+        globalDb.customers = mergeCol('customers', db.customers);
+        globalDb.suppliers = mergeCol('suppliers', db.suppliers);
+        globalDb.sales = mergeCol('sales', db.sales);
+        globalDb.grns = mergeCol('grns', db.grns);
+        globalDb.returns = mergeCol('returns', db.returns);
+        globalDb.shifts = mergeCol('shifts', db.shifts);
+        globalDb.cashMoves = mergeCol('cashMoves', db.cashMoves);
+        globalDb.payments = mergeCol('payments', db.payments);
+        globalDb.supplierPayments = mergeCol('supplierPayments', db.supplierPayments);
+        globalDb.interchanges = mergeCol('interchanges', db.interchanges);
+        globalDb.scrapInventory = mergeCol('scrapInventory', db.scrapInventory);
+        if(db.counters) globalDb.counters = { ...(globalDb.counters || {}), ...db.counters };
+        globalDb.savedAt = Date.now();
+        localStorage.setItem('autoparts_pos_db', JSON.stringify(globalDb));
+
         if(typeof db._persistLocalNow === 'function') db._persistLocalNow();
       } catch(saveErr){
         console.warn('Local persist error during restore:', saveErr);
@@ -666,6 +713,7 @@ async function importBackup(file){
             if(Array.isArray(db[sm.key]) && sm.col){
               for(const item of db[sm.key]){
                 if(item && item.id){
+                  item.shopId = item.shopId || shopId;
                   try {
                     await window.FB.fbSet(sm.col, item.id, item);
                   } catch(e){}
@@ -678,7 +726,7 @@ async function importBackup(file){
         }
       }
 
-      toast(`දත්ත සාර්ථකව ප්‍රතිස්ථාපනය කරන ලදී! (${restoredCount} items) ✅`, 'ok');
+      toast(`'${shopId}' දත්ත සාර්ථකව ප්‍රතිස්ථාපනය කරන ලදී! (${restoredCount} items) ✅`, 'ok');
       setTimeout(() => {
         location.reload();
       }, 1500);
@@ -693,23 +741,25 @@ async function importBackup(file){
 
 async function clearTransactions(){
   const shopId = (typeof currentShopId === 'function' && currentShopId()) || state.user?.shopId || state.activeShopId || 'SHOP-001';
+  const shopName = state.activeShop?.name || 'Default Shop';
 
-  if(!confirm('අවධානයයි: මෙම සාප්පුවේ සියලුම විකුණුම් බිල්පත් (Sales), GRN, Return, Shifts, Petty Cash, චෙක්පත් සහ පාරිභෝගික ණය ශේෂයන් 0 බවට පත්වේ.\n\n(භාණ්ඩ තොගය සහ සැපයුම්කරුවන් මකා නොදැමේ)\n\nඔබට ඉදිරියට යාමට අවශ්‍ය බව තහවුරුද?')){
+  if(!confirm(`අවධානයයි: '${shopName}' (${shopId}) සාප්පුවේ විකුණුම් බිල්පත් (Sales), GRN, Return, Shifts, Petty Cash, චෙක්පත් සහ පාරිභෝගික ණය ශේෂයන් පමණක් 0 බවට පත්වේ.\n\n🛡️ අනෙකුත් සාප්පු වල දත්ත (Other Shops) කිසිවිටෙකත් මකා නොදැමේ.\n\n(භාණ්ඩ තොගය සහ සැපයුම්කරුවන් සුරැකේ)\n\nඔබට ඉදිරියට යාමට අවශ්‍ය බව තහවුරුද?`)){
     return;
   }
 
   const db = window.DB || {};
 
-  // Keep copies for Firestore remote deletion if online
-  const oldSales = [...(db.sales || [])];
-  const oldGrns = [...(db.grns || [])];
-  const oldReturns = [...(db.returns || [])];
-  const oldShifts = [...(db.shifts || [])];
-  const oldCashMoves = [...(db.cashMoves || [])];
-  const oldPayments = [...(db.payments || [])];
-  const oldSupplierPayments = [...(db.supplierPayments || [])];
+  // Strictly filter items belonging to this shop for remote deletion
+  const isShopDoc = (item) => Boolean(item && (!item.shopId || item.shopId === shopId));
+  const oldSales = (db.sales || []).filter(isShopDoc);
+  const oldGrns = (db.grns || []).filter(isShopDoc);
+  const oldReturns = (db.returns || []).filter(isShopDoc);
+  const oldShifts = (db.shifts || []).filter(isShopDoc);
+  const oldCashMoves = (db.cashMoves || []).filter(isShopDoc);
+  const oldPayments = (db.payments || []).filter(isShopDoc);
+  const oldSupplierPayments = (db.supplierPayments || []).filter(isShopDoc);
 
-  // 1. Clear local memory
+  // 1. Clear local memory for this shop
   db.sales = [];
   db.grns = [];
   db.returns = [];
@@ -718,17 +768,19 @@ async function clearTransactions(){
   db.payments = [];
   db.supplierPayments = [];
   db.dailySummary = [];
-  db.counters = { invoice: 1, grn: 1, ret: 1, shift: 1, payment: 1, shop: 1 };
+  db.counters = { ...(db.counters || {}), invoice: 1, grn: 1, ret: 1, shift: 1, payment: 1 };
 
-  // Reset customer debts
+  // Reset customer debts strictly for current shop
   if(Array.isArray(db.customers)){
     db.customers.forEach(c => {
-      c.balance = 0;
-      c.totalSpent = 0;
+      if(!c.shopId || c.shopId === shopId){
+        c.balance = 0;
+        c.totalSpent = 0;
+      }
     });
   }
 
-  // 2. Persist immediately to localStorage
+  // 2. Persist shop-isolated data to localStorage
   const dataToPersist = {
     products: db.products || [],
     customers: db.customers || [],
@@ -751,23 +803,43 @@ async function clearTransactions(){
   };
 
   try {
+    // 1) Save current shop's isolated cache
     localStorage.setItem('pos.localDB.' + shopId, JSON.stringify(dataToPersist));
-    localStorage.setItem('autoparts_pos_db', JSON.stringify(dataToPersist));
-    localStorage.removeItem('pos.activeShift');
-    localStorage.removeItem('pos.syncQueue');
 
-    // Remove any GRN drafts
-    for(let i = 0; i < localStorage.length; i++){
-      const k = localStorage.key(i);
-      if(k && k.startsWith('pos.grnDraft')) localStorage.removeItem(k);
-    }
+    // 2) Update autoparts_pos_db by PRESERVING all other shops' records
+    let globalDb = {};
+    try {
+      const raw = localStorage.getItem('autoparts_pos_db');
+      if(raw) globalDb = JSON.parse(raw);
+    } catch(e){}
+    const preserveOtherShops = (key) => (globalDb[key] || []).filter(item => item && item.shopId && item.shopId !== shopId);
+
+    globalDb.sales = preserveOtherShops('sales');
+    globalDb.grns = preserveOtherShops('grns');
+    globalDb.returns = preserveOtherShops('returns');
+    globalDb.shifts = preserveOtherShops('shifts');
+    globalDb.cashMoves = preserveOtherShops('cashMoves');
+    globalDb.payments = preserveOtherShops('payments');
+    globalDb.supplierPayments = preserveOtherShops('supplierPayments');
+    globalDb.dailySummary = preserveOtherShops('dailySummary');
+    globalDb.customers = [
+      ...preserveOtherShops('customers'),
+      ...(db.customers || []).filter(c => !c.shopId || c.shopId === shopId)
+    ];
+    globalDb.savedAt = Date.now();
+    localStorage.setItem('autoparts_pos_db', JSON.stringify(globalDb));
+
+    // Clean only this shop's active shift & drafts
+    localStorage.removeItem('pos.activeShift');
+    localStorage.removeItem('pos.grnDraft.' + shopId);
+    localStorage.removeItem('pos.grnDraft');
 
     if(typeof db._persistLocalNow === 'function') db._persistLocalNow();
   } catch(e){
     console.warn('Clear transactions local persist warning:', e);
   }
 
-  // 3. If online and Firebase connected, delete transaction documents in Firestore
+  // 3. If online and Firebase connected, delete transaction documents in Firestore (strictly matching shopId)
   if(window.FB && window.FB.fbDelete && navigator.onLine){
     toast('Firestore ගනුදෙනු දත්ත ඉවත් කරමින් පවතී... ⏳');
     try {
@@ -783,18 +855,20 @@ async function clearTransactions(){
 
       for(const item of deleteLists){
         for(const doc of (item.list || [])){
-          if(doc && doc.id){
+          if(doc && doc.id && (!doc.shopId || doc.shopId === shopId)){
             try {
               await window.FB.fbDelete(item.col, doc.id);
-            } catch(delErr){}
+            } catch(delErr){
+              console.warn('Doc delete warning:', doc.id, delErr);
+            }
           }
         }
       }
 
-      // Update customer balances in Firestore
+      // Update customer balances in Firestore strictly for this shop
       if(Array.isArray(db.customers) && window.FB.COL.customers){
         for(const c of db.customers){
-          if(c && c.id){
+          if(c && c.id && (!c.shopId || c.shopId === shopId)){
             try {
               await window.FB.fbSet(window.FB.COL.customers, c.id, c);
             } catch(_){}
@@ -806,24 +880,26 @@ async function clearTransactions(){
     }
   }
 
-  toast('සියලුම ගනුදෙනු දත්ත සාර්ථකව ඉවත් කරන ලදී! ✅', 'ok');
+  toast(`'${shopName}' ගනුදෙනු දත්ත සාර්ථකව ඉවත් කරන ලදී! (අනෙකුත් සාප්පු සුරැකිව ඇත) ✅`, 'ok');
   setTimeout(() => {
     location.reload();
   }, 1200);
 }
 
 function resetToDemo(){
-  if(!confirm('ඔබට සියලු දත්ත ඉවත් කර ආරම්භක Demo තත්ත්වයට පත් කිරීමට අවශ්‍ය බව සහතිකද?')) return;
+  const shopId = (typeof currentShopId === 'function' && currentShopId()) || state.user?.shopId || state.activeShopId || 'SHOP-001';
+  const shopName = state.activeShop?.name || shopId;
 
-  // Clear all pos.localDB keys
-  const keysToRemove = [];
-  for(let i = 0; i < localStorage.length; i++){
-    const k = localStorage.key(i);
-    if(k && (k.startsWith('pos.localDB') || k === 'autoparts_pos_db' || k === 'pos.syncQueue' || k.startsWith('pos.grnDraft') || k === 'pos.activeShift')){
-      keysToRemove.push(k);
-    }
-  }
-  keysToRemove.forEach(k => localStorage.removeItem(k));
+  if(!confirm(`අවධානයයි: '${shopName}' (${shopId}) සාප්පුවේ දත්ත පමණක් ආරම්භක Demo තත්ත්වයට පත් කිරීමට අවශ්‍ය බව සහතිකද?\n\n🛡️ අනෙකුත් සාප්පු වල දත්ත (Other Shops) කිසිවිටෙකත් මකා නොදැමේ.`)) return;
+
+  // 1. Remove only this shop's dedicated cache and drafts
+  localStorage.removeItem('pos.localDB.' + shopId);
+  localStorage.removeItem('pos.grnDraft.' + shopId);
+  localStorage.removeItem('pos.grnDraft');
+  localStorage.removeItem('pos.activeShift');
+
+  // 2. Prepare fresh demo items stamped with current shopId
+  const stampShop = (list) => (list ? JSON.parse(JSON.stringify(list)) : []).map(x => ({ ...x, shopId: shopId }));
 
   if(window.DB){
     DB.sales = [];
@@ -834,23 +910,113 @@ function resetToDemo(){
     DB.payments = [];
     DB.supplierPayments = [];
     DB.dailySummary = [];
-    DB.products = window.INITIAL_PRODUCTS ? JSON.parse(JSON.stringify(window.INITIAL_PRODUCTS)) : [];
-    DB.customers = window.INITIAL_CUSTOMERS ? JSON.parse(JSON.stringify(window.INITIAL_CUSTOMERS)) : [];
-    DB.suppliers = window.INITIAL_SUPPLIERS ? JSON.parse(JSON.stringify(window.INITIAL_SUPPLIERS)) : [];
-    DB.interchanges = window.INITIAL_INTERCHANGES ? JSON.parse(JSON.stringify(window.INITIAL_INTERCHANGES)) : [];
-    DB.scrapInventory = window.INITIAL_SCRAP ? JSON.parse(JSON.stringify(window.INITIAL_SCRAP)) : [];
+    DB.products = stampShop(window.INITIAL_PRODUCTS);
+    DB.customers = stampShop(window.INITIAL_CUSTOMERS);
+    DB.suppliers = stampShop(window.INITIAL_SUPPLIERS);
+    DB.interchanges = stampShop(window.INITIAL_INTERCHANGES);
+    DB.scrapInventory = stampShop(window.INITIAL_SCRAP);
     DB.counters = { invoice: 1, grn: 1, ret: 1, shift: 1, payment: 1, shop: 1 };
-    if(typeof DB._persistLocalNow === 'function') DB._persistLocalNow();
   }
 
-  toast('පද්ධතිය ආරම්භක Demo තත්ත්වයට සකසන ලදී ✅', 'ok');
+  // 3. Update autoparts_pos_db while preserving all other shops
+  try {
+    let globalDb = {};
+    const raw = localStorage.getItem('autoparts_pos_db');
+    if(raw) globalDb = JSON.parse(raw);
+
+    const mergeCol = (key, currentList) => {
+      const others = (globalDb[key] || []).filter(item => item && item.shopId && item.shopId !== shopId);
+      return [...others, ...(currentList || [])];
+    };
+
+    globalDb.products = mergeCol('products', DB.products);
+    globalDb.customers = mergeCol('customers', DB.customers);
+    globalDb.suppliers = mergeCol('suppliers', DB.suppliers);
+    globalDb.sales = mergeCol('sales', DB.sales);
+    globalDb.grns = mergeCol('grns', DB.grns);
+    globalDb.returns = mergeCol('returns', DB.returns);
+    globalDb.shifts = mergeCol('shifts', DB.shifts);
+    globalDb.cashMoves = mergeCol('cashMoves', DB.cashMoves);
+    globalDb.payments = mergeCol('payments', DB.payments);
+    globalDb.supplierPayments = mergeCol('supplierPayments', DB.supplierPayments);
+    globalDb.interchanges = mergeCol('interchanges', DB.interchanges);
+    globalDb.scrapInventory = mergeCol('scrapInventory', DB.scrapInventory);
+    globalDb.savedAt = Date.now();
+    localStorage.setItem('autoparts_pos_db', JSON.stringify(globalDb));
+
+    // Save current shop's dedicated cache
+    localStorage.setItem('pos.localDB.' + shopId, JSON.stringify({
+      products: DB.products,
+      customers: DB.customers,
+      suppliers: DB.suppliers,
+      sales: DB.sales,
+      grns: DB.grns,
+      returns: DB.returns,
+      shifts: DB.shifts,
+      cashMoves: DB.cashMoves,
+      payments: DB.payments,
+      supplierPayments: DB.supplierPayments,
+      interchanges: DB.interchanges,
+      scrapInventory: DB.scrapInventory,
+      users: DB.users || [],
+      shops: DB.shops || [],
+      counters: DB.counters,
+      shop: DB.shop || {},
+      savedAt: Date.now(),
+      shopId: shopId
+    }));
+  } catch(e){
+    console.warn('Demo reset persist error:', e);
+  }
+
+  toast(`'${shopName}' Demo තත්ත්වයට සකසන ලදී (අනෙකුත් සාප්පු සුරැකිව ඇත) ✅`, 'ok');
   setTimeout(() => {
     location.reload();
   }, 1000);
 }
 
 function wipeLocalCache(){
-  if(!confirm('අවධානයයි: මෙම බ්‍රවුසරයේ ඇති සියලුම Local Storage දත්ත හා Cache සම්පූර්ණයෙන්ම මකා දැමීමට අවශ්‍ය බව සහතිකද?')) return;
+  const shopId = (typeof currentShopId === 'function' && currentShopId()) || state.user?.shopId || state.activeShopId || 'SHOP-001';
+  const shopName = state.activeShop?.name || shopId;
+
+  if(!confirm(`අවධානයයි: '${shopName}' (${shopId}) සාප්පුවේ බ්‍රවුසර් Local Cache පමණක් ඉවත් කිරීමට අවශ්‍ය බව සහතිකද?\n\n🛡️ අනෙකුත් සාප්පු වල Cache (Other Shops) සුරැකේ.\n\n(Cloud දත්ත වලට හානියක් නොවේ, Page Reload කළ පසු නැවත Cloud වෙතින් මෙම සාප්පුවේ දත්ත පැමිණේ)`)) return;
+
+  // Remove dedicated cache for current shop only
+  localStorage.removeItem('pos.localDB.' + shopId);
+  localStorage.removeItem('pos.grnDraft.' + shopId);
+  localStorage.removeItem('pos.grnDraft');
+  localStorage.removeItem('pos.activeShift');
+
+  // Strip this shop's data from autoparts_pos_db while preserving other shops
+  try {
+    const raw = localStorage.getItem('autoparts_pos_db');
+    if(raw){
+      const globalDb = JSON.parse(raw);
+      const keepOtherShops = (key) => (globalDb[key] || []).filter(item => item && item.shopId && item.shopId !== shopId);
+      globalDb.products = keepOtherShops('products');
+      globalDb.customers = keepOtherShops('customers');
+      globalDb.suppliers = keepOtherShops('suppliers');
+      globalDb.sales = keepOtherShops('sales');
+      globalDb.grns = keepOtherShops('grns');
+      globalDb.returns = keepOtherShops('returns');
+      globalDb.shifts = keepOtherShops('shifts');
+      globalDb.cashMoves = keepOtherShops('cashMoves');
+      globalDb.payments = keepOtherShops('payments');
+      globalDb.supplierPayments = keepOtherShops('supplierPayments');
+      globalDb.interchanges = keepOtherShops('interchanges');
+      globalDb.scrapInventory = keepOtherShops('scrapInventory');
+      localStorage.setItem('autoparts_pos_db', JSON.stringify(globalDb));
+    }
+  } catch(e){}
+
+  toast(`'${shopName}' Local Cache සාර්ථකව මකා දමන ලදී (අනෙකුත් සාප්පු සුරැකිව ඇත) ✅`, 'ok');
+  setTimeout(() => {
+    location.reload();
+  }, 1000);
+}
+
+function wipeAllLocalCache(){
+  if(!confirm('අවධානයයි: මෙම බ්‍රවුසරයේ ඇති සියලුම සාප්පු වල (All Shops) Local Storage දත්ත හා Cache සම්පූර්ණයෙන්ම මකා දැමීමට අවශ්‍ය බව සහතිකද?')) return;
 
   const keysToRemove = [];
   for(let i = 0; i < localStorage.length; i++){
