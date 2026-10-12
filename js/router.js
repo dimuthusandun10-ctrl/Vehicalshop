@@ -41,7 +41,7 @@ async function go(page){
   }
   state.page = page;
   try {
-    localStorage.setItem('pos.currentPage', page);
+    sessionStorage.setItem('pos.currentPage', page);
   } catch(e){}
 
   // Lazy-load page module scripts if not loaded yet
