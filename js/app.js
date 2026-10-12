@@ -160,6 +160,21 @@ async function checkForCloudflareUpdates(){
 }
 
 function showUpdateBannerDirect(newVer){
+  // 1. Reveal sidebar update button ONLY when an update is actually available
+  const sbWrap = document.getElementById('sidebarUpdateWrap');
+  if(sbWrap){
+    sbWrap.style.display = 'block';
+    const sbBtn = document.getElementById('sidebarUpdateBtn');
+    if(sbBtn) sbBtn.innerHTML = `🚀 නව Update ඇත! <small style="color:var(--muted);font-weight:700">${newVer}</small>`;
+  }
+
+  // 2. Reveal login screen update button ONLY when an update is actually available
+  const lWrap = document.getElementById('loginUpdateWrap');
+  if(lWrap){
+    lWrap.style.display = 'block';
+  }
+
+  // 3. Floating bottom update notification banner
   if(document.getElementById('updateBanner')) return;
   const banner = document.createElement('div');
   banner.className = 'update-banner';
