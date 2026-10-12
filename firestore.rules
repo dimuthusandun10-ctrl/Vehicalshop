@@ -252,13 +252,12 @@ service cloud.firestore {
     }
 
     // ═══════════════════════════════════════════════
-    // 17. PART INTERCHANGE (Cross Compatibility)
+    // 17. PART INTERCHANGE (Cross Compatibility Catalog)
     // ═══════════════════════════════════════════════
     
     match /interchanges/{interchangeId} {
-      allow read: if isStaff() && sameShop(resource.data.shopId);
-      allow create, update: if (isAdmin() || isSuper()) && 
-                            sameShop(request.resource.data.shopId);
+      allow read: if isSignedIn();
+      allow create, update: if isStaff();
       allow delete: if isSuper();
     }
 
@@ -267,14 +266,22 @@ service cloud.firestore {
     // ═══════════════════════════════════════════════
     
     match /scrapInventory/{scrapId} {
-      allow read: if isStaff() && sameShop(resource.data.shopId);
-      allow create, update: if isStaff() && 
-                            sameShop(request.resource.data.shopId);
+      allow read: if isStaff();
+      allow create, update: if isStaff() && sameShop(request.resource.data.shopId);
       allow delete: if isSuper();
     }
 
     // ═══════════════════════════════════════════════
-    // 19. DEFAULT DENY — catch-all for unknown paths
+    // 19. SETTINGS & APP CONFIG
+    // ═══════════════════════════════════════════════
+    
+    match /settings/{settingId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() || isSuper();
+    }
+
+    // ═══════════════════════════════════════════════
+    // 20. DEFAULT DENY — catch-all for unknown paths
     // ═══════════════════════════════════════════════
     
     match /{document=**} {

@@ -254,7 +254,14 @@ Object.assign(DB, {
           );
 
           cols.forEach((c, idx) => {
-            this[c.key] = results[idx] || [];
+            const fetched = results[idx] || [];
+            if(fetched.length > 0){
+              this[c.key] = fetched;
+            } else if(!this[c.key] || this[c.key].length === 0){
+              if(c.key === 'interchanges') this[c.key] = window.INITIAL_INTERCHANGES || [];
+              else if(c.key === 'scrapInventory') this[c.key] = window.INITIAL_SCRAP || [];
+              else this[c.key] = [];
+            }
           });
 
           this.sanitizeProductsCoreDeposit();
@@ -273,8 +280,12 @@ Object.assign(DB, {
           this.scrapInventory = [];
         }
 
-        const shopDoc = await window.FB.fbGet(window.FB.COL.settings, 'shop');
-        if(shopDoc) this.shop = shopDoc;
+        if(window.FB && typeof window.FB.fbGetDirect === 'function'){
+          try {
+            const shopDoc = await window.FB.fbGetDirect(window.FB.COL.settings, 'shop');
+            if(shopDoc) this.shop = shopDoc;
+          } catch(_){}
+        }
 
         this.recalculateCounters();
         this.isFirebaseConnected = true;
@@ -565,7 +576,20 @@ function startPageListeners(page){
         DB.persistLocal();
         rerenderIfActive();
       }, err => {
-        console.warn(`Shop listener error on ${colName}:`, err);
+        if(err && (err.code === 'permission-denied' || err.message?.includes('permission'))){
+          console.warn(`ℹ️ Firestore rules sync pending on ${colName}. Using local cache.`);
+        } else {
+          console.warn(`Shop listener error on ${colName}:`, err);
+        }
+        if(colName === 'interchanges' && (!DB.interchanges || DB.interchanges.length === 0)){
+          DB.interchanges = window.INITIAL_INTERCHANGES || [];
+          DB.persistLocal();
+          rerenderIfActive();
+        } else if(colName === 'scrapInventory' && (!DB.scrapInventory || DB.scrapInventory.length === 0)){
+          DB.scrapInventory = window.INITIAL_SCRAP || [];
+          DB.persistLocal();
+          rerenderIfActive();
+        }
       });
     } catch(e){}
   };
