@@ -11,11 +11,12 @@ function pgSettings(){
   <div class="card">
     <div class="card-h">
       <h3>🛠️ සැකසුම්<small>Settings</small></h3>
-      <div class="settings-tabs" style="display:flex;gap:7px">
+      <div class="settings-tabs" style="display:flex;gap:7px;flex-wrap:wrap">
         <button class="btn btn-sm ${tab==='shop'?'btn-primary':''}" onclick="state.settingsTab='shop';render()">🏪 සාප්පු තොරතුරු</button>
         ${state.user.role==='superadmin'?`<button class="btn btn-sm ${tab==='users'?'btn-primary':''}" onclick="state.settingsTab='users';render()">👤 පරිශීලකයන්</button>`:''}
         <button class="btn btn-sm ${tab==='hardware'?'btn-primary':''}" onclick="state.settingsTab='hardware';render()">🖨️ Hardware & Printer</button>
         <button class="btn btn-sm ${tab==='backup'?'btn-primary':''}" onclick="state.settingsTab='backup';render()">💾 දත්ත Backup</button>
+        ${state.user?.role==='superadmin'?`<button class="btn btn-sm ${tab==='maintenance'?'btn-primary':''}" onclick="state.settingsTab='maintenance';render()">🛠️ Maintenance (නඩත්තුව)</button>`:''}
       </div>
     </div>
 
@@ -239,13 +240,30 @@ function pgSettings(){
           </div>
         </div>
 
-        <!-- Data Clearing & Maintenance Options -->
+      </div>`;
+    })() : ''}
+
+    ${tab==='maintenance' ? (() => {
+      if(state.user?.role !== 'superadmin'){
+        return `
+        <div class="card" style="margin-top:14px;padding:40px;text-align:center">
+          <div style="font-size:36px;margin-bottom:10px">🔒</div>
+          <b style="font-size:16px;color:#f87171">ප්‍රවේශය අවහිර කර ඇත (Access Denied)</b>
+          <p style="color:var(--muted);font-size:12.5px;margin-top:6px">
+            පද්ධති නඩත්තුව සහ දත්ත පිරිසිදු කිරීමේ මෙවලම් සුපිරි පරිපාලක (Super Admin) සඳහා පමණක් සීමා කර ඇත.
+          </p>
+        </div>`;
+      }
+
+      return `
+      <div style="margin-top:14px;display:flex;flex-direction:column;gap:16px">
+        <!-- Data Clearing & Maintenance Options (Strict Super Admin Only) -->
         <div class="card" style="background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.3);border-radius:12px;padding:16px">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid rgba(239,68,68,0.2)">
             <div>
-              <h4 style="margin:0 0 4px;color:#fca5a5;font-size:15px">🗑️ දත්ත පිරිසිදු කිරීම සහ නඩත්තුව (Shop-Isolated Reset)</h4>
+              <h4 style="margin:0 0 4px;color:#fca5a5;font-size:15px">🛠️ පද්ධති නඩත්තුව සහ දත්ත පිරිසිදු කිරීම (Super Admin Only)</h4>
               <p style="color:var(--muted);font-size:12px;margin:0">
-                පරීක්ෂණ ගනුදෙනු මකා දැමීම හෝ සාප්පුව ආරම්භක තත්ත්වයට පත් කිරීම සඳහා පහත විකල්ප භාවිතා කරන්න.
+                පරීක්ෂණ ගනුදෙනු මකා දැමීම, සාප්පුව ආරම්භක තත්ත්වයට පත් කිරීම හෝ සේවාදායකයාට විකිණීමට සූදානම් කිරීම සඳහා පහත විකල්ප භාවිතා කරන්න.
               </p>
             </div>
             <span class="pill" style="background:rgba(59,130,246,0.15);color:#93c5fd;border:1px solid rgba(59,130,246,0.3);font-size:12px;padding:4px 10px;font-weight:600">
@@ -506,8 +524,9 @@ function editUser(id){
      <div><label style="font-size:11.5px;color:var(--muted);font-weight:600">තනතුර / Role</label>
        <select id="uRoleSelect">
          <option value="cashier" ${u.role==='cashier'?'selected':''}>💵 කැෂියර් (Cashier)</option>
+         ${state.user?.role === 'superadmin' ? `
          <option value="admin" ${u.role==='admin'?'selected':''}>🛡️ පරිපාලක (Admin)</option>
-         <option value="superadmin" ${u.role==='superadmin'?'selected':''}>👑 සුපිරි පරිපාලක (Super Admin)</option>
+         <option value="superadmin" ${u.role==='superadmin'?'selected':''}>👑 සුපිරි පරිපාලක (Super Admin)</option>` : ''}
        </select></div>
    </div>
    <div style="margin-top:12px">
@@ -534,6 +553,12 @@ async function saveUser(id){
     btn.textContent = 'සුරකිමින් පවතී... ⏳';
   }
 
+  if(state.user?.role !== 'superadmin' && (role === 'superadmin' || role === 'admin')){
+    toast('ඔබට පරිපාලක (Admin) හෝ සුපිරි පරිපාලක ගිණුම් සෑදීමට අවසර නැත', 'err');
+    if(btn){ btn.disabled = false; btn.textContent = '💾 සුරකින්න'; }
+    return;
+  }
+
   const db = window.DB || {};
   if(!db.users) db.users = [];
 
@@ -550,9 +575,14 @@ async function saveUser(id){
     || (state.activeShop && state.activeShop.id) 
     || 'SHOP-001';
 
-  const perms = (typeof getDefaultPermissionsForRole === 'function')
+  let perms = (typeof getDefaultPermissionsForRole === 'function')
     ? getDefaultPermissionsForRole(role)
     : ['billing', 'dashboard', 'pos', 'customers', 'lowstock', 'profile'];
+
+  if(state.user?.role !== 'superadmin'){
+    const myPerms = Array.isArray(state.user?.permissions) ? state.user.permissions : (typeof getDefaultPermissionsForRole === 'function' ? getDefaultPermissionsForRole(state.user?.role) : []);
+    perms = perms.filter(p => myPerms.includes(p));
+  }
 
   try {
     if(id){
@@ -876,6 +906,10 @@ async function importBackup(file){
 }
 
 async function clearTransactions(){
+  if(window.state?.user?.role !== 'superadmin'){
+    toast('මෙම ක්‍රියාව සඳහා සුපිරි පරිපාලක (Super Admin) අවසරය අවශ්‍ය වේ!', 'err');
+    return;
+  }
   const shopId = (typeof currentShopId === 'function' && currentShopId()) || state.user?.shopId || state.activeShopId || 'SHOP-001';
   const shopName = state.activeShop?.name || 'Default Shop';
 
@@ -887,6 +921,10 @@ async function clearTransactions(){
 }
 
 function openProductionResetModal(){
+  if(window.state?.user?.role !== 'superadmin'){
+    toast('මෙම ක්‍රියාව සඳහා සුපිරි පරිපාලක (Super Admin) අවසරය අවශ්‍ය වේ!', 'err');
+    return;
+  }
   const shopId = (typeof currentShopId === 'function' && currentShopId()) || state.user?.shopId || state.activeShopId || 'SHOP-001';
   const shopName = state.activeShop?.name || shopId;
 
@@ -935,6 +973,10 @@ function openProductionResetModal(){
 }
 
 async function submitProductionReset(){
+  if(window.state?.user?.role !== 'superadmin'){
+    toast('මෙම ක්‍රියාව සඳහා සුපිරි පරිපාලක (Super Admin) අවසරය අවශ්‍ය වේ!', 'err');
+    return;
+  }
   const isFull = document.querySelector('input[name="resetMode"]:checked')?.value === 'full';
   const btn = $('#btnConfirmReset');
   if(btn){
@@ -945,6 +987,10 @@ async function submitProductionReset(){
 }
 
 async function executeProductionReset(wipeInventory = true){
+  if(window.state?.user?.role !== 'superadmin'){
+    toast('මෙම ක්‍රියාව සඳහා සුපිරි පරිපාලක (Super Admin) අවසරය අවශ්‍ය වේ!', 'err');
+    return;
+  }
   const shopId = (typeof currentShopId === 'function' && currentShopId()) || state.user?.shopId || state.activeShopId || 'SHOP-001';
   const shopName = state.activeShop?.name || shopId;
   const db = window.DB || {};
@@ -1099,6 +1145,10 @@ async function executeProductionReset(wipeInventory = true){
 }
 
 function resetToDemo(){
+  if(window.state?.user?.role !== 'superadmin'){
+    toast('මෙම ක්‍රියාව සඳහා සුපිරි පරිපාලක (Super Admin) අවසරය අවශ්‍ය වේ!', 'err');
+    return;
+  }
   const shopId = (typeof currentShopId === 'function' && currentShopId()) || state.user?.shopId || state.activeShopId || 'SHOP-001';
   const shopName = state.activeShop?.name || shopId;
 
@@ -1188,6 +1238,10 @@ function resetToDemo(){
 }
 
 function wipeLocalCache(){
+  if(window.state?.user?.role !== 'superadmin'){
+    toast('මෙම ක්‍රියාව සඳහා සුපිරි පරිපාලක (Super Admin) අවසරය අවශ්‍ය වේ!', 'err');
+    return;
+  }
   const shopId = (typeof currentShopId === 'function' && currentShopId()) || state.user?.shopId || state.activeShopId || 'SHOP-001';
   const shopName = state.activeShop?.name || shopId;
 
@@ -1228,6 +1282,10 @@ function wipeLocalCache(){
 }
 
 function wipeAllLocalCache(){
+  if(window.state?.user?.role !== 'superadmin'){
+    toast('මෙම ක්‍රියාව සඳහා සුපිරි පරිපාලක (Super Admin) අවසරය අවශ්‍ය වේ!', 'err');
+    return;
+  }
   if(!confirm('අවධානයයි: මෙම බ්‍රවුසරයේ ඇති සියලුම සාප්පු වල (All Shops) Local Storage දත්ත හා Cache සම්පූර්ණයෙන්ම මකා දැමීමට අවශ්‍ය බව සහතිකද?')) return;
 
   const keysToRemove = [];

@@ -525,6 +525,12 @@ async function saveEditProfile(){
 function renderPermEditorHtml(selectedPerms = [], isSelf = false){
   const groups = window.PERMISSION_GROUPS || [];
   const perms = window.PERMISSIONS || [];
+  const currentUser = window.state?.user || {};
+  const isSuper = currentUser.role === 'superadmin';
+  const myPerms = isSuper 
+    ? perms.map(p => p.id) 
+    : (currentUser.permissions || (typeof getDefaultPermissionsForRole === 'function' ? getDefaultPermissionsForRole(currentUser.role) : []));
+
   const activeCount = selectedPerms.length;
   const totalCount = perms.length;
 
@@ -535,6 +541,10 @@ function renderPermEditorHtml(selectedPerms = [], isSelf = false){
         <span>🔐 අවසර කළමනාකරණය · Permissions</span>
         <span class="perm-count-badge" id="permCountBadge">${activeCount} of ${totalCount} permissions</span>
       </div>
+      ${!isSuper ? `
+        <div style="font-size:11.5px;color:#93c5fd;margin-top:4px;background:rgba(59,130,246,0.1);padding:5px 8px;border-radius:6px;border:1px solid rgba(59,130,246,0.25)">
+          🛡️ <b>පරිපාලක සීමාව:</b> ඔබට පැවරී ඇති අවසරයන් පමණක් අනෙක් සේවකයින්ට ලබාදිය හැක (Only your assigned permissions can be granted).
+        </div>` : ''}
     </div>
 
     ${isSelf ? `
@@ -545,10 +555,12 @@ function renderPermEditorHtml(selectedPerms = [], isSelf = false){
       <div class="perm-presets-bar">
         <span class="perm-preset-lbl">Presets:</span>
         <button type="button" class="perm-preset-btn" onclick="applyPermPreset('cashier')">💵 Cashier</button>
-        <button type="button" class="perm-preset-btn" onclick="applyPermPreset('supervisor')">🛡️ Supervisor</button>
-        <button type="button" class="perm-preset-btn" onclick="applyPermPreset('inventory_mgr')">📦 Inventory</button>
-        <button type="button" class="perm-preset-btn" onclick="applyPermPreset('sales_mgr')">📈 Sales Mgr</button>
-        <button type="button" class="perm-preset-btn" onclick="applyPermPreset('full')">⚡ Full Access</button>
+        ${isSuper ? `
+          <button type="button" class="perm-preset-btn" onclick="applyPermPreset('supervisor')">🛡️ Supervisor</button>
+          <button type="button" class="perm-preset-btn" onclick="applyPermPreset('inventory_mgr')">📦 Inventory</button>
+          <button type="button" class="perm-preset-btn" onclick="applyPermPreset('sales_mgr')">📈 Sales Mgr</button>
+          <button type="button" class="perm-preset-btn" onclick="applyPermPreset('full')">⚡ Full Access</button>
+        ` : ''}
         <div class="perm-quick-actions">
           <button type="button" class="perm-quick-btn" onclick="toggleAllPerms(true)">සියල්ල (All)</button>
           <button type="button" class="perm-quick-btn" onclick="toggleAllPerms(false)">කිසිවක් නැත (None)</button>
@@ -568,15 +580,16 @@ function renderPermEditorHtml(selectedPerms = [], isSelf = false){
             </div>
             <div class="perm-grid">
               ${groupPerms.map(p => {
-                const checked = selectedPerms.includes(p.id) ? 'checked' : '';
-                const disabled = isSelf ? 'disabled' : '';
+                const canGrant = isSuper || myPerms.includes(p.id);
+                const checked = (selectedPerms.includes(p.id) && canGrant) ? 'checked' : '';
+                const disabled = (isSelf || !canGrant) ? 'disabled' : '';
                 return `
-                  <label class="perm-item">
+                  <label class="perm-item ${!canGrant ? 'perm-item-disabled' : ''}" style="${!canGrant ? 'opacity:0.55;cursor:not-allowed;background:rgba(239,68,68,0.04);border-color:rgba(239,68,68,0.15)' : ''}">
                     <input type="checkbox" name="userPerm" value="${esc(p.id)}" ${checked} ${disabled} onchange="updatePermCountBadge()">
                     <div class="perm-item-content">
-                      <div class="perm-item-label">
-                        ${esc(p.si)}
-                        <small>(${esc(p.name)})</small>
+                      <div class="perm-item-label" style="display:flex;align-items:center;justify-content:space-between;gap:6px">
+                        <span>${esc(p.si)} <small>(${esc(p.name)})</small></span>
+                        ${!canGrant ? '<span style="font-size:9.5px;color:#f87171;font-weight:700">🔒 අවසර නැත</span>' : ''}
                       </div>
                       <div class="perm-item-desc">${esc(p.desc)}</div>
                     </div>
@@ -594,20 +607,36 @@ function renderPermEditorHtml(selectedPerms = [], isSelf = false){
 function applyPermPreset(presetKey){
   const preset = (window.PERMISSION_PRESETS || {})[presetKey];
   if(!preset) return;
+  const currentUser = window.state?.user || {};
+  const isSuper = currentUser.role === 'superadmin';
+  const myPerms = isSuper 
+    ? null 
+    : (currentUser.permissions || (typeof getDefaultPermissionsForRole === 'function' ? getDefaultPermissionsForRole(currentUser.role) : []));
+
   const boxes = document.querySelectorAll('input[name="userPerm"]');
   boxes.forEach(cb => {
     if(!cb.disabled){
-      cb.checked = preset.perms.includes(cb.value);
+      const permVal = cb.value;
+      const canGrant = isSuper || (myPerms && myPerms.includes(permVal));
+      cb.checked = canGrant && preset.perms.includes(permVal);
     }
   });
   updatePermCountBadge();
 }
 
 function toggleAllPerms(check){
+  const currentUser = window.state?.user || {};
+  const isSuper = currentUser.role === 'superadmin';
+  const myPerms = isSuper 
+    ? null 
+    : (currentUser.permissions || (typeof getDefaultPermissionsForRole === 'function' ? getDefaultPermissionsForRole(currentUser.role) : []));
+
   const boxes = document.querySelectorAll('input[name="userPerm"]');
   boxes.forEach(cb => {
     if(!cb.disabled){
-      cb.checked = !!check;
+      const permVal = cb.value;
+      const canGrant = isSuper || (myPerms && myPerms.includes(permVal));
+      cb.checked = check && canGrant;
     }
   });
   updatePermCountBadge();
@@ -714,7 +743,11 @@ async function saveNewCashier(){
   }
 
   const selectedPerms = getSelectedPermsFromModal();
-  const permissions = selectedPerms.length ? selectedPerms : ['billing', 'dashboard', 'customers', 'lowstock', 'profile'];
+  let permissions = selectedPerms.length ? selectedPerms : ['billing', 'dashboard', 'customers', 'lowstock', 'profile'];
+  if(state.user?.role !== 'superadmin'){
+    const myPerms = state.user?.permissions || (typeof getDefaultPermissionsForRole === 'function' ? getDefaultPermissionsForRole(state.user?.role) : []);
+    permissions = permissions.filter(p => myPerms.includes(p));
+  }
 
   const hashedPassword = window.Security ? await window.Security.hashPassword(password) : password;
 
@@ -853,7 +886,11 @@ async function saveNewUser(){
   const defaultPerms = (typeof getDefaultPermissionsForRole === 'function') 
     ? getDefaultPermissionsForRole(role) 
     : ['billing', 'dashboard', 'customers', 'lowstock', 'profile'];
-  const permissions = selectedPerms.length ? selectedPerms : defaultPerms;
+  let permissions = selectedPerms.length ? selectedPerms : defaultPerms;
+  if(state.user?.role !== 'superadmin'){
+    const myPerms = state.user?.permissions || (typeof getDefaultPermissionsForRole === 'function' ? getDefaultPermissionsForRole(state.user?.role) : []);
+    permissions = permissions.filter(p => myPerms.includes(p));
+  }
 
   const hashedPassword = window.Security ? await window.Security.hashPassword(password) : password;
 
@@ -990,7 +1027,11 @@ async function saveEditedUser(userId){
     };
 
     if(!isSelf){
-      const newPerms = getSelectedPermsFromModal();
+      let newPerms = getSelectedPermsFromModal();
+      if(state.user?.role !== 'superadmin'){
+        const myPerms = state.user?.permissions || (typeof getDefaultPermissionsForRole === 'function' ? getDefaultPermissionsForRole(state.user?.role) : []);
+        newPerms = newPerms.filter(p => myPerms.includes(p));
+      }
       u.permissions = newPerms;
       updatePayload.permissions = newPerms;
     }
