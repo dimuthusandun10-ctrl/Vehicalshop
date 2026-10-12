@@ -40,16 +40,32 @@ function toast(msg, type='ok'){
 }
 
 function openModal(title, sub, body, footer, wide){
+  // Handle overloaded signatures: openModal(title, body, footer, wide) or openModal(title, body, footer)
+  if(arguments.length === 3 && typeof footer === 'undefined'){
+    footer = body;
+    body = sub;
+    sub = '';
+  } else if(arguments.length === 4 && typeof wide === 'undefined' && typeof footer === 'boolean'){
+    wide = footer;
+    footer = body;
+    body = sub;
+    sub = '';
+  } else if(arguments.length === 2 && typeof body === 'undefined'){
+    body = sub;
+    sub = '';
+    footer = '';
+  }
+
   const root = $('#modalRoot');
   if(!root) return;
   root.innerHTML = `
     <div class="modal-bg" onclick="if(event.target===this)closeModal()">
       <div class="modal ${wide?'wide':''}">
         <div class="modal-h">
-          <h3>${title}<small>${sub||''}</small></h3>
+          <h3>${title}${sub ? `<small>${sub}</small>` : ''}</h3>
           <button class="close-x" onclick="closeModal()">✕</button>
         </div>
-        <div class="modal-b">${body}</div>
+        <div class="modal-b">${body || ''}</div>
         ${footer?`<div class="modal-f">${footer}</div>`:''}
       </div>
     </div>`;

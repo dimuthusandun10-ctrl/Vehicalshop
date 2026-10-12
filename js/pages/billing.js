@@ -2016,64 +2016,70 @@ function openPrinterQuickModal(){
   const autoD = (window.Printer && window.Printer.autoDrawer) !== false;
 
   const html = `
-    <div style="padding:16px">
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--line)">
-        <span style="font-size:32px">🖨️</span>
-        <div>
-          <h3 style="margin:0;font-size:16px">Bluetooth Thermal Printer</h3>
-          <small style="color:${isConn?'#10b981':'#94a3b8'};font-weight:700">
-            ${isConn ? '🟢 සම්බන්ධ වී ඇත: ' + esc(pName) : '⚪ සම්බන්ධ වී නොමැත'}
-          </small>
+    <div class="printer-modal-content">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;padding:12px;background:var(--panel2,#0b1325);border-radius:10px;border:1px solid var(--line)">
+        <span style="font-size:28px">🖨️</span>
+        <div style="flex:1;min-width:0">
+          <h4 style="margin:0;font-size:14.5px;color:var(--txt)">${esc(pName)}</h4>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
+            <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${isConn?'#10b981':'#94a3b8'}"></span>
+            <small style="color:${isConn?'#10b981':'#94a3b8'};font-weight:700;font-size:11.5px">
+              ${isConn ? 'සම්බන්ධ වී ඇත (Connected)' : 'සම්බන්ධ වී නොමැත (Disconnected)'}
+            </small>
+          </div>
         </div>
       </div>
 
       <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
         ${!isConn ? `
-          <button class="btn btn-primary" onclick="closeModal();if(window.Printer)Printer.connect().then(ok=>{if(ok&&window.updateBillingPrinterBtn)updateBillingPrinterBtn();})" style="padding:10px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px">
+          <button class="btn btn-primary" onclick="closeModal();if(window.Printer)Printer.connect().then(ok=>{if(ok&&window.updateBillingPrinterBtn)updateBillingPrinterBtn();})" style="width:100%;padding:12px 14px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;font-size:13px;white-space:normal;line-height:1.35;text-align:center">
             🔗 Bluetooth Printer සම්බන්ධ කරන්න (Connect)
           </button>
         ` : `
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-            <button class="btn btn-primary" onclick="if(window.Printer)Printer.testPrint()" style="padding:9px;font-size:12px">
+            <button class="btn btn-primary" onclick="if(window.Printer)Printer.testPrint()" style="padding:10px 6px;font-size:12px;justify-content:center">
               🧪 Test Print (පරීක්ෂා)
             </button>
-            <button class="btn" onclick="if(window.Printer)Printer.openCashDrawer()" style="padding:9px;font-size:12px">
+            <button class="btn" onclick="if(window.Printer)Printer.openCashDrawer()" style="padding:10px 6px;font-size:12px;justify-content:center">
               🚪 Cash Drawer (ලාච්චුව)
             </button>
           </div>
-          <button class="btn" onclick="if(window.reprintLastReceipt)reprintLastReceipt();else if(window.Printer&&window._lastReceiptSale)Printer.printReceipt(window._lastReceiptSale);" style="padding:9px;font-size:12px">
+          <button class="btn" onclick="if(window.reprintLastReceipt)reprintLastReceipt();else if(window.Printer&&window._lastReceiptSale)Printer.printReceipt(window._lastReceiptSale);" style="padding:10px;font-size:12px;justify-content:center">
             🧾 අවසන් බිල මුද්‍රණය (Last Receipt)
           </button>
-          <button class="btn btn-red" onclick="if(window.Printer)Printer.disconnect();closeModal();if(window.updateBillingPrinterBtn)updateBillingPrinterBtn();" style="padding:8px;font-size:12px">
+          <button class="btn btn-red" onclick="if(window.Printer)Printer.disconnect();closeModal();if(window.updateBillingPrinterBtn)updateBillingPrinterBtn();" style="padding:10px;font-size:12px;justify-content:center">
             🔌 ඉවත් කරන්න (Disconnect)
           </button>
         `}
       </div>
 
-      <div style="background:var(--bg,#0a0f1d);padding:12px;border-radius:8px;border:1px solid var(--line);display:flex;flex-direction:column;gap:10px;font-size:12.5px">
-        <div style="display:flex;justify-content:space-between;align-items:center">
+      <div style="background:var(--panel2,#0b1325);padding:14px;border-radius:10px;border:1px solid var(--line);display:flex;flex-direction:column;gap:12px;font-size:12.5px">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
           <span>කඩදාසි ප්‍රමාණය (Paper Width):</span>
-          <select onchange="localStorage.setItem('pos.printerWidth', this.value);if(window.toast)toast('කඩදාසි ප්‍රමාණය '+this.value+'mm ලෙස සුරකින ලදී','ok');if(window.updateBillingPrinterBtn)updateBillingPrinterBtn();" style="padding:4px 8px;border-radius:6px;width:100px">
+          <select onchange="localStorage.setItem('pos.printerWidth', this.value);if(window.toast)toast('කඩදාසි ප්‍රමාණය '+this.value+'mm ලෙස සුරකින ලදී','ok');if(window.updateBillingPrinterBtn)updateBillingPrinterBtn();" style="padding:6px 10px;border-radius:6px;width:95px;background:var(--bg,#080d1a);color:var(--txt,#fff);border:1px solid var(--line);font-size:13px">
             <option value="58" ${width==='58'?'selected':''}>58mm</option>
             <option value="80" ${width==='80'?'selected':''}>80mm</option>
           </select>
         </div>
-        <div style="display:flex;justify-content:space-between;align-items:center">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
           <span>බිල අවසන් කළ පසු Auto Print:</span>
-          <input type="checkbox" ${autoP?'checked':''} onchange="localStorage.setItem('pos.printer.autoprint', this.checked);if(window.toast)toast('Auto Print '+ (this.checked?'සක්‍රියයි':'අක්‍රියයි'),'info')" style="width:16px;height:16px;accent-color:#10b981">
+          <input type="checkbox" ${autoP?'checked':''} onchange="localStorage.setItem('pos.printer.autoprint', this.checked);if(window.toast)toast('Auto Print '+ (this.checked?'සක්‍රියයි':'අක්‍රියයි'),'info')" style="width:18px;height:18px;accent-color:#10b981;cursor:pointer">
         </div>
-        <div style="display:flex;justify-content:space-between;align-items:center">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
           <span>මුදල් ලාච්චුව Auto Open (Cash Drawer):</span>
-          <input type="checkbox" ${autoD?'checked':''} onchange="localStorage.setItem('pos.printer.autodrawer', this.checked);if(window.toast)toast('Auto Drawer '+ (this.checked?'සක්‍රියයි':'අක්‍රියයි'),'info')" style="width:16px;height:16px;accent-color:#10b981">
+          <input type="checkbox" ${autoD?'checked':''} onchange="localStorage.setItem('pos.printer.autodrawer', this.checked);if(window.toast)toast('Auto Drawer '+ (this.checked?'සක්‍රියයි':'අක්‍රියයි'),'info')" style="width:18px;height:18px;accent-color:#10b981;cursor:pointer">
         </div>
       </div>
     </div>
   `;
 
   if(typeof openModal === 'function'){
-    openModal('🖨️ Thermal Printer කළමනාකරණය', html, `
-      <button class="btn btn-sm" onclick="closeModal()">වසන්න (Close)</button>
-    `);
+    openModal(
+      '🖨️ Thermal Printer කළමනාකරණය',
+      'ESC/POS 58mm / 80mm Settings',
+      html,
+      `<button class="btn btn-sm" onclick="closeModal()">වසන්න (Close)</button>`
+    );
   }
 }
 

@@ -68,49 +68,56 @@ function pgLabels(){
           </div>
         </div>
 
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)">
-          <div style="display:flex;gap:8px">
-            <button class="btn btn-sm" onclick="toggleAllLabels(true)">✅ සියල්ල තෝරන්න (Select All)</button>
-            <button class="btn btn-sm" onclick="toggleAllLabels(false)">❌ සියල්ල ඉවත් කරන්න (Clear)</button>
-          </div>
-          <div style="display:flex;gap:8px">
-            <button class="btn btn-sm" onclick="previewLabels()">👁️ පෙරදසුන (Preview)</button>
-            <button class="btn btn-primary btn-sm" onclick="printLabels()">🖨️ ලේබල් මුද්‍රණය (Print Labels)</button>
-          </div>
+        <div class="labels-action-grid">
+          <button class="btn btn-sm" onclick="toggleAllLabels(true)" style="width:100%;justify-content:center;padding:8px 4px;font-size:12px">
+            ✅ සියල්ල තෝරන්න
+          </button>
+          <button class="btn btn-sm" onclick="toggleAllLabels(false)" style="width:100%;justify-content:center;padding:8px 4px;font-size:12px">
+            ❌ ඉවත් කරන්න
+          </button>
+          <button class="btn btn-sm" onclick="previewLabels()" style="width:100%;justify-content:center;padding:8px 4px;font-size:12px">
+            👁️ පෙරදසුන
+          </button>
+          <button class="btn btn-primary btn-sm" onclick="printLabels()" style="width:100%;justify-content:center;padding:8px 4px;font-size:12px;font-weight:700">
+            🖨️ ලේබල් මුද්‍රණය
+          </button>
         </div>
       </div>
 
       <!-- Products Grid / Selection List -->
       <div style="margin-top:16px">
         <h4 style="font-size:14px;margin-bottom:10px;color:var(--txt)">ලේබල් මුද්‍රණය කිරීමට භාණ්ඩ තෝරන්න:</h4>
-        <div style="max-height:480px;overflow-y:auto;border:1px solid var(--line);border-radius:10px">
-          <table class="tbl" style="width:100%;border-collapse:collapse;font-size:12.5px">
+        <div style="max-height:480px;overflow-y:auto;border:1px solid var(--line);border-radius:10px;background:var(--panel)">
+          <table class="tbl no-card label-table" style="width:100%;border-collapse:collapse;font-size:12.5px">
             <thead>
-              <tr style="background:var(--panel2);position:sticky;top:0;z-index:1">
+              <tr style="background:var(--panel2);position:sticky;top:0;z-index:2">
                 <th style="width:40px;text-align:center"><input type="checkbox" id="thSelectAll" onchange="toggleAllLabels(this.checked)"></th>
                 <th style="width:110px">කේතය (Code)</th>
                 <th>භාණ්ඩයේ නම (Product Name)</th>
-                <th style="width:110px">OEM අංකය</th>
-                <th style="width:90px;text-align:right">මිල (Rs.)</th>
-                <th style="width:70px;text-align:center">තොග</th>
-                <th style="width:90px;text-align:center">පිටපත් (Qty)</th>
+                <th style="width:110px" class="desktop-cell">OEM අංකය</th>
+                <th style="width:100px;text-align:right">මිල (Rs.)</th>
+                <th style="width:75px;text-align:center">තොග</th>
+                <th style="width:95px;text-align:center">පිටපත් (Qty)</th>
               </tr>
             </thead>
             <tbody>
               ${filtered.length ? filtered.map(p => `
-                <tr style="border-bottom:1px solid var(--line)">
-                  <td style="text-align:center">
-                    <input type="checkbox" class="label-cb" data-pid="${esc(p.id)}" onchange="updateSelectedCount()">
+                <tr class="label-row" style="border-bottom:1px solid var(--line)" onclick="if(!event.target.closest('input,button,select,a')){ const cb = this.querySelector('.label-cb'); if(cb){ cb.checked = !cb.checked; cb.dispatchEvent(new Event('change')); } }">
+                  <td class="cell-cb" style="text-align:center">
+                    <input type="checkbox" class="label-cb" data-pid="${esc(p.id)}" onchange="updateSelectedCount(); this.closest('.label-row')?.classList.toggle('selected', this.checked)">
                   </td>
-                  <td><b>${esc(p.code || 'N/A')}</b></td>
-                  <td>
-                    <div>${esc(p.name)}</div>
-                    ${p.nameEn ? `<small style="color:var(--muted)">${esc(p.nameEn)}</small>` : ''}
+                  <td class="cell-code">
+                    <span class="lbl-code-tag"><b>${esc(p.code || 'N/A')}</b></span>
+                    ${p.oemNo ? `<span class="lbl-oem-tag">OEM: ${esc(p.oemNo)}</span>` : ''}
                   </td>
-                  <td>${esc(p.oemNo || '-')}</td>
-                  <td style="text-align:right"><b>${Number(p.price || 0).toFixed(2)}</b></td>
-                  <td style="text-align:center"><span class="pill ${p.qty > 0 ? 'ok' : 'bad'}">${p.qty}</span></td>
-                  <td style="text-align:center">
+                  <td class="cell-name">
+                    <div class="lbl-name-main">${esc(p.name)}</div>
+                    ${p.nameEn ? `<small class="lbl-name-en" style="color:var(--muted)">${esc(p.nameEn)}</small>` : ''}
+                  </td>
+                  <td class="cell-oem desktop-cell">${esc(p.oemNo || '-')}</td>
+                  <td class="cell-price" style="text-align:right"><b class="lbl-price-val">Rs. ${Number(p.price || 0).toFixed(2)}</b></td>
+                  <td class="cell-stock" style="text-align:center"><span class="pill ${p.qty > 0 ? 'ok' : 'bad'}">${p.qty}</span></td>
+                  <td class="cell-qty" style="text-align:center">
                     <input type="number" class="lip-qty" data-pid="${esc(p.id)}" value="1" min="1" max="99"
                            style="width:55px;padding:3px 6px;text-align:center;border-radius:6px">
                   </td>
@@ -127,11 +134,11 @@ function pgLabels(){
         </div>
       </div>
 
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px">
-        <span id="lblSelectedCount" style="font-size:13px;color:var(--muted);font-weight:600">තෝරාගත් භාණ්ඩ: 0</span>
-        <div style="display:flex;gap:8px">
-          <button class="btn" onclick="previewLabels()">👁️ පෙරදසුන (Preview)</button>
-          <button class="btn btn-primary" onclick="printLabels()">🖨️ ලේබල් මුද්‍රණය (Print Labels)</button>
+      <div class="labels-bottom-bar">
+        <span id="lblSelectedCount" style="font-size:13.5px;color:var(--txt);font-weight:700">තෝරාගත් භාණ්ඩ: 0</span>
+        <div class="bottom-btns" style="display:flex;gap:8px">
+          <button class="btn" onclick="previewLabels()" style="flex:1;justify-content:center;padding:10px 8px;font-size:13px">👁️ පෙරදසුන</button>
+          <button class="btn btn-primary" onclick="printLabels()" style="flex:1;justify-content:center;padding:10px 8px;font-size:13px;font-weight:700">🖨️ ලේබල් මුද්‍රණය</button>
         </div>
       </div>
     </div>
@@ -150,6 +157,7 @@ function updateSelectedCount(){
 function toggleAllLabels(select){
   document.querySelectorAll('.label-cb').forEach(cb => {
     cb.checked = Boolean(select);
+    cb.closest('.label-row')?.classList.toggle('selected', Boolean(select));
   });
   const th = document.getElementById('thSelectAll');
   if(th) th.checked = Boolean(select);
