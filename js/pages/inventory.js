@@ -321,12 +321,17 @@ function pgInventory(){
             <h3>📦 භාණ්ඩ ලේඛනය</h3>
             <small>Inventory · <span id="invCount">0</span> items</small>
           </div>
-          ${(hasPermission('inventory') || (state.user && state.user.role !== 'cashier')) ? `
-            <button class="btn btn-primary btn-add" onclick="editProduct()">
-              <span class="desktop-only">+ නව භාණ්ඩය</span>
-              <span class="mobile-only">+ නව</span>
+          <div style="display:flex;gap:6px;align-items:center">
+            <button class="btn btn-sm" onclick="exportInventoryCSV()" title="සම්පූර්ණ තොග නාමාවලිය CSV ලෙස බාගත කරන්න" style="display:flex;align-items:center;gap:4px;padding:7px 11px;font-size:12px">
+              ⬇️ CSV
             </button>
-          ` : ''}
+            ${(hasPermission('inventory') || (state.user && state.user.role !== 'cashier')) ? `
+              <button class="btn btn-primary btn-add" onclick="editProduct()">
+                <span class="desktop-only">+ නව භාණ්ඩය</span>
+                <span class="mobile-only">+ නව</span>
+              </button>
+            ` : ''}
+          </div>
         </div>
         
         <!-- ⭐ Search -->

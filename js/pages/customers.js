@@ -354,12 +354,17 @@ function pgCustomers(){
             <h3>👥 පාරිභෝගික ලේඛනය</h3>
             <small>Customers · <span id="custCount">${all}</span> registered</small>
           </div>
-          ${canEditCustomers() ? `
-            <button class="btn btn-primary btn-add" onclick="editCustomer()">
-              <span class="desktop-only">+ නව පාරිභෝගිකයා</span>
-              <span class="mobile-only">+</span>
+          <div style="display:flex;gap:6px;align-items:center">
+            <button class="btn btn-sm" onclick="exportCustomersCSV()" title="පාරිභෝගික නාමාවලිය CSV ලෙස බාගත කරන්න" style="display:flex;align-items:center;gap:4px;padding:7px 11px;font-size:12px">
+              ⬇️ CSV
             </button>
-          ` : ''}
+            ${canEditCustomers() ? `
+              <button class="btn btn-primary btn-add" onclick="editCustomer()">
+                <span class="desktop-only">+ නව පාරිභෝගිකයා</span>
+                <span class="mobile-only">+</span>
+              </button>
+            ` : ''}
+          </div>
         </div>
 
         <!-- Search row -->

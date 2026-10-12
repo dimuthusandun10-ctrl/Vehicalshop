@@ -50,6 +50,7 @@ function pgReports(){
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           <button class="btn btn-sm" onclick="state.repFrom='${today()}';state.repTo='${today()}';render()">අද (Today)</button>
+          <button class="btn btn-sm" onclick="setThisMonthRange()">මේ මාසය (This Month)</button>
           <button class="btn btn-sm" onclick="setQuickReportsRange(7)">දින 7</button>
           <button class="btn btn-sm" onclick="setQuickReportsRange(30)">දින 30</button>
           <button class="btn btn-sm" onclick="window.print()">🖨️ මුද්‍රණය</button>
@@ -374,6 +375,15 @@ function repProfitLoss(from, to){
 /* =========================================================
    DATE RANGE & HELPER FUNCTIONS
    ========================================================= */
+function setThisMonthRange(){
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  state.repFrom = `${y}-${m}-01`;
+  state.repTo = today();
+  render();
+}
+
 function setQuickReportsRange(days){
   const toDate = new Date();
   const fromDate = new Date();
@@ -572,6 +582,7 @@ window.pgReports = pgReports;
 window.repSalesOverview = repSalesOverview;
 window.repProfitLoss = repProfitLoss;
 window.setQuickReportsRange = setQuickReportsRange;
+window.setThisMonthRange = setThisMonthRange;
 window.openReportsDatePicker = openReportsDatePicker;
 window.exportSalesCSV = exportSalesCSV;
 window.exportPLCSV = exportPLCSV;

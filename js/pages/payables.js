@@ -18,7 +18,7 @@ function pgPayables(){
     
     // Payments & cheques from supplierPayments collection
     const payments = (db.supplierPayments || []).filter(p => 
-      p.supplierId === sup.id
+      p.supplierId === sup.id || (p.supplierName && p.supplierName === sup.name)
     );
     
     // Cash / Bank payments that are cleared
@@ -252,7 +252,7 @@ function filterPayablesList(){
   const supplierData = suppliers.map(sup => {
     const grns = (db.grns || []).filter(g => g.supplierId === sup.id || g.supplier === sup.name);
     const totalPurchased = grns.reduce((a, g) => a + (Number(g.total) || 0), 0);
-    const payments = (db.supplierPayments || []).filter(p => p.supplierId === sup.id);
+    const payments = (db.supplierPayments || []).filter(p => p.supplierId === sup.id || (p.supplierName && p.supplierName === sup.name));
     const cashPaid = payments.filter(p => p.type === 'payment' && (p.status === 'cleared' || !p.status)).reduce((a, p) => a + (Number(p.amount) || 0), 0);
     const pendingCheques = payments.filter(p => p.type === 'cheque' && p.status === 'pending');
     const clearedCheques = payments.filter(p => p.type === 'cheque' && p.status === 'cleared').reduce((a, p) => a + (Number(p.amount) || 0), 0);
@@ -411,7 +411,12 @@ async function clearCheque(chequeId){
   }
 
   try {
-    if(window.FB && typeof window.FB.fbUpdate === 'function'){
+    if(window.shopUpdate){
+      await window.shopUpdate('supplierPayments', chequeId, {
+        status: 'cleared',
+        clearedAt: new Date().toISOString()
+      });
+    } else if(window.FB && typeof window.FB.fbUpdate === 'function'){
       await window.FB.fbUpdate('supplierPayments', chequeId, {
         status: 'cleared',
         clearedAt: new Date().toISOString()
@@ -437,7 +442,12 @@ async function cancelCheque(chequeId){
   }
 
   try {
-    if(window.FB && typeof window.FB.fbUpdate === 'function'){
+    if(window.shopUpdate){
+      await window.shopUpdate('supplierPayments', chequeId, {
+        status: 'cancelled',
+        cancelledAt: new Date().toISOString()
+      });
+    } else if(window.FB && typeof window.FB.fbUpdate === 'function'){
       await window.FB.fbUpdate('supplierPayments', chequeId, {
         status: 'cancelled',
         cancelledAt: new Date().toISOString()
@@ -465,7 +475,7 @@ function exportPayablesCSV(){
   const rows = suppliers.map(sup => {
     const grns = (db.grns || []).filter(g => g.supplierId === sup.id || g.supplier === sup.name);
     const totalPurchased = grns.reduce((a, g) => a + (Number(g.total) || 0), 0);
-    const payments = (db.supplierPayments || []).filter(p => p.supplierId === sup.id);
+    const payments = (db.supplierPayments || []).filter(p => p.supplierId === sup.id || (p.supplierName && p.supplierName === sup.name));
     const cashPaid = payments.filter(p => p.type === 'payment' && (p.status === 'cleared' || !p.status)).reduce((a, p) => a + (Number(p.amount) || 0), 0);
     const pendingCheques = payments.filter(p => p.type === 'cheque' && p.status === 'pending');
     const clearedCheques = payments.filter(p => p.type === 'cheque' && p.status === 'cleared').reduce((a, p) => a + (Number(p.amount) || 0), 0);
