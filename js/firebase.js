@@ -56,6 +56,11 @@ async function initFirebase(){
     _fbApp = appMod.initializeApp(firebaseConfig);
     _fbDb = fsMod.getFirestore(_fbApp);
     _fbAuth = authMod.getAuth(_fbApp);
+    try {
+      if(authMod.setPersistence && authMod.browserSessionPersistence){
+        await authMod.setPersistence(_fbAuth, authMod.browserSessionPersistence);
+      }
+    } catch(persErr){}
     _fbModules = { appMod, fsMod, authMod };
     _fbReady = true;
     _fbPermissionDenied = false;

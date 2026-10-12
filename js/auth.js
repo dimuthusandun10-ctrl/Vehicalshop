@@ -473,10 +473,16 @@ async function doLogin(){
   state.page = (shortcut && typeof can === 'function' && can(shortcut)) ? shortcut : 'billing';
   state.cart = [];
 
-  // Persist session across browser refresh
+  // Persist session across browser refresh within this tab session
   try {
-    localStorage.setItem('pos.currentUser', JSON.stringify(user));
-    localStorage.setItem('pos.currentPage', state.page);
+    sessionStorage.setItem('pos.tabSessionActive', 'true');
+    sessionStorage.setItem('pos.currentUser', JSON.stringify(user));
+    sessionStorage.setItem('pos.currentPage', state.page);
+    sessionStorage.removeItem('pos.screenLocked');
+
+    // Clear persistent user from localStorage so closing the tab requires re-login
+    localStorage.removeItem('pos.currentUser');
+    localStorage.removeItem('pos.currentPage');
     localStorage.removeItem('pos.screenLocked');
   } catch(e){}
 
@@ -627,6 +633,11 @@ function performLogout(){
 
   // Clear persisted user session & lock state
   try {
+    sessionStorage.removeItem('pos.tabSessionActive');
+    sessionStorage.removeItem('pos.currentUser');
+    sessionStorage.removeItem('pos.currentPage');
+    sessionStorage.removeItem('pos.authToken');
+    sessionStorage.removeItem('pos.screenLocked');
     localStorage.removeItem('pos.currentUser');
     localStorage.removeItem('pos.currentPage');
     localStorage.removeItem('pos.screenLocked');
@@ -754,8 +765,28 @@ window.lockSwitchUser = lockSwitchUser;
    ========================================================= */
 async function restoreSession(){
   try {
-    const userJson = localStorage.getItem('pos.currentUser');
-    if(!userJson) return false;
+    // 🛡️ Tab-Session Guard:
+    // If the browser tab was closed and re-opened, sessionStorage is empty.
+    // The user MUST be redirected to the login page to authenticate!
+    // On page refresh (reload/F5 within the same tab), sessionStorage is preserved,
+    // so the user remains logged in seamlessly on their current page.
+    const isTabSessionActive = sessionStorage.getItem('pos.tabSessionActive');
+    const userJson = sessionStorage.getItem('pos.currentUser');
+
+    if(!isTabSessionActive || !userJson){
+      // Ensure any legacy localStorage session is completely purged
+      try {
+        localStorage.removeItem('pos.currentUser');
+        localStorage.removeItem('pos.currentPage');
+        localStorage.removeItem('pos.screenLocked');
+      } catch(_){}
+      // Sign out background Firebase auth if any
+      if(window.FB && typeof window.FB.signOut === 'function'){
+        window.FB.signOut().catch(() => {});
+      }
+      return false;
+    }
+
     const user = JSON.parse(userJson);
     if(!user || !user.id || !user.role) return false;
 
@@ -765,6 +796,9 @@ async function restoreSession(){
       const liveUser = db.users.find(u => u.id === user.id || u.authUid === user.id);
       if(liveUser){
         if(liveUser.locked === true || liveUser.active === false){
+          sessionStorage.removeItem('pos.tabSessionActive');
+          sessionStorage.removeItem('pos.currentUser');
+          sessionStorage.removeItem('pos.currentPage');
           localStorage.removeItem('pos.currentUser');
           return false;
         }
@@ -818,8 +852,8 @@ async function restoreSession(){
       roleBadge.textContent = typeof ROLE_EN !== 'undefined' ? ROLE_EN[user.role] : user.role;
     }
 
-    // Determine target page: URL shortcut > localStorage saved page > default 'billing'
-    const savedPage = localStorage.getItem('pos.currentPage');
+    // Determine target page: URL shortcut > sessionStorage saved page > default 'billing'
+    const savedPage = sessionStorage.getItem('pos.currentPage') || localStorage.getItem('pos.currentPage');
     const shortcut = window.state?.shortcutPage;
     let targetPage = shortcut || savedPage || 'billing';
     if(typeof can === 'function' && !can(targetPage)){
@@ -851,8 +885,8 @@ async function restoreSession(){
       initIdleTimer();
     }
 
-    // Restore lock state if previously locked
-    if(localStorage.getItem('pos.screenLocked') === 'true'){
+    // Restore lock state if previously locked within this tab session
+    if(sessionStorage.getItem('pos.screenLocked') === 'true' || localStorage.getItem('pos.screenLocked') === 'true'){
       lockScreen();
     }
 
@@ -906,7 +940,8 @@ function lockScreen(){
   if(!window.state?.user) return;
   _isScreenLocked = true;
   try {
-    localStorage.setItem('pos.screenLocked', 'true');
+    sessionStorage.setItem('pos.screenLocked', 'true');
+    localStorage.removeItem('pos.screenLocked');
   } catch(e){}
 
   if(document.getElementById('screenLockOverlay')) return;
@@ -1051,6 +1086,7 @@ async function unlockScreen(){
     if(isValid){
       _isScreenLocked = false;
       try {
+        sessionStorage.removeItem('pos.screenLocked');
         localStorage.removeItem('pos.screenLocked');
       } catch(e){}
 
@@ -1082,6 +1118,7 @@ function lockSwitchUser(){
   if(confirm('ඔබට මෙම ගිණුමෙන් ඉවත් වී වෙනත් පරිශීලකයෙක් ලෙස පිවිසීමට අවශ්‍යද? (Switch User / Log Out?)')){
     _isScreenLocked = false;
     try {
+      sessionStorage.removeItem('pos.screenLocked');
       localStorage.removeItem('pos.screenLocked');
     } catch(e){}
     const overlay = document.getElementById('screenLockOverlay');
