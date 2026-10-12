@@ -105,8 +105,14 @@ function pgGRN(){
 
     <!-- 2. Product Input Section Card -->
     <div class="card grn-search-card">
-      <div class="card-h">
-        <h3>➕ භාණ්ඩ එකතු කරන්න <small>Add Products to GRN · Enter=Add · Tab=Next · F2=Search · Esc=Clear</small></h3>
+      <div class="card-h" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <div>
+          <h3 style="margin:0">➕ භාණ්ඩ එකතු කරන්න</h3>
+          <small style="color:var(--muted)">Add Products to GRN · Enter=Add · Tab=Next · F2=Search · Esc=Clear</small>
+        </div>
+        <button type="button" class="btn btn-sm btn-primary" onclick="grnOpenNewProductModal()" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:6px 12px;font-weight:700">
+          ➕ නව භාණ්ඩයක් (New Item)
+        </button>
       </div>
 
       <!-- Inline Add Row (5 Columns) -->
@@ -130,7 +136,7 @@ function pgGRN(){
                        title="සොයන්න (නම / කේතය / OEM / Barcode)"
                        oninput="grnSearchProducts(this.value)"
                        onkeydown="grnSearchKeydown(event)">
-                <span class="grn-barcode-badge scan-btn grn-scan-btn" onclick="$('#grnSearchInput')?.focus()" title="Barcode Search">📷 SCAN</span>
+                <span class="grn-barcode-badge scan-btn grn-scan-btn" onclick="grnStartCameraScan()" title="Camera එකෙන් Barcode එක Scan කරන්න">📷 SCAN</span>
                 <button type="button" class="grn-overlay-close-btn" onclick="grnCloseSearchOverlay()" title="Close">✕</button>
               </div>
               <div id="grnSearchDropdown" class="grn-search-dropdown grn-search-results"></div>
@@ -409,7 +415,15 @@ function grnSearchProducts(query){
 
   if(!results.length){
     const cleanQ = (query || '').trim();
-    dd.innerHTML = `<div class="grn-no-results grn-search-no-results">${cleanQ ? `🔍 "${esc(cleanQ)}" සඳහා භාණ්ඩ හමු නොවීය` : '🔍 භාණ්ඩ හමු නොවීය'}</div>`;
+    dd.innerHTML = `
+      <div class="grn-no-results grn-search-no-results">${cleanQ ? `🔍 "${esc(cleanQ)}" සඳහා භාණ්ඩ හමු නොවීය` : '🔍 භාණ්ඩ හමු නොවීය'}</div>
+      <div class="grn-search-result grn-sr-add-new-item" onclick="grnOpenNewProductModal('${esc(cleanQ)}')" style="background:rgba(56,189,248,0.08);border-top:1px dashed var(--line);cursor:pointer;padding:12px 14px">
+        <div class="grn-sr-left">
+          <span class="grn-sr-name" style="color:#38bdf8;font-weight:700">➕ නව භාණ්ඩයක් ලියාපදිංචි කරන්න (Add New Product)</span>
+          <small style="color:var(--muted)">${cleanQ ? `"${esc(cleanQ)}" නමින් හෝ කේතයෙන් අලුත් අමතර කොටසක් ඇතුළත් කරන්න` : 'නව අමතර කොටසක් Inventory එකට ඇතුළත් කර GRN කරන්න'}</small>
+        </div>
+      </div>
+    `;
   } else {
     dd.innerHTML = results.map((p, idx) => `
       <div class="grn-search-result ${idx === 0 ? 'active' : ''}" data-idx="${idx}"
@@ -424,7 +438,13 @@ function grnSearchProducts(query){
           <span class="grn-sr-qty">තොග: ${p.qty} ${esc(p.unit || 'pcs')}</span>
         </div>
       </div>
-    `).join('');
+    `).join('') + `
+      <div class="grn-search-result grn-sr-add-new-item" onclick="grnOpenNewProductModal($('#grnSearchInput')?.value || '')" style="background:rgba(56,189,248,0.04);border-top:1px dashed var(--line);cursor:pointer;padding:10px 14px">
+        <div class="grn-sr-left">
+          <span class="grn-sr-name" style="color:#38bdf8;font-weight:600">➕ නව භාණ්ඩයක් ලියාපදිංචි කරන්න (Add New Product)</span>
+        </div>
+      </div>
+    `;
   }
 
   dd.classList.remove('hidden');
@@ -583,9 +603,210 @@ function grnBarcodeLookup(code){
   } else if(partial.length > 1){
     grnSearchProducts(code);
   } else {
-    toast('භාණ්ඩය හමු නොවීය', 'warn');
+    toast(`ℹ️ "${code}" කේතයෙන් භාණ්ඩයක් හමු නොවීය. නව භාණ්ඩයක් ලෙස ලියාපදිංචි කරන්න...`, 'info');
+    grnOpenNewProductModal(code);
   }
 }
+
+/* ---------- Camera Barcode Scanner for GRN ---------- */
+function grnStartCameraScan(){
+  if(typeof BarcodeScanner !== 'undefined' && BarcodeScanner.open){
+    BarcodeScanner.open((code) => {
+      grnBarcodeLookup(code);
+    });
+  } else {
+    toast('Camera Barcode Scanner සක්‍රීය නැත', 'warn');
+  }
+}
+
+/* ---------- Add New Product Modal from GRN ---------- */
+function grnOpenNewProductModal(initialCode = ''){
+  const cleanCode = (initialCode || '').trim();
+  const cats = ['Brake','Engine','Electrical','Body','Suspension','Filter','Lubricant','Battery','Other'];
+
+  openModal('➕ නව අමතර කොටසක් (GRN සඳහා)', 'Register New Part (Initial Stock = 0, added via GRN)',
+  `<div class="grid2">
+     <div>
+       <label style="font-size:11.5px;color:var(--muted);font-weight:600">කේතය / Barcode *</label>
+       <div style="display:flex;gap:6px">
+         <input id="grnNewPCode" value="${esc(cleanCode)}" placeholder="Barcode හෝ අංකය" style="flex:1">
+         <button type="button" class="btn btn-sm btn-blue" onclick="scanBarcodeForField('#grnNewPCode')" title="Camera එකෙන් Barcode එක Scan කරන්න" style="padding:4px 10px;font-size:12px;white-space:nowrap;display:flex;align-items:center;gap:4px">
+           📷 Scan
+         </button>
+       </div>
+     </div>
+     <div>
+       <label style="font-size:11.5px;color:var(--muted);font-weight:600">කාණ්ඩය / Category</label>
+       <select id="grnNewPCat">${cats.map(c=>`<option>${c}</option>`).join('')}</select>
+     </div>
+   </div>
+
+   <div class="grid2" style="margin-top:12px">
+     <div>
+       <label style="font-size:11.5px;color:var(--muted);font-weight:600">නම (සිංහල) *</label>
+       <input id="grnNewPName" placeholder="උදා: ඔයිල් ෆිල්ටර්">
+     </div>
+     <div>
+       <label style="font-size:11.5px;color:var(--muted);font-weight:600">Name (English)</label>
+       <input id="grnNewPNameEn" placeholder="e.g. Oil Filter">
+     </div>
+   </div>
+
+   <!-- Compatibility -->
+   <div style="background:rgba(255,255,255,0.02);border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:14px">
+     <div style="font-size:12px;font-weight:700;color:var(--primary);margin-bottom:8px">🚗 වාහන සහ අමතර කොටස් අනුකූලතාව (Compatibility)</div>
+     <div class="grid2">
+       <div><label style="font-size:11px;color:var(--muted)">OEM අංකය (උදා: 04465-02220)</label><input id="grnNewPOem" placeholder="04465-02220"></div>
+       <div><label style="font-size:11px;color:var(--muted)">විකල්ප අංක / Alt Nos (කොමා වලින් වෙන් කරන්න)</label><input id="grnNewPAlt" placeholder="AN-688K, TN-401"></div>
+     </div>
+     <div class="grid2" style="margin-top:10px">
+       <div><label style="font-size:11px;color:var(--muted)">වෙළඳ නාමය / Brand</label><input id="grnNewPBrand" placeholder="Denso, Toyota, etc."></div>
+       <div><label style="font-size:11px;color:var(--muted)">වාහන මාදිලිය / Model</label><input id="grnNewPModel" placeholder="Corolla, Aqua, etc."></div>
+     </div>
+   </div>
+
+   <!-- Pricing & Units -->
+   <div class="grid3" style="margin-top:12px">
+     <div>
+       <label style="font-size:11.5px;color:var(--muted);font-weight:600">පිරිවැය / Cost (රු.)</label>
+       <input id="grnNewPCost" type="number" step="0.01" min="0" placeholder="0.00" value="0.00">
+     </div>
+     <div>
+       <label style="font-size:11.5px;color:var(--muted);font-weight:600">සිල්ලර මිල / Retail (රු.)</label>
+       <input id="grnNewPPrice" type="number" step="0.01" min="0" placeholder="0.00" value="0.00">
+     </div>
+     <div>
+       <label style="font-size:11.5px;color:var(--muted);font-weight:600">ඒකකය / Unit</label>
+       <input id="grnNewPUnit" value="pcs" placeholder="pcs">
+     </div>
+   </div>
+
+   <!-- Storage & Reorder -->
+   <div class="grid3" style="margin-top:12px">
+     <div>
+       <label style="font-size:11px;color:var(--muted);font-weight:600">රාක්කය (Rack)</label>
+       <input id="grnNewPRack" placeholder="A-01">
+     </div>
+     <div>
+       <label style="font-size:11px;color:var(--muted);font-weight:600">පෙට්ටිය (Bin)</label>
+       <input id="grnNewPBin" placeholder="B-1">
+     </div>
+     <div>
+       <label style="font-size:11px;color:var(--muted);font-weight:600">අවම තොගය (Reorder)</label>
+       <input id="grnNewPRe" type="number" value="5">
+     </div>
+   </div>
+
+   <!-- Stock Notice -->
+   <div style="background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.25);border-radius:8px;padding:10px 12px;font-size:12px;color:#38bdf8;margin-top:14px;display:flex;align-items:center;gap:8px">
+     <span style="font-size:18px">📦</span>
+     <div>
+       <b>ආරම්භක තොගය: 0</b>
+       <div style="font-size:11px;color:var(--muted)">මෙහිදී ආරම්භක තොගයක් එකතු නොවේ. භාණ්ඩයේ ලැබුණු තොග ප්‍රමාණය මෙම GRN ලේඛනය හරහා ස්වයංක්‍රීයව තොගයට එක්වනු ඇත.</div>
+     </div>
+   </div>`,
+   `<button class="btn" onclick="closeModal()">අවලංගු</button>
+    <button class="btn btn-primary" onclick="grnSaveNewProduct()">💾 සුරකින්න සහ GRN එකට තෝරන්න</button>`,
+   true);
+}
+
+async function grnSaveNewProduct(){
+  const v = s => $(s)?.value?.trim() || '';
+  const code = v('#grnNewPCode');
+  const name = v('#grnNewPName');
+
+  if(!code || !name){
+    toast('කරුණාකර කේතය (Barcode) සහ නම ඇතුළත් කරන්න', 'err');
+    return;
+  }
+
+  const db = window.DB || {};
+  if(!db.products) db.products = [];
+  const curShop = (typeof currentShopId === 'function' && currentShopId()) ? currentShopId() : (window.state?.user?.shopId || 'SHOP-001');
+
+  // Check if barcode already exists in same shop
+  const existing = db.products.find(p => (p.code || '').toLowerCase() === code.toLowerCase() && (!p.shopId || p.shopId === curShop));
+  if(existing){
+    toast(`⚠️ "${code}" කේතයෙන් යුත් භාණ්ඩයක් දැනටමත් පවතී. එම භාණ්ඩය GRN එකට තෝරා ගන්නා ලදී.`, 'info');
+    closeModal();
+    grnCloseSearchOverlay();
+    grnFillProduct(existing.id);
+    return;
+  }
+
+  const splitClean = val => (val || '').split(',').map(x => x.trim()).filter(Boolean);
+  const newId = uid('P');
+  const costVal = parseFloat(v('#grnNewPCost')) || 0;
+  const priceVal = parseFloat(v('#grnNewPPrice')) || 0;
+
+  const newProd = {
+    id: newId,
+    shopId: curShop,
+    code: code,
+    name: name,
+    nameEn: v('#grnNewPNameEn'),
+    cat: v('#grnNewPCat') || 'Other',
+    oemNo: v('#grnNewPOem'),
+    altNos: splitClean(v('#grnNewPAlt')),
+    brand: v('#grnNewPBrand'),
+    model: v('#grnNewPModel'),
+    chassis: [],
+    engine: [],
+    yearFrom: null,
+    yearTo: null,
+    rack: v('#grnNewPRack'),
+    bin: v('#grnNewPBin'),
+    warehouse: 'Main',
+    cost: costVal,
+    price: priceVal,
+    priceWholesale: 0,
+    qty: 0, // Initial stock is 0! The stock will be populated by this GRN!
+    reorder: parseInt(v('#grnNewPRe')) || 5,
+    unit: v('#grnNewPUnit') || 'pcs',
+    warranty: 0,
+    hasSerial: false,
+    coreDeposit: 0,
+    crossSell: [],
+    active: true,
+    createdAt: new Date().toISOString()
+  };
+
+  db.products.push(newProd);
+
+  if(window.FB && window.FB.fbSet){
+    try {
+      await window.FB.fbSet(window.FB.COL.products, newId, newProd);
+    } catch(e){
+      console.warn('Firebase product save error:', e);
+    }
+  }
+
+  if(typeof saveDB === 'function') saveDB();
+  if(window.DB && typeof window.DB._persistLocalNow === 'function') window.DB._persistLocalNow();
+
+  closeModal();
+  grnCloseSearchOverlay();
+
+  // Automatically select and fill this newly created product into the GRN inline row!
+  grnFillProduct(newId);
+  if(costVal > 0){
+    const costInp = $('#grnInputCost');
+    if(costInp) costInp.value = costVal.toFixed(2);
+  }
+  recalcInlineTotal();
+
+  const qtyInp = $('#grnInputQty');
+  if(qtyInp){
+    qtyInp.focus();
+    qtyInp.select();
+  }
+
+  toast('✅ නව භාණ්ඩය ලියාපදිංචි කර GRN එකට තෝරා ගන්නා ලදී!', 'ok');
+}
+
+window.grnStartCameraScan = grnStartCameraScan;
+window.grnOpenNewProductModal = grnOpenNewProductModal;
+window.grnSaveNewProduct = grnSaveNewProduct;
 
 /* ---------- Inline Row Calculations & Quick Qty ---------- */
 function recalcInlineTotal(){

@@ -337,6 +337,7 @@ function pgInventory(){
                  placeholder="භාණ්ඩය සොයන්න (නම / කේතය / OEM)..."
                  value="${esc(state.invSearch || '')}"
                  oninput="document.querySelector('.inv-search-clear')?.classList.toggle('hidden', !this.value); debouncedInvSearch(this.value)">
+          <button type="button" class="btn btn-sm" onclick="scanBarcodeForField('#invSearch', true)" title="Barcode Scan කර සොයන්න" style="background:#1e293b;border:1px solid var(--line);color:#34d399;font-weight:700;padding:5px 9px;font-size:11.5px;margin-left:4px;white-space:nowrap;display:flex;align-items:center;gap:4px">📷 Scan</button>
           <button class="inv-search-clear ${state.invSearch ? '' : 'hidden'}" onclick="clearInvSearch()">✕</button>
         </div>
         
@@ -445,8 +446,15 @@ function editProduct(id){
 
   openModal(id ? '✏️ භාණ්ඩය සංස්කරණය' : '➕ නව අමතර කොටසක්', id ? 'Edit Auto Part' : 'New Auto Part',
   `<div class="grid2">
-     <div><label style="font-size:11.5px;color:var(--muted);font-weight:600">කේතය / Item Code *</label>
-       <input id="pCode" value="${esc(p.code)}"></div>
+     <div>
+       <label style="font-size:11.5px;color:var(--muted);font-weight:600">කේතය / Barcode *</label>
+       <div style="display:flex;gap:6px">
+         <input id="pCode" value="${esc(p.code)}" placeholder="Barcode / කේතය" style="flex:1">
+         <button type="button" class="btn btn-sm btn-blue" onclick="scanBarcodeForField('#pCode')" title="Camera එකෙන් Barcode එක Scan කරන්න" style="padding:4px 10px;font-size:12px;white-space:nowrap;display:flex;align-items:center;gap:4px">
+           📷 Scan
+         </button>
+       </div>
+     </div>
      <div><label style="font-size:11.5px;color:var(--muted);font-weight:600">කාණ්ඩය / Category</label>
        <select id="pCat">${cats.map(c=>`<option ${c===p.cat?'selected':''}>${c}</option>`).join('')}</select></div>
    </div>

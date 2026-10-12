@@ -1749,7 +1749,19 @@ tbody tr:hover td{background:#1a2438}
   padding: 3px 8px;
   border-radius: 6px;
   border: 1px solid var(--line);
-  pointer-events: none;
+  user-select: none;
+}
+.grn-scan-btn {
+  pointer-events: auto !important;
+  cursor: pointer;
+  background: rgba(16, 185, 129, 0.15) !important;
+  color: #34d399 !important;
+  border-color: rgba(16, 185, 129, 0.35) !important;
+  transition: 0.15s;
+}
+.grn-scan-btn:hover {
+  background: rgba(16, 185, 129, 0.3) !important;
+  color: #fff !important;
 }
 
 /* Search Dropdown */

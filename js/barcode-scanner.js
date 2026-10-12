@@ -42,7 +42,8 @@ const BarcodeScanner = {
     return false;
   },
 
-  async open(){
+  async open(callback){
+    this.callback = typeof callback === 'function' ? callback : null;
     await this.init();
 
     // Reset counters and cooldowns
@@ -219,9 +220,13 @@ const BarcodeScanner = {
         (this.continuous ? `<br><small style="color:#6ee7b7;font-size:11px">Cart එකට එක්විය! ඊළඟ භාණ්ඩය යොමු කරන්න...</small>` : '');
     }
 
-    // 4. Dispatch event to POS cart handler
-    const event = new CustomEvent('barcodeScanned', { detail: { code: cleanCode } });
-    window.dispatchEvent(event);
+    // 4. Dispatch to custom callback or fallback to POS cart handler
+    if(typeof this.callback === 'function'){
+      this.callback(cleanCode);
+    } else {
+      const event = new CustomEvent('barcodeScanned', { detail: { code: cleanCode } });
+      window.dispatchEvent(event);
+    }
 
     // 5. Handling exit vs continuous scanning
     if(!this.continuous){
@@ -303,7 +308,28 @@ const BarcodeScanner = {
     // 3. Remove modal DOM
     const modal = document.getElementById('barcodeScannerModal');
     if(modal) modal.remove();
+    this.callback = null;
   }
 };
 
 window.BarcodeScanner = BarcodeScanner;
+
+function scanBarcodeForField(selector, autoSearch = false){
+  if(typeof BarcodeScanner !== 'undefined' && BarcodeScanner.open){
+    BarcodeScanner.open((code) => {
+      const el = document.querySelector(selector);
+      if(el){
+        el.value = code;
+        el.focus();
+        if(autoSearch && typeof debouncedInvSearch === 'function'){
+          debouncedInvSearch(code);
+        }
+        if(typeof toast === 'function') toast('Barcode එක ඇතුළත් විය: ' + code, 'ok');
+      }
+    });
+  } else {
+    if(typeof toast === 'function') toast('Camera Scanner සක්‍රීය නැත', 'warn');
+  }
+}
+
+window.scanBarcodeForField = scanBarcodeForField;
