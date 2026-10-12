@@ -295,6 +295,10 @@ const PERMISSIONS = [
   // 2. Inventory & Stock
   { id: 'inventory', group: 'inventory_stock', name: 'Inventory', si: 'බඩු තොග කළමනාකරණය', desc: 'භාණ්ඩ නාමාවලිය හා තොග තොරතුරු බැලීම' },
   { id: 'grn', group: 'inventory_stock', name: 'GRN', si: 'GRN (භාණ්ඩ ලැබීම් සටහන්)', desc: 'නව තොග ඇතුළත් කිරීම හා සැපයුම්කරුවන්ගේ බිල්පත්' },
+  { id: 'payables', group: 'inventory_stock', name: 'Supplier Payables', si: 'සැපයුම් ණය හා චෙක්පත්', desc: 'සැපයුම්කරුවන්ගේ හිඟ මුදල්, ගෙවීම් හා චෙක්පත් කළමනාකරණය' },
+  { id: 'interchange', group: 'inventory_stock', name: 'Part Interchange', si: 'Part Interchange', desc: 'වාහන අමතර කොටස් ගැළපුම් සෙවීම හා කළමනාකරණය' },
+  { id: 'scrap', group: 'inventory_stock', name: 'Scrap Inventory', si: 'Scrap බැටරි තොගය', desc: 'පරණ බැටරි (Core) භාරගැනීම හා තොග කළමනාකරණය' },
+  { id: 'labels', group: 'inventory_stock', name: 'Barcode Labels', si: 'Barcode ලේබල් මුද්‍රණය', desc: 'භාණ්ඩ සඳහා Barcode හා මිල ලේබල් මුද්‍රණය කිරීම' },
   { id: 'serial-search', group: 'inventory_stock', name: 'Serial Search', si: 'සීරියල් අංක සෙවීම', desc: 'බැටරි/ටයර් සීරියල් අංක ලුහුබැඳීම' },
   { id: 'delete-product', group: 'inventory_stock', name: 'Delete Products', si: 'භාණ්ඩ ඉවත් කිරීම', desc: 'තොග නාමාවලියෙන් භාණ්ඩ සම්පූර්ණයෙන්ම මකා දැමීම' },
 
@@ -311,8 +315,9 @@ const PERMISSIONS = [
 
   // 5. System Administration
   { id: 'staff', group: 'administration', name: 'Staff Control', si: 'කාර්ය මණ්ඩල පාලනය', desc: 'සේවක ගිණුම් සෑදීම, සංස්කරණය හා අගුළු දැමීම' },
-  { id: 'shops', group: 'administration', name: 'Shop Management', si: 'ශාඛා කළමනාකරණය', desc: 'නව ශාඛා ලියාපදිංචි කිරීම (Super Admin)' },
+  { id: 'shops', group: 'administration', name: 'Shop Management', si: 'ශාඛා කළමනාකරණය', desc: 'නව ශාඛා ලියාපදිංචි කිරීම (Super Admin Only)' },
   { id: 'settings', group: 'administration', name: 'Settings', si: 'පද්ධති සැකසුම්', desc: 'සාප්පු විස්තර හා මූලික සැකසුම් වෙනස් කිරීම' },
+  { id: 'system-reset', group: 'administration', name: 'System Reset & Clean Slate', si: 'දත්ත පිරිසිදු කිරීම හා Clean Slate', desc: 'පද්ධතිය විකිණීමට සූදානම් කිරීම හා දත්ත Clear කිරීම (Super Admin Only)' },
   { id: 'profile', group: 'administration', name: 'My Profile', si: 'මගේ ගිණුම', desc: 'තමන්ගේ තොරතුරු හා මුරපදය වෙනස් කිරීම' }
 ];
 
@@ -321,31 +326,31 @@ const PERMISSION_PRESETS = {
     name: 'Cashier Standard',
     si: 'කැෂියර් සම්මතය',
     icon: '💵',
-    perms: ['billing', 'dashboard', 'customers', 'lowstock', 'profile']
+    perms: ['billing', 'dashboard', 'customers', 'lowstock', 'profile', 'labels', 'interchange', 'scrap']
   },
   supervisor: {
     name: 'Supervisor',
     si: 'සුපරීක්ෂක',
     icon: '🛡️',
-    perms: ['billing', 'dashboard', 'pos', 'customers', 'lowstock', 'returns', 'shifts', 'serial-search', 'profile', 'credit', 'discounts', 'void-sale']
+    perms: ['billing', 'dashboard', 'pos', 'customers', 'lowstock', 'returns', 'shifts', 'serial-search', 'profile', 'credit', 'discounts', 'void-sale', 'labels', 'interchange', 'scrap']
   },
   inventory_mgr: {
     name: 'Inventory Manager',
     si: 'තොග කළමනාකරු',
     icon: '📦',
-    perms: ['dashboard', 'inventory', 'lowstock', 'grn', 'serial-search', 'delete-product', 'profile']
+    perms: ['dashboard', 'inventory', 'lowstock', 'grn', 'payables', 'interchange', 'scrap', 'labels', 'serial-search', 'delete-product', 'profile']
   },
   sales_mgr: {
     name: 'Sales Manager',
     si: 'විකුණුම් කළමනාකරු',
     icon: '📈',
-    perms: ['billing', 'dashboard', 'pos', 'customers', 'reports', 'shifts', 'profile', 'credit', 'discounts', 'price-override']
+    perms: ['billing', 'dashboard', 'pos', 'customers', 'reports', 'shifts', 'profile', 'credit', 'discounts', 'price-override', 'labels']
   },
   full: {
-    name: 'Full Access',
-    si: 'සම්පූර්ණ ප්‍රවේශය',
+    name: 'Full Access (Admin)',
+    si: 'සම්පූර්ණ ප්‍රවේශය (Admin)',
     icon: '⚡',
-    perms: ['billing', 'dashboard', 'pos', 'inventory', 'customers', 'lowstock', 'grn', 'returns', 'serial-search', 'shifts', 'reports', 'settings', 'staff', 'profile', 'credit', 'discounts', 'price-override', 'void-sale', 'delete-product']
+    perms: ['billing', 'dashboard', 'pos', 'inventory', 'customers', 'lowstock', 'grn', 'payables', 'interchange', 'scrap', 'labels', 'returns', 'serial-search', 'shifts', 'reports', 'settings', 'staff', 'profile', 'credit', 'discounts', 'price-override', 'void-sale', 'delete-product']
   }
 };
 
@@ -362,7 +367,17 @@ function getDefaultPermissionsForRole(role){
 function hasPermission(perm, user){
   const u = user || (window.state && window.state.user);
   if(!u) return false;
-  if(u.role === 'superadmin' || u.role === 'admin') return true; // Super Admin & Admin have full access
+  if(u.role === 'superadmin') return true; // Super Admin has FULL access to everything
+  // System reset and shops are strictly restricted to superadmin (unless explicitly permitted)
+  if(perm === 'system-reset' || perm === 'shops'){
+    if(u.role !== 'superadmin' && !(u.permissions && u.permissions.includes(perm))) return false;
+  }
+  if(u.role === 'admin'){
+    if(u.permissions && Array.isArray(u.permissions)){
+      return u.permissions.includes(perm);
+    }
+    return true; // Default admin has full standard access if permissions unconfigured
+  }
   if(!u.permissions || !Array.isArray(u.permissions)) return false;
   return u.permissions.includes(perm);
 }
