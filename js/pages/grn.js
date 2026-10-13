@@ -121,12 +121,16 @@ function pgGRN(){
         </button>
       </div>
 
-      <!-- Inline Add Row (5 Columns) -->
+      <!-- Inline Add Row (6 Columns Modern Balanced Grid) -->
       <div class="grn-input-row-wrap">
         <div class="grn-input-row">
           <!-- Col 1: Product Cell -->
-          <div style="position:relative">
-            <label class="grn-input-col-label">භාණ්ඩය / Item (F2)</label>
+          <div class="grn-input-col grn-col-prod" style="position:relative">
+            <label class="grn-input-col-label">
+              <span class="grn-label-icon">📦</span>
+              <span>භාණ්ඩය / Item</span>
+              <kbd class="grn-label-kbd">F2</kbd>
+            </label>
             <div id="grnSelectedProdBox" class="grn-selected-prod-box ${grnState.selectedProduct ? '' : 'empty'}"
                  tabindex="0"
                  onclick="grnOpenSearchOverlay()"
@@ -139,7 +143,7 @@ function pgGRN(){
               <div class="grn-search-overlay-input-wrap">
                 <div class="grn-search-input-box">
                   <input id="grnSearchInput" class="grn-search-input" autocomplete="off"
-                         placeholder="භාණ්ඩය සොයන්න (නම / කේතය / OEM)..."
+                         placeholder="භාණ්ඩය සොයන්න (නම / කේතය / OEM / Barcode)..."
                          title="සොයන්න (නම / කේතය / OEM / Barcode)"
                          oninput="grnSearchProducts(this.value)"
                          onkeydown="grnSearchKeydown(event)">
@@ -149,55 +153,101 @@ function pgGRN(){
               </div>
               <div id="grnSearchDropdown" class="grn-search-dropdown grn-search-results"></div>
             </div>
+
+            <div class="grn-col-subhint">
+              <span id="grnProdSubhint">F2 හෝ Click කර සොයන්න</span>
+            </div>
           </div>
 
           <!-- Col 2: Qty Cell -->
-          <div>
-            <label class="grn-input-col-label">ප්‍රමාණය / Qty</label>
-            <input id="grnInputQty" type="number" step="1" min="1" value="1"
-                   placeholder="1" oninput="recalcInlineTotal()" onkeydown="grnRowFieldKeydown(event)">
+          <div class="grn-input-col grn-col-qty">
+            <label class="grn-input-col-label">
+              <span class="grn-label-icon">🔢</span>
+              <span>ප්‍රමාණය / Qty</span>
+            </label>
+            <div class="grn-field-box">
+              <input id="grnInputQty" type="number" step="1" min="1" value="1"
+                     placeholder="1" oninput="recalcInlineTotal()" onkeydown="grnRowFieldKeydown(event)">
+            </div>
             <div class="grn-qty-quick">
-              <button type="button" onclick="grnQuickQty(1)">+1</button>
-              <button type="button" onclick="grnQuickQty(5)">+5</button>
-              <button type="button" onclick="grnQuickQty(10)">+10</button>
-              <button type="button" onclick="grnQuickQty(50)">+50</button>
-              <button type="button" onclick="grnQuickQty(100)">+100</button>
+              <button type="button" onclick="grnQuickQty(1)" title="Add 1">+1</button>
+              <button type="button" onclick="grnQuickQty(5)" title="Add 5">+5</button>
+              <button type="button" onclick="grnQuickQty(10)" title="Add 10">+10</button>
+              <button type="button" onclick="grnQuickQty(50)" title="Add 50">+50</button>
+              <button type="button" onclick="grnQuickQty(100)" title="Add 100">+100</button>
             </div>
           </div>
 
           <!-- Col 3: Cost Cell -->
-          <div>
-            <label class="grn-input-col-label">පිරිවැය / Cost</label>
-            <input id="grnInputCost" type="number" step="0.01" min="0" value="0.00"
-                   placeholder="0.00" oninput="recalcInlineTotal()" onkeydown="grnRowFieldKeydown(event)">
+          <div class="grn-input-col grn-col-cost">
+            <label class="grn-input-col-label">
+              <span class="grn-label-icon">💵</span>
+              <span>පිරිවැය / Cost</span>
+            </label>
+            <div class="grn-field-box grn-has-prefix">
+              <span class="grn-field-affix">රු.</span>
+              <input id="grnInputCost" type="number" step="0.01" min="0" value="0.00"
+                     placeholder="0.00" oninput="recalcInlineTotal()" onkeydown="grnRowFieldKeydown(event)">
+            </div>
+            <div class="grn-col-subhint">
+              <span id="grnCostSubhint">ඒකක මිල (Unit Cost)</span>
+            </div>
           </div>
 
           <!-- Col 4: Discount Cell -->
-          <div>
-            <label class="grn-input-col-label">වට්ටම % / Disc %</label>
-            <input id="grnInputDisc" type="number" step="0.1" min="0" max="100" value="0"
-                   placeholder="0" oninput="recalcInlineTotal()" onkeydown="grnRowFieldKeydown(event)">
+          <div class="grn-input-col grn-col-disc">
+            <label class="grn-input-col-label">
+              <span class="grn-label-icon">🏷️</span>
+              <span>වට්ටම % / Disc</span>
+            </label>
+            <div class="grn-field-box grn-has-suffix">
+              <input id="grnInputDisc" type="number" step="0.1" min="0" max="100" value="0"
+                     placeholder="0" oninput="recalcInlineTotal()" onkeydown="grnRowFieldKeydown(event)">
+              <span class="grn-field-affix">%</span>
+            </div>
+            <div class="grn-col-subhint">
+              <span id="grnDiscSubhint">වට්ටම් ප්‍රතිශතය</span>
+            </div>
           </div>
 
-          <!-- Col 5: Total & Add -->
-          <div>
-            <label class="grn-input-col-label">එකතුව / Total</label>
+          <!-- Col 5: Total Cell -->
+          <div class="grn-input-col grn-col-total">
+            <label class="grn-input-col-label">
+              <span class="grn-label-icon">💰</span>
+              <span>එකතුව / Total</span>
+            </label>
             <div class="grn-input-total-box">
               <span id="grnInputTotal" class="grn-input-total-val">රු. 0.00</span>
               <span id="grnInputDiscSub" class="grn-input-disc-sub" style="display:none"></span>
             </div>
-            <button type="button" class="btn btn-primary" style="margin-top:5px;width:100%;padding:5px 8px;font-size:12px;height:28px"
-                    onclick="grnAddItem()">+ එකතු කරන්න (Add)</button>
+            <div class="grn-col-subhint" style="text-align:right">
+              <span id="grnTotalSubhint">ශුද්ධ මුදල (Net)</span>
+            </div>
+          </div>
+
+          <!-- Col 6: Add Button -->
+          <div class="grn-input-col grn-col-add">
+            <label class="grn-input-col-label grn-col-label-ghost">&nbsp;</label>
+            <button type="button" class="btn btn-primary grn-btn-add-main" onclick="grnAddItem()" title="භාණ්ඩය එකතු කරන්න (Enter)">
+              <span class="grn-btn-add-icon">➕</span>
+              <span class="grn-btn-add-text">එකතු කරන්න</span>
+            </button>
+            <div class="grn-col-subhint grn-add-subhint">
+              <kbd class="grn-subhint-kbd">Enter ↵</kbd>
+            </div>
           </div>
         </div>
 
         <div class="grn-input-row-actions">
-          <span class="grn-hint">
-            <kbd>Enter</kbd> = එකතු කරන්න &nbsp;|&nbsp;
-            <kbd>Tab</kbd> = ඊළඟ කොටුව &nbsp;|&nbsp;
-            <kbd>F2</kbd> = Search &nbsp;|&nbsp;
-            <kbd>Esc</kbd> = Clear Row
-          </span>
+          <div class="grn-shortcuts-strip">
+            <span class="grn-shortcut-pill"><kbd>Enter</kbd> <span>එකතු කරන්න (Add)</span></span>
+            <span class="grn-shortcut-sep">•</span>
+            <span class="grn-shortcut-pill"><kbd>Tab</kbd> <span>ඊළඟ කොටුව (Next)</span></span>
+            <span class="grn-shortcut-sep">•</span>
+            <span class="grn-shortcut-pill"><kbd>F2</kbd> <span>සොයන්න (Search)</span></span>
+            <span class="grn-shortcut-sep">•</span>
+            <span class="grn-shortcut-pill"><kbd>Esc</kbd> <span>Clear Row</span></span>
+          </div>
         </div>
       </div>
     </div>
@@ -284,15 +334,32 @@ function pgGRN(){
 function renderSelectedProdBox(){
   const p = grnState.selectedProduct;
   if(!p){
-    return `<span>🔍 භාණ්ඩයක් තෝරා නැත (Click to search)</span>`;
+    return `
+      <div class="grn-sp-empty-wrap">
+        <span class="grn-sp-search-icon">🔍</span>
+        <div class="grn-sp-empty-text">
+          <span class="grn-sp-main-label">භාණ්ඩයක් තෝරා නැත (Click to search)</span>
+          <span class="grn-sp-sub-label">නම, කේතය හෝ Barcode සොයන්න...</span>
+        </div>
+      </div>
+      <div class="grn-sp-empty-badges">
+        <kbd class="grn-key-badge">F2</kbd>
+      </div>`;
   }
   return `
     <div class="grn-selected-prod-info">
-      <b>${esc(p.code)} <small style="font-weight:400;color:var(--muted)">(${esc(p.unit || 'pcs')})</small></b>
-      <span>${esc(p.name)}</span>
-      <small>දැනට තොග: <b>${p.qty}</b> | පිරිවැය: <b>${money(p.cost)}</b></small>
+      <div class="grn-sp-header-row">
+        <span class="grn-sp-code-pill">${esc(p.code)}</span>
+        <span class="grn-sp-unit-tag">(${esc(p.unit || 'pcs')})</span>
+        <span class="grn-sp-name-text" title="${esc(p.name)}">${esc(p.name)}</span>
+      </div>
+      <div class="grn-sp-meta-row">
+        <span class="grn-sp-meta-chip">📦 තොග: <b>${p.qty}</b></span>
+        <span class="grn-sp-meta-chip">💵 පිරිවැය: <b>${money(p.cost)}</b></span>
+        ${p.brand ? `<span class="grn-sp-meta-chip">🏷️ ${esc(p.brand)}</span>` : ''}
+      </div>
     </div>
-    <button type="button" class="grn-sp-clear-btn" onclick="event.stopPropagation();grnClearSelectedProduct()" title="ඉවත් කරන්න">✕</button>`;
+    <button type="button" class="grn-sp-clear-btn" onclick="event.stopPropagation();grnClearSelectedProduct()" title="ඉවත් කරන්න (Clear)">✕</button>`;
 }
 
 /* ---------- Helper: Render Table Rows (View & Inline Edit) ---------- */
@@ -549,6 +616,11 @@ function grnFillProduct(productId){
 
   const sInp = $('#grnSearchInput');
   if(sInp) sInp.value = '';
+
+  const costHint = $('#grnCostSubhint');
+  if(costHint) costHint.textContent = `පෙර: ${money(p.cost)}`;
+  const prodHint = $('#grnProdSubhint');
+  if(prodHint) prodHint.textContent = `තෝරාගත්: ${p.code}`;
 }
 
 function grnClearSelectedProduct(){
@@ -564,6 +636,12 @@ function grnClearSelectedProduct(){
   if(qtyInp) qtyInp.value = 1;
   const discInp = $('#grnInputDisc');
   if(discInp) discInp.value = 0;
+  
+  const costHint = $('#grnCostSubhint');
+  if(costHint) costHint.textContent = 'ඒකක මිල (Unit Cost)';
+  const prodHint = $('#grnProdSubhint');
+  if(prodHint) prodHint.textContent = 'F2 හෝ Click කර සොයන්න';
+
   recalcInlineTotal();
 }
 

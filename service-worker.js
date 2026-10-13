@@ -2,7 +2,7 @@
    service-worker.js - PWA Offline App Shell & Runtime Cache
    ========================================================= */
 
-const CACHE_VERSION = 'v2.6.5';
+const CACHE_VERSION = 'v2.6.6';
 const CACHE_NAME = 'autoparts-pos-' + CACHE_VERSION;
 const RUNTIME_CACHE = 'autoparts-runtime-' + CACHE_VERSION;
 
