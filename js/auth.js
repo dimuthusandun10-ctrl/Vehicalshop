@@ -507,7 +507,13 @@ async function doLogin(){
 
   /* ⭐ Shift check: cashier = required, admin/superadmin = optional */
   const activeShift = (typeof Shift !== 'undefined') ? Shift.getActive(user.id) : null;
-  if(!activeShift && user.role === 'cashier'){
+  const pendingShift = (typeof Shift !== 'undefined' && Shift.getPendingBalanceShift) ? Shift.getPendingBalanceShift(user.id) : null;
+  if(pendingShift){
+    setTimeout(() => {
+      if(typeof openSettlePendingModal === 'function') openSettlePendingModal(pendingShift.id);
+    }, 450);
+    toast('⚠️ ඔබගේ Shift එක පරිපාලක විසින් නවතා ඇත. කරුණාකර මුදල් ඇතුළත් කර අවසන් කරන්න.', 'warn');
+  } else if(!activeShift && user.role === 'cashier'){
     /* must open shift */
     setTimeout(() => {
       if(typeof openShiftModal === 'function') openShiftModal();
@@ -736,8 +742,13 @@ async function saveNewPassword(){
 
 function can(page){
   if(!state.user) return false;
-  const n = NAV.find(x => x.id === page);
-  return n && n.roles.includes(state.user.role);
+  if(state.user.role === 'superadmin') return true;
+  if(typeof hasPermission === 'function'){
+    const n = (typeof NAV !== 'undefined' && Array.isArray(NAV)) ? NAV.find(x => x.id === page) : null;
+    return hasPermission((n && n.perm) || page, state.user);
+  }
+  const n = (typeof NAV !== 'undefined' && Array.isArray(NAV)) ? NAV.find(x => x.id === page) : null;
+  return n && (n.roles || []).includes(state.user.role);
 }
 
 window.quick = quick;

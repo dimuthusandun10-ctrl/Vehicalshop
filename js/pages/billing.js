@@ -51,13 +51,14 @@ function pgBilling(){
   const cats = [...new Set((db.products || []).map(p=>p.cat))];
   const customers = db.customers || [];
   const activeShift = (typeof Shift !== 'undefined' && state.user) ? Shift.getActive(state.user.id) : null;
+  const pendingShift = (typeof Shift !== 'undefined' && state.user && Shift.getPendingBalanceShift) ? Shift.getPendingBalanceShift(state.user.id) : null;
 
   return `
   ${!activeShift ? `
-  <div class="shift-required-banner">
-    <span>🔒 බිල්පත් නිකුත් කිරීමට පෙර Shift එකක් අරඹන්න</span>
-    <button class="btn btn-sm btn-primary" onclick="openShiftModal()">
-      🔓 දැන්ම අරඹන්න
+  <div class="shift-required-banner" style="${pendingShift ? 'background:linear-gradient(90deg,rgba(239,68,68,.25),rgba(245,158,11,.25));border:1px solid rgba(239,68,68,.5)' : ''}">
+    <span>${pendingShift ? '🛑 ඔබගේ Shift එක පරිපාලක විසින් නවතා ඇත — කරුණාකර මුදල් ඇතුළත් කර අවසන් කරන්න' : '🔒 බිල්පත් නිකුත් කිරීමට පෙර Shift එකක් අරඹන්න'}</span>
+    <button class="btn btn-sm ${pendingShift ? 'btn-yellow' : 'btn-primary'}" onclick="${pendingShift ? `openSettlePendingModal('${pendingShift.id}')` : 'openShiftModal()'}" style="font-weight:700">
+      ${pendingShift ? '💰 මුදල් ඇතුළත් කරන්න' : '🔓 දැන්ම අරඹන්න'}
     </button>
   </div>` : ''}
   <div class="pos ${!activeShift ? 'pos-locked' : ''}">
@@ -259,27 +260,69 @@ function renderVehicleSearch(){
 
 function handleBarcodeScan(val){
   const q = (val || '').trim().toLowerCase();
-  if(!q) return;
+  if(!q) return null;
+
   const db = DB || {};
-  const exact = (db.products || []).find(p =>
+  const activeShop = (typeof currentShopId === 'function')
+    ? currentShopId()
+    : (window.state?.user?.shopId || window.state?.activeShopId || 'SHOP-001');
+
+  // 1. Strict Active Shop Filter
+  const shopProducts = (db.products || []).filter(p =>
+    !activeShop || activeShop === 'all' || p.shopId === activeShop || (!p.shopId && activeShop === 'SHOP-001')
+  );
+
+  const exact = shopProducts.find(p =>
     (p.code || '').toLowerCase() === q ||
     (p.oemNo || '').toLowerCase() === q ||
     (p.barcode || '').toLowerCase() === q ||
     (Array.isArray(p.altNos) && p.altNos.some(a => String(a).toLowerCase() === q))
   );
+
   if(exact){
+    // 2. Stock Warning & Audio Feedback
+    const isOut = (exact.qty <= 0);
+    if(window.BarcodeScanner && window.BarcodeScanner.beep){
+      window.BarcodeScanner.beep(isOut ? 'warn' : 'success');
+    }
+
     addToCart(exact.id);
     state.search = '';
     const inp = $('#posSearch') || $('#posSearchOem');
     if(inp) inp.value = '';
     renderGrid();
-    if(typeof toast === 'function') toast(`✅ ${exact.name || exact.nameEn} Cart එකට එකතු කරන ලදී`, 'ok');
+
+    const priceStr = (typeof money === 'function') ? ` (${money(exact.price)})` : '';
+    if(isOut){
+      if(typeof toast === 'function') toast(`⚠️ ${exact.name || exact.nameEn}${priceStr} Cart එකට එක්විය (තොග අවසන්: 0)`, 'warn');
+    } else {
+      if(typeof toast === 'function') toast(`✅ ${exact.name || exact.nameEn}${priceStr} Cart එකට එකතු කරන ලදී`, 'ok');
+    }
+    return exact;
   } else {
-    state.search = (val || '').trim();
-    const inp = $('#posSearch') || $('#posSearchOem');
-    if(inp) inp.value = state.search;
-    renderGrid();
-    if(typeof toast === 'function') toast(`⚠️ "${val}" සඳහා සෘජු භාණ්ඩයක් හමු නොවීය`, 'warn');
+    // 3. Foreign / Invalid Barcode Detection & Error Audio Alert
+    if(window.BarcodeScanner && window.BarcodeScanner.beep){
+      window.BarcodeScanner.beep('error');
+    }
+
+    const otherShopMatch = (db.products || []).find(p =>
+      (p.code || '').toLowerCase() === q ||
+      (p.oemNo || '').toLowerCase() === q ||
+      (p.barcode || '').toLowerCase() === q ||
+      (Array.isArray(p.altNos) && p.altNos.some(a => String(a).toLowerCase() === q))
+    );
+
+    const activeShopObj = (db.shops || []).find(s => s.id === activeShop) || window.state?.activeShop;
+    const shopName = activeShopObj?.name || activeShop || 'මෙම සාප්පුව';
+
+    if(otherShopMatch){
+      if(typeof toast === 'function') toast(`❌ Barcode "${val}" '${shopName}' සාප්පුවට අයත් නොවේ (වෙනත් සාප්පුවක භාණ්ඩයකි)`, 'err');
+    } else {
+      if(typeof toast === 'function') toast(`❌ Barcode "${val}" '${shopName}' සාප්පුවට අයත් භාණ්ඩයක් නොවේ`, 'err');
+    }
+
+    // Do NOT pollute search input with invalid barcode! Keep search clean!
+    return null;
   }
 }
 

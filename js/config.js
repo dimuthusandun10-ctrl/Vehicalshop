@@ -19,7 +19,7 @@ var NAV = [
   {id:'labels',        icon:'🏷️', si:'Barcode ලේබල්',       en:'Labels',              perm:'labels',        roles:['superadmin','admin','cashier']},
   {id:'returns',       icon:'↩️', si:'ආපසු භාරදීම',         en:'Returns',             perm:'returns',       roles:['superadmin','admin','cashier']},
   {id:'serial-search', icon:'🛡️', si:'Serial සෙවීම',      en:'Serial Search',       perm:'serial-search', roles:['superadmin','admin','cashier']},
-  {id:'shifts',        icon:'🕐', si:'Shift ඉතිහාසය',       en:'Shift History',       perm:'shifts',        roles:['superadmin','admin']},
+  {id:'shifts',        icon:'🕐', si:'Shift ඉතිහාසය',       en:'Shift History',       perm:'shifts',        roles:['superadmin','admin','cashier']},
   {id:'reports',       icon:'📊', si:'වාර්තා',               en:'Reports',             perm:'reports',       roles:['superadmin','admin']},
   {id:'shops',         icon:'🏪', si:'සාප්පු කළමනාකරණය',     en:'Shop Management',     perm:'shops',         roles:['superadmin']},
   {id:'profile',       icon:'👤', si:'මගේ ගිණුම',           en:'My Profile',          perm:'profile',       roles:['superadmin','admin','cashier']},

@@ -106,6 +106,60 @@ const Shift = {
     if(window.FB && window.FB.fbSet){
       window.FB.fbSet(window.FB.COL.shifts, sh.id, sh);
     }
+    if(window.DB && typeof window.DB._persistLocalNow === 'function') window.DB._persistLocalNow();
+    return sh;
+  },
+
+  /* ---------- shift stopped by admin pending cashier cash count ---------- */
+  getPendingBalanceShift(userId){
+    const db = (typeof DB !== 'undefined' && DB) ? DB : (window.DB || null);
+    if(!db || !db.shifts) return null;
+    return db.shifts.find(s => (s.cashierId === userId || s.userId === userId) && s.status === 'pending_balance') || null;
+  },
+
+  /* ---------- super admin force stop shift ---------- */
+  forceStop(shiftId, notes){
+    const db = (typeof DB !== 'undefined' && DB) ? DB : (window.DB || null);
+    if(!db || !db.shifts) return null;
+    const sh = db.shifts.find(s => s.id === shiftId);
+    if(!sh) return null;
+    if(sh.status !== 'open') return sh;
+
+    sh.status      = 'pending_balance';
+    sh.stoppedAt   = new Date().toISOString();
+    sh.stoppedBy   = (window.state?.user?.name) || 'Super Admin';
+    sh.stoppedById = (window.state?.user?.id) || (window.state?.user?.authUid) || 'superadmin';
+    sh.stopReason  = notes || 'Super Admin විසින් Shift එක නවත්වන ලදී';
+    sh.closeNotes  = sh.closeNotes ? (sh.closeNotes + ' | ' + (notes || 'Stopped')) : (notes || '');
+
+    if(window.FB && window.FB.fbSet){
+      window.FB.fbSet(window.FB.COL.shifts, sh.id, sh);
+    }
+    if(typeof saveDB === 'function') saveDB(true);
+    if(window.DB && typeof window.DB._persistLocalNow === 'function') window.DB._persistLocalNow();
+    return sh;
+  },
+
+  /* ---------- settle pending shift with cash count ---------- */
+  settlePending(shiftId, closingCount, notes){
+    const db = (typeof DB !== 'undefined' && DB) ? DB : (window.DB || null);
+    if(!db || !db.shifts) return null;
+    const sh = db.shifts.find(s => s.id === shiftId);
+    if(!sh) return null;
+
+    sh.closedAt     = new Date().toISOString();
+    sh.closingCount = Number(closingCount) || 0;
+    sh.closeNotes   = notes ? (sh.closeNotes ? (sh.closeNotes + ' | ' + notes) : notes) : (sh.closeNotes || '');
+    sh.summary      = this.summary(shiftId);
+    sh.variance     = sh.closingCount - (sh.summary ? sh.summary.expected : 0);
+    sh.settledBy    = window.state?.user?.name || sh.cashierName;
+    sh.settledById  = window.state?.user?.id || window.state?.user?.authUid;
+    sh.settledAt    = new Date().toISOString();
+    sh.status       = 'closed';
+
+    if(window.FB && window.FB.fbSet){
+      window.FB.fbSet(window.FB.COL.shifts, sh.id, sh);
+    }
     if(typeof saveDB === 'function') saveDB(true);
     if(window.DB && typeof window.DB._persistLocalNow === 'function') window.DB._persistLocalNow();
     return sh;
@@ -163,7 +217,15 @@ window.addCashOutToShift = addCashOutToShift;
 
 function requireActiveShift(actionLabel) {
   const user = (typeof state !== 'undefined' && state) ? state.user : null;
-  const active = user ? Shift.getActive(user.id) : null;
+  if (!user) return null;
+
+  const pending = (typeof Shift !== 'undefined' && Shift.getPendingBalanceShift) ? Shift.getPendingBalanceShift(user.id) : null;
+  if (pending) {
+    openSettlePendingModal(pending.id);
+    return null;
+  }
+
+  const active = Shift.getActive(user.id);
   if (active) return active;
 
   // No shift — show blocking modal
@@ -195,6 +257,16 @@ window.requireActiveShift = requireActiveShift;
    OPEN SHIFT MODAL
    ===================================================== */
 function openShiftModal(){
+  const user = (typeof state !== 'undefined' && state) ? state.user : null;
+  if(user && typeof Shift.getPendingBalanceShift === 'function'){
+    const pending = Shift.getPendingBalanceShift(user.id);
+    if(pending){
+      toast('⚠️ ඔබගේ පෙර Shift එක (' + pending.id + ') පරිපාලක විසින් නවතා ඇත. නව Shift එකක් ඇරඹීමට පෙර මුදල් ඇතුළත් කර අවසන් කරන්න.', 'err');
+      openSettlePendingModal(pending.id);
+      return;
+    }
+  }
+
   openModal('🔓 Shift ආරම්භ කරන්න','Open Shift — Opening Balance',
   `<div style="text-align:center;padding:8px 0 16px">
      <div style="font-size:42px;margin-bottom:8px">💰</div>
@@ -357,7 +429,15 @@ async function confirmCashMove(type){
    SHIFT QUICK ACTION MENU (Topbar Click)
    ===================================================== */
 function openShiftMenu(){
-  const active = (typeof state !== 'undefined' && state.user) ? Shift.getActive(state.user.id) : null;
+  const user = (typeof state !== 'undefined' && state) ? state.user : null;
+  if(user && typeof Shift.getPendingBalanceShift === 'function'){
+    const pending = Shift.getPendingBalanceShift(user.id);
+    if(pending){
+      openSettlePendingModal(pending.id);
+      return;
+    }
+  }
+  const active = user ? Shift.getActive(user.id) : null;
   if(!active){
     openShiftModal();
     return;
@@ -635,6 +715,20 @@ function updateShiftIndicator(){
     return;
   }
 
+  const pending = (typeof Shift !== 'undefined' && Shift.getPendingBalanceShift) ? Shift.getPendingBalanceShift(user.id) : null;
+  if(pending){
+    el.innerHTML = `
+      <span class="shift-dot" style="background:#ef4444;box-shadow:0 0 8px #ef4444"></span>
+      <span style="color:#fca5a5;font-weight:700">🛑 Shift නවතා ඇත</span>
+      <span style="opacity:.7">· මුදල් ඇතුළත් කරන්න</span>
+    `;
+    el.style.display = 'inline-flex';
+    el.style.borderColor = 'rgba(239,68,68,0.5)';
+    el.onclick = () => openSettlePendingModal(pending.id);
+    if(_shiftTimer){ clearInterval(_shiftTimer); _shiftTimer = null; }
+    return;
+  }
+
   const active = Shift.getActive(user.id);
   if(!active){
     el.innerHTML = `
@@ -644,12 +738,14 @@ function updateShiftIndicator(){
     `;
     el.style.display = 'inline-flex';
     el.style.borderColor = 'rgba(239,68,68,0.4)';
+    el.onclick = () => openShiftModal();
     if(_shiftTimer){ clearInterval(_shiftTimer); _shiftTimer = null; }
     return;
   }
 
   el.style.display = 'inline-flex';
   el.style.borderColor = '';
+  el.onclick = () => openShiftMenu();
   const dur = Shift.duration(active);
   const expected = Shift.liveExpected(active.id);
   el.innerHTML = `
@@ -674,6 +770,158 @@ function updateShiftIndicator(){
   }
 }
 
+/* =====================================================
+   SUPER ADMIN FORCE-STOP & CASHIER PENDING SETTLEMENT
+   ===================================================== */
+function forceStopShiftPrompt(shiftId){
+  const db = (typeof DB !== 'undefined' && DB) ? DB : (window.DB || {});
+  const sh = (db.shifts || []).find(s => s.id === shiftId);
+  if(!sh){ toast('Shift වාර්තාව හමු නොවීය','err'); return; }
+
+  const s = Shift.summary(sh.id) || { expected: 0 };
+
+  openModal(
+    '🛑 Shift එක නවත්වන්න (Stop Shift)',
+    `Force Stop Shift · ${esc(sh.id)} (${esc(sh.cashierName)})`,
+    `<div style="text-align:center;padding:8px 0 14px">
+       <div style="font-size:46px;margin-bottom:8px">🛑</div>
+       <b style="font-size:15px;color:#f87171;display:block;margin-bottom:6px">
+         ${esc(sh.cashierName)} ගේ Shift එක (${esc(sh.id)}) වහාම නවත්වනවාද?
+       </b>
+       <div style="color:var(--muted);font-size:12px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);padding:12px;border-radius:8px;text-align:left;line-height:1.6;margin-top:10px">
+         ⚠️ <b>අවවාදයයි:</b><br>
+         • මෙම Shift එකේ විකුණුම් කිරීම වහාම අත්හිටුවනු ලැබේ (Run නොවේ).<br>
+         • මුදල් ලාච්චුව Balance කිරීමට කැෂියර්ට දැනුම්දීමක් පෙන්වයි (දැනට අපේක්ෂිත: <b>${money(s.expected)}</b>).<br>
+         • කැෂියර් ලාච්චුවේ මුදල ඇතුළත් කර තහවුරු කරන තෙක් මෙම Shift එක <b>අවසන් වූ වාර්තාවක් ලෙස record නොවේ</b>.
+       </div>
+     </div>
+     <div style="margin-top:10px">
+       <label style="font-size:12px;color:var(--muted);font-weight:600">නවත්වන හේතුව / Reason (optional)</label>
+       <input id="stopReasonInp" placeholder="උදා: සුපිරි පරිපාලක විසින් නවතා ඇත" style="margin-top:6px;width:100%">
+     </div>`,
+    `<button class="btn" onclick="closeModal()">අවලංගු</button>
+     <button class="btn btn-red" style="font-weight:700;padding:10px 20px" onclick="confirmForceStopShift('${sh.id}')">
+       🛑 ඔව්, Shift නවත්වන්න
+     </button>`,
+    false
+  );
+}
+
+function confirmForceStopShift(shiftId){
+  const reason = $('#stopReasonInp')?.value?.trim() || 'Super Admin විසින් නවතා ඇත';
+  closeModal();
+  if(typeof Shift !== 'undefined' && Shift.forceStop){
+    Shift.forceStop(shiftId, reason);
+    toast(`🛑 Shift (${shiftId}) නවත්වන ලදී. කැෂියර් මුදල් ඇතුළත් කළ පසු වාර්තාව සටහන් වේ.`, 'warn');
+    updateShiftIndicator();
+    if(typeof render === 'function') render();
+  }
+}
+
+function openSettlePendingModal(shiftId){
+  const db = (typeof DB !== 'undefined' && DB) ? DB : (window.DB || {});
+  const sh = (db.shifts || []).find(s => s.id === shiftId);
+  if(!sh){ toast('Shift වාර්තාව හමු නොවීය','err'); return; }
+
+  const s = Shift.summary(sh.id) || { expected: 0, cashSales: 0, invoices: 0, cashIn: 0, cashOut: 0, cashRefunds: 0 };
+  const dur = Shift.duration(sh);
+
+  openModal(
+    '🛑 Shift එක අවසන් කිරීමට මුදල් ඇතුළත් කරන්න',
+    `Drawer Balance Required · ${esc(sh.id)} (${esc(sh.cashierName)})`,
+    `<div style="background:#0b1220;border:1px solid rgba(239,68,68,0.3);border-radius:12px;padding:14px;margin-bottom:14px">
+       <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.08)">
+         <div style="font-size:32px">⚠️</div>
+         <div>
+           <b style="color:#f87171;font-size:13.5px">පරිපාලක විසින් මෙම Shift එක නවතා ඇත (Stopped by Admin)</b>
+           <div style="font-size:11.5px;color:var(--muted);margin-top:2px">ලාච්චුව සමතුලිත කර වාර්තාව සටහන් කිරීම සඳහා කරුණාකර අවසන් මුදල ඇතුළත් කරන්න.</div>
+         </div>
+       </div>
+
+       <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:10px">
+         <span>🔓 ආරම්භය: <b>${new Date(sh.openedAt).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</b></span>
+         <span>⏱️ කාලය: <b>${dur.text}</b></span>
+       </div>
+
+       <div class="srow"><span>ආරම්භක මුදල</span><b>${money(sh.openingFloat)}</b></div>
+       <div class="srow"><span>+ මුදල් විකුණුම් (${s.invoices} බිල්)</span><b style="color:var(--green)">+ ${money(s.cashSales)}</b></div>
+       ${s.cashIn > 0 ? `<div class="srow"><span>+ Cash-In</span><b style="color:var(--green)">+ ${money(s.cashIn)}</b></div>` : ''}
+       ${s.cashOut > 0 ? `<div class="srow"><span>- Cash-Out</span><b style="color:var(--red)">− ${money(s.cashOut)}</b></div>` : ''}
+       ${s.cashRefunds > 0 ? `<div class="srow"><span>- ආපසු භාරදීම්</span><b style="color:var(--red)">− ${money(s.cashRefunds)}</b></div>` : ''}
+       <div class="srow total" style="font-size:18px;margin-top:8px;padding-top:8px">
+         <span>ලාච්චුවේ තිබිය යුතු මුදල</span>
+         <span style="color:var(--primary)">${money(s.expected)}</span>
+       </div>
+     </div>
+
+     <div>
+       <label style="font-size:12px;color:var(--muted);font-weight:600">ගණන් කරන ලද මුදල / Counted Cash *</label>
+       <input id="pendingClCount" type="number" value="${s.expected}" min="0" autofocus
+              style="font-size:22px;font-weight:700;text-align:right;padding:14px;margin-top:6px"
+              oninput="previewPendingVariance(${s.expected})">
+       <div id="pendingVarBox" style="margin-top:10px;padding:12px;border-radius:9px;text-align:center;font-weight:600"></div>
+     </div>
+
+     <div style="margin-top:14px">
+       <label style="font-size:12px;color:var(--muted);font-weight:600">සටහන / Note (optional)</label>
+       <input id="pendingClNotes" placeholder="උදා: ලාච්චුවේ මුදල් පරීක්ෂා කර අවසන් කරන ලදී" style="margin-top:6px;width:100%">
+     </div>`,
+    `<button class="btn" onclick="cancelPendingSettle()">පසුවට (නොසුරකා ඉවත්වන්න)</button>
+     <button class="btn btn-green" style="font-weight:700;padding:10px 22px" onclick="confirmSettlePendingShift('${sh.id}')">
+       ✅ මුදල් තහවුරු කර Shift අවසන් කරන්න
+     </button>`,
+    false
+  );
+
+  previewPendingVariance(s.expected);
+  setTimeout(() => document.getElementById('pendingClCount')?.select(), 100);
+}
+
+function previewPendingVariance(expected){
+  const counted = parseFloat($('#pendingClCount')?.value) || 0;
+  const diff = counted - expected;
+  const box = $('#pendingVarBox');
+  if(!box) return;
+
+  if(Math.abs(diff) < 0.01){
+    box.style.background = 'rgba(16,185,129,.12)';
+    box.style.color = '#6ee7b7';
+    box.innerHTML = '✅ හරියටම ගැලපේ / Balanced';
+  } else if(diff > 0){
+    box.style.background = 'rgba(245,158,11,.12)';
+    box.style.color = '#fcd34d';
+    box.innerHTML = `⚠️ වැඩිපුර ${money(diff)} / Over`;
+  } else {
+    box.style.background = 'rgba(239,68,68,.12)';
+    box.style.color = '#fca5a5';
+    box.innerHTML = `❌ අඩුවීම ${money(Math.abs(diff))} / Short`;
+  }
+}
+
+function cancelPendingSettle(){
+  closeModal();
+  toast('⚠️ මුදල් ඇතුළත් නොකළ බැවින් Shift එක record නොවීය (Record Incomplete).', 'warn');
+}
+
+function confirmSettlePendingShift(shiftId){
+  const clInp = $('#pendingClCount');
+  const counted = clInp ? parseFloat(clInp.value) : NaN;
+  if(isNaN(counted) || counted < 0){ toast('වලංගු මුදලක් ඇතුළත් කරන්න','err'); return; }
+
+  const noteInp = $('#pendingClNotes');
+  const notes = noteInp ? noteInp.value.trim() : '';
+
+  const sh = Shift.settlePending(shiftId, counted, notes);
+  closeModal();
+  updateShiftIndicator();
+
+  if(sh){
+    toast('✅ Shift එක සාර්ථකව අවසන් කර වාර්තාව සටහන් විය!');
+    showShiftReceipt(sh);
+  }
+  if(typeof render === 'function') render();
+}
+
 window.openShiftModal = openShiftModal;
 window.confirmOpenShift = confirmOpenShift;
 window.closeShiftModal = closeShiftModal;
@@ -685,3 +933,9 @@ window.updateShiftIndicator = updateShiftIndicator;
 window.openCashMoveModal = openCashMoveModal;
 window.confirmCashMove = confirmCashMove;
 window.openShiftMenu = openShiftMenu;
+window.forceStopShiftPrompt = forceStopShiftPrompt;
+window.confirmForceStopShift = confirmForceStopShift;
+window.openSettlePendingModal = openSettlePendingModal;
+window.previewPendingVariance = previewPendingVariance;
+window.cancelPendingSettle = cancelPendingSettle;
+window.confirmSettlePendingShift = confirmSettlePendingShift;

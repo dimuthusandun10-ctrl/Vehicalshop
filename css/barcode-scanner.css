@@ -111,6 +111,50 @@
   box-shadow: 0 0 20px rgba(16, 185, 129, 0.7), 0 0 0 9999px rgba(0, 0, 0, 0.45) !important;
 }
 
+.bsm-frame.error {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 26px rgba(239, 68, 68, 0.85), 0 0 0 9999px rgba(0, 0, 0, 0.55) !important;
+  animation: bsmShake 0.4s ease-in-out;
+}
+
+.bsm-frame.warn {
+  border-color: #f59e0b !important;
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.75), 0 0 0 9999px rgba(0, 0, 0, 0.5) !important;
+}
+
+@keyframes bsmShake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-8px); }
+  40%, 80% { transform: translateX(8px); }
+}
+
+.bsm-torch-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  border-radius: 12px;
+  padding: 3px 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s;
+  user-select: none;
+}
+
+.bsm-torch-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.bsm-torch-btn.active {
+  background: #f59e0b;
+  color: #000;
+  border-color: #fbbf24;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.7);
+}
+
 .bsm-frame::before,
 .bsm-frame::after {
   content: '';
