@@ -246,7 +246,7 @@
 
       const now = new Date();
       const backupData = {
-        version: '2.6.5',
+        version: '2.6.7',
         phase: 8,
         timestamp: now.toISOString(),
         shopId: shopId,

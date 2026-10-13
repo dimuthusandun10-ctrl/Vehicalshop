@@ -115,12 +115,12 @@ self.addEventListener('install', event => {
       console.log('📦 Caching app shell assets');
       for (const url of APP_SHELL) {
         try {
-          await cache.add(new Request(url, { credentials: 'same-origin' }));
+          await cache.add(new Request(url, { credentials: 'same-origin', cache: 'reload' }));
         } catch (err) {
           // Attempt relative path fallback if absolute root fails
           try {
             const relUrl = url.startsWith('/') ? url.slice(1) : url;
-            await cache.add(relUrl);
+            await cache.add(new Request(relUrl, { cache: 'reload' }));
           } catch (e2) {
             console.warn('Cache item skipped:', url, err.message);
           }
