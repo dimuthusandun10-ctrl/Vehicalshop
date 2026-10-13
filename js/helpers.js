@@ -77,10 +77,105 @@ function closeModal(){
 }
 
 /* =========================================================
-   MR.Link Technology (Owner: Dimuthu) Contact Us Modal
+   MR.Link Technology (Owner: Dimuthu) Contact Us System
+   Configurable & Editable by Super Admin
    ========================================================= */
+const DEFAULT_CONTACT_SETTINGS = {
+  brandName: 'MR.Link Technology',
+  ownerName: 'Dimuthu',
+  ownerFullName: 'ඩිමුතු දිශාන් (Dimuthu Dishan)',
+  phone: '077 000 0001',
+  whatsapp: '+94 77 000 0001',
+  email: 'info.dimuthudishan2002@gmail.com',
+  tagline: 'Modern Automotive POS & Intelligent Software Solutions',
+  waMessage: 'Hello MR.Link Technology, I need support for AutoParts POS',
+  services: [
+    'වාහන අමතර කොටස් POS පද්ධති සැකසුම් (System Setup & Support)',
+    'ඔබේ ව්‍යාපාරයට ගැලපෙන නව Features නිර්මාණය කිරීම (Custom Modules)',
+    'Barcode Scanners & 80mm/58mm Thermal Printers සම්බන්ධ කිරීම',
+    'ආරක්ෂිත Cloud Database & දත්ත ආපසු ලබාගැනීම (Data Recovery)',
+    'Password, Super Admin හෝ Cashier Lock ගැටළු විසඳීම (Access Recovery)'
+  ]
+};
+
+function getContactSettings(){
+  try {
+    const raw = localStorage.getItem('pos.contactSettings');
+    if(raw){
+      const parsed = JSON.parse(raw);
+      if(parsed && typeof parsed === 'object'){
+        const merged = Object.assign({}, DEFAULT_CONTACT_SETTINGS, parsed);
+        if(!Array.isArray(merged.services) || merged.services.length === 0){
+          merged.services = DEFAULT_CONTACT_SETTINGS.services.slice();
+        }
+        return merged;
+      }
+    }
+  } catch(e){}
+  return Object.assign({}, DEFAULT_CONTACT_SETTINGS);
+}
+
+function applyContactSettingsToDOM(){
+  const c = getContactSettings();
+  const lb = document.getElementById('loginBrandName');
+  const lo = document.getElementById('loginOwnerName');
+  const sb = document.getElementById('sidebarBrandName');
+  const so = document.getElementById('sidebarOwnerName');
+  const stb = document.getElementById('settingsBrandName');
+  const sto = document.getElementById('settingsOwnerName');
+  if(lb) lb.textContent = c.brandName;
+  if(lo) lo.textContent = c.ownerName;
+  if(sb) sb.textContent = c.brandName;
+  if(so) so.textContent = c.ownerName;
+  if(stb) stb.textContent = c.brandName;
+  if(sto) sto.textContent = c.ownerName;
+}
+
+if(document.readyState === 'loading'){
+  document.addEventListener('DOMContentLoaded', applyContactSettingsToDOM);
+} else {
+  setTimeout(applyContactSettingsToDOM, 50);
+}
+
+async function syncContactSettingsFromFirebase(){
+  try {
+    if(window.FB && typeof window.FB.fbGetDirect === 'function'){
+      const remote = await window.FB.fbGetDirect(window.FB.COL.settings, 'contact_info');
+      if(remote && typeof remote === 'object'){
+        localStorage.setItem('pos.contactSettings', JSON.stringify(remote));
+        applyContactSettingsToDOM();
+        return remote;
+      }
+    }
+  } catch(e){}
+  return getContactSettings();
+}
+
+async function saveContactSettings(settings){
+  const updated = Object.assign({}, DEFAULT_CONTACT_SETTINGS, settings);
+  if(!Array.isArray(updated.services)){
+    updated.services = DEFAULT_CONTACT_SETTINGS.services.slice();
+  }
+  try {
+    localStorage.setItem('pos.contactSettings', JSON.stringify(updated));
+  } catch(e){}
+
+  applyContactSettingsToDOM();
+
+  // Sync to Cloud Firestore if connected
+  if(window.FB && typeof window.FB.fbSet === 'function'){
+    try {
+      await window.FB.fbSet(window.FB.COL.settings, 'contact_info', updated);
+    } catch(err){
+      console.warn('Could not sync contact settings to Firestore:', err.message);
+    }
+  }
+  return updated;
+}
+
 function copyContactDetails(){
-  const text = `MR.Link Technology — Automotive POS & Software Solutions\nOwner & Developer: Dimuthu\nදුරකථන / Phone: 077 000 0001\nWhatsApp: +94 77 000 0001\nEmail: info.dimuthudishan2002@gmail.com\nAutoParts POS Technical Support`;
+  const c = getContactSettings();
+  const text = `${c.brandName} — ${c.tagline}\nOwner / Developer: ${c.ownerFullName || c.ownerName}\nදුරකථන / Phone: ${c.phone}\nWhatsApp: ${c.whatsapp}\nEmail: ${c.email}\nAutoParts POS Technical Support`;
   const setFeedback = () => {
     const icon = document.getElementById('copyBtnIcon');
     const txt = document.getElementById('copyBtnTxt');
@@ -115,43 +210,51 @@ function copyContactDetails(){
 }
 
 function showContactUsModal(){
+  const c = getContactSettings();
+  const cleanWa = (c.whatsapp || '').replace(/[^0-9]/g, '');
+  const waUrl = `https://wa.me/${cleanWa}?text=${encodeURIComponent(c.waMessage || 'Hello MR.Link Technology, I need support for AutoParts POS')}`;
+  const cleanPhone = (c.phone || '').replace(/[^0-9+]/g, '');
+  const phoneUrl = `tel:${cleanPhone}`;
+  const mailUrl = `mailto:${c.email}?subject=${encodeURIComponent(c.brandName + ' - AutoParts POS Support Inquiry')}`;
+  const isSuper = window.state?.user?.role === 'superadmin';
+
   const bodyHtml = `
     <div class="contact-modal-body">
       <div class="contact-brand-header">
         <div class="contact-brand-logo">
           <span class="contact-spark">⚡</span>
         </div>
-        <div class="contact-brand-title">MR.Link Technology</div>
-        <div class="contact-brand-sub">Modern Automotive POS & Intelligent Software Solutions</div>
+        <div class="contact-brand-title">${esc(c.brandName)}</div>
+        <div class="contact-brand-sub">${esc(c.tagline)}</div>
         <div class="contact-owner-badge">
-          <span class="owner-icon">👤</span> Owner & Lead Developer: <strong>Dimuthu</strong> (ඩිමුතු දිශාන්)
+          <span class="owner-icon">👤</span> Owner & Lead Developer: <strong>${esc(c.ownerFullName || c.ownerName)}</strong>
         </div>
       </div>
 
       <div class="contact-actions-grid">
-        <a href="https://wa.me/94770000001?text=Hello%20MR.Link%20Technology%2C%20I%20need%20support%20for%20AutoParts%20POS" target="_blank" rel="noopener" class="contact-action-card wa-card">
+        <a href="${waUrl}" target="_blank" rel="noopener" class="contact-action-card wa-card">
           <div class="ca-icon">💬</div>
           <div class="ca-info">
             <span class="ca-label">WhatsApp (ක්ෂණික පණිවිඩ)</span>
-            <b class="ca-val">+94 77 000 0001</b>
+            <b class="ca-val">${esc(c.whatsapp)}</b>
           </div>
           <span class="ca-arrow">➔</span>
         </a>
 
-        <a href="tel:0770000001" class="contact-action-card call-card">
+        <a href="${phoneUrl}" class="contact-action-card call-card">
           <div class="ca-icon">📞</div>
           <div class="ca-info">
             <span class="ca-label">දුරකථන ඇමතුම් (Direct Call)</span>
-            <b class="ca-val">077 000 0001</b>
+            <b class="ca-val">${esc(c.phone)}</b>
           </div>
           <span class="ca-arrow">➔</span>
         </a>
 
-        <a href="mailto:info.dimuthudishan2002@gmail.com?subject=AutoParts%20POS%20Support%20Inquiry" class="contact-action-card mail-card">
+        <a href="${mailUrl}" class="contact-action-card mail-card">
           <div class="ca-icon">✉️</div>
           <div class="ca-info">
             <span class="ca-label">විද්‍යුත් තැපෑල (Email)</span>
-            <b class="ca-val">info.dimuthudishan2002@gmail.com</b>
+            <b class="ca-val">${esc(c.email)}</b>
           </div>
           <span class="ca-arrow">➔</span>
         </a>
@@ -160,40 +263,213 @@ function showContactUsModal(){
       <div class="contact-services-box">
         <div class="cs-title">🛠️ අප ලබාදෙන තාක්ෂණික සහාය සහ සේවාවන්:</div>
         <ul class="cs-list">
-          <li><span>✅</span> වාහන අමතර කොටස් POS පද්ධති සැකසුම් (System Setup & Support)</li>
-          <li><span>✅</span> ඔබේ ව්‍යාපාරයට ගැලපෙන නව Features නිර්මාණය කිරීම (Custom Modules)</li>
-          <li><span>✅</span> Barcode Scanners & 80mm/58mm Thermal Printers සම්බන්ධ කිරීම</li>
-          <li><span>✅</span> ආරක්ෂිත Cloud Database & දත්ත ආපසු ලබාගැනීම (Data Recovery)</li>
-          <li><span>✅</span> Password, Super Admin හෝ Cashier Lock ගැටළු විසඳීම</li>
+          ${(c.services || []).map(s => `<li><span>✅</span> ${esc(s)}</li>`).join('')}
         </ul>
       </div>
 
       <div class="contact-system-meta">
         <span>🖥️ AutoParts POS System</span>
         <span>•</span>
-        <span>Powered by MR.Link Technology</span>
+        <span>Powered by ${esc(c.brandName)}</span>
         <span>•</span>
-        <span>Owner: Dimuthu</span>
+        <span>Owner: ${esc(c.ownerName)}</span>
       </div>
     </div>
   `;
 
   const footerHtml = `
-    <button type="button" class="btn btn-secondary" onclick="copyContactDetails()" style="display:flex;align-items:center;gap:6px">
-      <span id="copyBtnIcon">📋</span> <span id="copyBtnTxt">විස්තර පිටපත් කරන්න (Copy)</span>
-    </button>
-    <button type="button" class="btn btn-primary" onclick="closeModal()">
-      හරි (Close)
-    </button>
+    <div style="display:flex;justify-content:space-between;align-items:center;width:100%;flex-wrap:wrap;gap:8px">
+      <div>
+        ${isSuper ? `
+          <button type="button" class="btn btn-sm" onclick="openEditContactModal()" style="display:inline-flex;align-items:center;gap:6px;background:rgba(56,189,248,0.12);color:#38bdf8;border:1px solid rgba(56,189,248,0.3);font-weight:600;padding:6px 12px;border-radius:8px;cursor:pointer">
+            ⚙️ විස්තර වෙනස් කරන්න (Edit)
+          </button>
+        ` : ''}
+      </div>
+      <div style="display:flex;gap:8px">
+        <button type="button" class="btn btn-secondary" onclick="copyContactDetails()" style="display:flex;align-items:center;gap:6px">
+          <span id="copyBtnIcon">📋</span> <span id="copyBtnTxt">විස්තර පිටපත් කරන්න (Copy)</span>
+        </button>
+        <button type="button" class="btn btn-primary" onclick="closeModal()">
+          හරි (Close)
+        </button>
+      </div>
+    </div>
   `;
 
   if(typeof openModal === 'function'){
     openModal('📞 තාක්ෂණික සහාය සහ විමසීම්', 'Contact Us & Technical Support', bodyHtml, footerHtml);
   } else {
-    alert("MR.Link Technology\nOwner: Dimuthu\nදුරකථන: 077 000 0001\nEmail: info.dimuthudishan2002@gmail.com");
+    alert(`${c.brandName}\nOwner: ${c.ownerName}\nදුරකථන: ${c.phone}\nEmail: ${c.email}`);
   }
 }
 
+function openEditContactModal(){
+  if(window.state?.user?.role !== 'superadmin'){
+    if(typeof toast === 'function') toast('🔒 මෙම විස්තර වෙනස් කළ හැක්කේ Super Admin හට පමණි.', 'warn');
+    return;
+  }
+  const c = getContactSettings();
+  const servicesText = (c.services || []).join('\n');
+
+  const bodyHtml = `
+    <form id="editContactForm" onsubmit="event.preventDefault();submitEditContactForm();" style="display:flex;flex-direction:column;gap:12px;padding:4px 0">
+      <div style="background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.25);border-radius:10px;padding:10px 14px;font-size:12px;color:#38bdf8">
+        👑 <b>Super Admin සැකසුම්</b>: මෙහි ඇතුළත් කරන තොරතුරු Login පිටුව, Sidebar, Settings හා Contact Us Modal එක පුරාම සජීවීව ක්‍රියාත්මක වේ.
+      </div>
+
+      <div class="grid2" style="gap:10px">
+        <div>
+          <label style="font-size:12px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">
+            ආයතනයේ / Provider නම (Brand Name)
+          </label>
+          <input id="editContactBrand" class="form-input" value="${esc(c.brandName)}" required placeholder="e.g. MR.Link Technology">
+        </div>
+        <div>
+          <label style="font-size:12px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">
+            අයිතිකරුගේ කෙටි නම (Owner Short Name)
+          </label>
+          <input id="editContactOwner" class="form-input" value="${esc(c.ownerName)}" required placeholder="e.g. Dimuthu">
+        </div>
+      </div>
+
+      <div class="grid2" style="gap:10px">
+        <div>
+          <label style="font-size:12px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">
+            අයිතිකරුගේ සම්පූර්ණ නම (Owner Full Name)
+          </label>
+          <input id="editContactOwnerFull" class="form-input" value="${esc(c.ownerFullName)}" placeholder="e.g. ඩිමුතු දිශාන් (Dimuthu Dishan)">
+        </div>
+        <div>
+          <label style="font-size:12px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">
+            දුරකථන අංකය (Direct Phone)
+          </label>
+          <input id="editContactPhone" class="form-input" value="${esc(c.phone)}" required placeholder="e.g. 077 000 0001">
+        </div>
+      </div>
+
+      <div class="grid2" style="gap:10px">
+        <div>
+          <label style="font-size:12px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">
+            WhatsApp අංකය (Country Code සමඟ)
+          </label>
+          <input id="editContactWhatsapp" class="form-input" value="${esc(c.whatsapp)}" required placeholder="e.g. +94 77 000 0001">
+        </div>
+        <div>
+          <label style="font-size:12px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">
+            විද්‍යුත් තැපෑල (Support Email)
+          </label>
+          <input id="editContactEmail" type="email" class="form-input" value="${esc(c.email)}" required placeholder="e.g. info@domain.com">
+        </div>
+      </div>
+
+      <div class="grid2" style="gap:10px">
+        <div>
+          <label style="font-size:12px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">
+            Tagline / කෙටි විස්තරය
+          </label>
+          <input id="editContactTagline" class="form-input" value="${esc(c.tagline)}" placeholder="e.g. Modern POS & Intelligent Software Solutions">
+        </div>
+        <div>
+          <label style="font-size:12px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">
+            පෙරනිමි WhatsApp පණිවිඩය (Default Greeting)
+          </label>
+          <input id="editContactWaMsg" class="form-input" value="${esc(c.waMessage)}" placeholder="e.g. Hello MR.Link Technology, I need support...">
+        </div>
+      </div>
+
+      <div>
+        <label style="font-size:12px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">
+          ලබාදෙන තාක්ෂණික සේවාවන් (Services List - පේළියකට එකක් බැගින්)
+        </label>
+        <textarea id="editContactServices" rows="4" style="width:100%;font-family:inherit;font-size:12.5px;padding:8px 10px;background:#0f172a;color:var(--txt);border:1px solid var(--line);border-radius:8px;resize:vertical">${esc(servicesText)}</textarea>
+      </div>
+    </form>
+  `;
+
+  const footerHtml = `
+    <div style="display:flex;justify-content:space-between;align-items:center;width:100%;flex-wrap:wrap;gap:8px">
+      <button type="button" class="btn btn-secondary btn-sm" onclick="resetContactSettingsToDefaults()" style="color:#fcd34d">
+        🔄 Defaults Restore කරන්න
+      </button>
+      <div style="display:flex;gap:8px">
+        <button type="button" class="btn" onclick="showContactUsModal()">
+          ✕ අවලංගුයි
+        </button>
+        <button type="button" class="btn btn-primary" onclick="submitEditContactForm()">
+          💾 සුරකින්න (Save Changes)
+        </button>
+      </div>
+    </div>
+  `;
+
+  openModal('⚙️ තාක්ෂණික සහාය තොරතුරු සංස්කරණය', 'Super Admin Control · Edit Contact Us Details', bodyHtml, footerHtml, true);
+}
+
+async function submitEditContactForm(){
+  const brand = document.getElementById('editContactBrand')?.value.trim();
+  const owner = document.getElementById('editContactOwner')?.value.trim();
+  const ownerFull = document.getElementById('editContactOwnerFull')?.value.trim();
+  const phone = document.getElementById('editContactPhone')?.value.trim();
+  const whatsapp = document.getElementById('editContactWhatsapp')?.value.trim();
+  const email = document.getElementById('editContactEmail')?.value.trim();
+  const tagline = document.getElementById('editContactTagline')?.value.trim();
+  const waMsg = document.getElementById('editContactWaMsg')?.value.trim();
+  const rawServices = document.getElementById('editContactServices')?.value || '';
+
+  if(!brand || !owner || !phone || !whatsapp || !email){
+    if(typeof toast === 'function') toast('කරුණාකර සියලුම අත්‍යවශ්‍ය තොරතුරු ඇතුළත් කරන්න.', 'err');
+    return;
+  }
+
+  const services = rawServices
+    .split('\n')
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  const updated = {
+    brandName: brand,
+    ownerName: owner,
+    ownerFullName: ownerFull || owner,
+    phone,
+    whatsapp,
+    email,
+    tagline: tagline || DEFAULT_CONTACT_SETTINGS.tagline,
+    waMessage: waMsg || DEFAULT_CONTACT_SETTINGS.waMessage,
+    services: services.length ? services : DEFAULT_CONTACT_SETTINGS.services
+  };
+
+  await saveContactSettings(updated);
+
+  if(typeof toast === 'function') toast('✅ තාක්ෂණික සහාය තොරතුරු සාර්ථකව සුරකින ලදී!', 'ok');
+
+  // Re-open updated Contact Us modal
+  showContactUsModal();
+
+  // If currently on settings page, refresh it
+  if(window.state?.page === 'settings' && typeof render === 'function'){
+    render();
+  }
+}
+
+async function resetContactSettingsToDefaults(){
+  if(!confirm('Contact Us තොරතුරු පෙරනිමි (Default) අගයන් වලට Reset කිරීමට අවශ්‍යද?')) return;
+  await saveContactSettings(DEFAULT_CONTACT_SETTINGS);
+  if(typeof toast === 'function') toast('🔄 පෙරනිමි තොරතුරු සාර්ථකව පිහිටුවන ලදී!', 'ok');
+  showContactUsModal();
+  if(window.state?.page === 'settings' && typeof render === 'function'){
+    render();
+  }
+}
+
+window.DEFAULT_CONTACT_SETTINGS = DEFAULT_CONTACT_SETTINGS;
+window.getContactSettings = getContactSettings;
+window.saveContactSettings = saveContactSettings;
+window.applyContactSettingsToDOM = applyContactSettingsToDOM;
+window.syncContactSettingsFromFirebase = syncContactSettingsFromFirebase;
+window.openEditContactModal = openEditContactModal;
+window.submitEditContactForm = submitEditContactForm;
+window.resetContactSettingsToDefaults = resetContactSettingsToDefaults;
 window.copyContactDetails = copyContactDetails;
 window.showContactUsModal = showContactUsModal;
 window.openContactModal   = showContactUsModal;

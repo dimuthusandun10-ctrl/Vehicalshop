@@ -5,6 +5,7 @@
 function pgSettings(){
   const tab = state.settingsTab;
   const db = window.DB || {};
+  const contactInfo = (typeof getContactSettings === 'function') ? getContactSettings() : { brandName: 'MR.Link Technology', ownerName: 'Dimuthu' };
 
   return `
   <div class="settings-page">
@@ -17,6 +18,7 @@ function pgSettings(){
         <button class="btn btn-sm ${tab==='hardware'?'btn-primary':''}" onclick="state.settingsTab='hardware';render()">🖨️ Hardware & Printer</button>
         <button class="btn btn-sm ${tab==='backup'?'btn-primary':''}" onclick="state.settingsTab='backup';render()">💾 දත්ත Backup</button>
         ${state.user?.role==='superadmin'?`<button class="btn btn-sm ${tab==='maintenance'?'btn-primary':''}" onclick="state.settingsTab='maintenance';render()">🛠️ Maintenance (නඩත්තුව)</button>`:''}
+        ${state.user?.role==='superadmin'?`<button class="btn btn-sm ${tab==='support'?'btn-primary':''}" onclick="state.settingsTab='support';render()">📞 තාක්ෂණික සහාය (Contact Info)</button>`:''}
       </div>
     </div>
 
@@ -25,13 +27,13 @@ function pgSettings(){
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
         <div>
           <div style="font-size:14.5px;font-weight:700;display:flex;align-items:center;gap:8px;margin-bottom:3px">
-            🚀 පද්ධති සංස්කරණය: <code style="color:#38bdf8;font-size:13px">v2.7.2</code>
+            🚀 පද්ධති සංස්කරණය: <code style="color:#38bdf8;font-size:13px">v2.7.3</code>
             <span class="pill ok" style="font-size:11px">Cloudflare Live</span>
           </div>
           <div style="font-size:12px;color:#38bdf8;margin-bottom:5px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-            <span>⚡ Powered by <strong>MR.Link Technology</strong></span>
+            <span>⚡ Powered by <strong id="settingsBrandName">${esc(contactInfo.brandName || 'MR.Link Technology')}</strong></span>
             <span style="opacity:0.6">•</span>
-            <span style="color:#fcd34d">Owner: <strong>Dimuthu</strong></span>
+            <span style="color:#fcd34d">Owner: <strong id="settingsOwnerName">${esc(contactInfo.ownerName || 'Dimuthu')}</strong></span>
           </div>
           <small style="color:var(--muted);font-size:12px;display:block">Mobile දුරකථනයේ හෝ පරිගණකයේ අලුත්ම Features නොපෙනේ නම්, පැරණි Cache ඉවත් කර නවතම අනුවාදය ලබාගන්න.</small>
         </div>
@@ -345,6 +347,142 @@ function pgSettings(){
           </div>
         </div>
 
+      </div>`;
+    })() : ''}
+
+    ${tab==='support' ? (() => {
+      if(state.user?.role !== 'superadmin'){
+        return `
+        <div class="card" style="margin-top:14px;padding:40px;text-align:center">
+          <div style="font-size:36px;margin-bottom:10px">🔒</div>
+          <b style="font-size:16px;color:#f87171">ප්‍රවේශය අවහිර කර ඇත (Access Denied)</b>
+          <p style="color:var(--muted);font-size:12.5px;margin-top:6px">
+            තාක්ෂණික සහාය තොරතුරු වෙනස් කිරීම සුපිරි පරිපාලක (Super Admin) සඳහා පමණක් සීමා කර ඇත.
+          </p>
+        </div>`;
+      }
+
+      const c = (typeof getContactSettings === 'function') ? getContactSettings() : {
+        brandName: 'MR.Link Technology',
+        ownerName: 'Dimuthu',
+        ownerFullName: 'ඩිමුතු දිශන් (Dimuthu Dishan)',
+        phone: '077 000 0001',
+        whatsapp: '+94 77 000 0001',
+        email: 'info.dimuthudishan2002@gmail.com',
+        tagline: 'Modern POS & Intelligent Software Solutions',
+        waMessage: 'Hello MR.Link Technology, I need support for AutoParts POS',
+        services: [
+          'POS System ස්ථාපනය සහ වින්‍යාස කිරීම් (Setup & Config)',
+          'නව Features සහ Custom Modifications එක් කිරීම',
+          'Barcode Scanner සහ Bluetooth/Thermal Printer සවි කිරීම්',
+          'Cloud Data Sync සහ Database Backup සහාය',
+          'Account Access Recovery සහ පරිශීලක කළමනාකරණය'
+        ]
+      };
+      const servicesText = (c.services || []).join('\n');
+
+      return `
+      <div style="margin-top:14px;display:flex;flex-direction:column;gap:16px">
+        <div class="card" style="background:#111c30;border:1px solid var(--line);border-radius:12px;padding:18px">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--line)">
+            <div>
+              <h4 style="margin:0 0 4px;font-size:16px;color:#38bdf8;display:flex;align-items:center;gap:8px">
+                📞 තාක්ෂණික සහාය සහ පද්ධති තොරතුරු (Technical Support & Contact Info)
+              </h4>
+              <p style="color:var(--muted);font-size:12px;margin:0">
+                මෙහි වෙනස් කරන තොරතුරු Login පිටුව, Sidebar, Settings සහ "Contact Us" Modal එකෙහි සජීවීව (Live) දිස්වේ.
+              </p>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <span class="pill ok" style="font-size:11px;background:rgba(56,189,248,0.15);color:#38bdf8;border:1px solid rgba(56,189,248,0.3)">
+                🔒 Super Admin Control
+              </span>
+              <button class="btn btn-secondary btn-sm" onclick="openContactModal()" style="font-weight:600;padding:6px 12px;display:flex;align-items:center;gap:6px">
+                👁️ Modal පෙරදසුන (Preview)
+              </button>
+            </div>
+          </div>
+
+          <form id="supportSettingsForm" onsubmit="event.preventDefault();saveSupportSettingsFromPage();" style="display:flex;flex-direction:column;gap:14px">
+            <div class="grid2" style="gap:14px">
+              <div>
+                <label style="font-size:12px;color:var(--muted);font-weight:600;display:block;margin-bottom:5px">
+                  ආයතනය / සපයන්නාගේ නම (Brand / Provider Name)
+                </label>
+                <input id="spContactBrand" class="form-input" value="${esc(c.brandName)}" required placeholder="e.g. MR.Link Technology" style="width:100%;box-sizing:border-box">
+              </div>
+              <div>
+                <label style="font-size:12px;color:var(--muted);font-weight:600;display:block;margin-bottom:5px">
+                  හිමිකරුගේ කෙටි නම (Owner Short Name - Sidebar/Login හි පෙන්වන)
+                </label>
+                <input id="spContactOwner" class="form-input" value="${esc(c.ownerName)}" required placeholder="e.g. Dimuthu" style="width:100%;box-sizing:border-box">
+              </div>
+            </div>
+
+            <div class="grid2" style="gap:14px">
+              <div>
+                <label style="font-size:12px;color:var(--muted);font-weight:600;display:block;margin-bottom:5px">
+                  හිමිකරුගේ සම්පූර්ණ නම (Owner Full Name / Title - Modal හි පෙන්වන)
+                </label>
+                <input id="spContactOwnerFull" class="form-input" value="${esc(c.ownerFullName || c.ownerName)}" required placeholder="e.g. ඩිමුතු දිශාන් (Dimuthu Dishan)" style="width:100%;box-sizing:border-box">
+              </div>
+              <div>
+                <label style="font-size:12px;color:var(--muted);font-weight:600;display:block;margin-bottom:5px">
+                  සෘජු දුරකථන අංකය (Direct Phone Call)
+                </label>
+                <input id="spContactPhone" class="form-input" value="${esc(c.phone)}" required placeholder="e.g. 077 000 0001" style="width:100%;box-sizing:border-box">
+              </div>
+            </div>
+
+            <div class="grid2" style="gap:14px">
+              <div>
+                <label style="font-size:12px;color:var(--muted);font-weight:600;display:block;margin-bottom:5px">
+                  WhatsApp අංකය (Country Code සමඟ, e.g. +94 77 000 0001)
+                </label>
+                <input id="spContactWhatsapp" class="form-input" value="${esc(c.whatsapp)}" required placeholder="e.g. +94 77 000 0001" style="width:100%;box-sizing:border-box">
+              </div>
+              <div>
+                <label style="font-size:12px;color:var(--muted);font-weight:600;display:block;margin-bottom:5px">
+                  විද්‍යුත් තැපෑල (Support Email)
+                </label>
+                <input id="spContactEmail" type="email" class="form-input" value="${esc(c.email)}" required placeholder="e.g. info.dimuthudishan2002@gmail.com" style="width:100%;box-sizing:border-box">
+              </div>
+            </div>
+
+            <div class="grid2" style="gap:14px">
+              <div>
+                <label style="font-size:12px;color:var(--muted);font-weight:600;display:block;margin-bottom:5px">
+                  Tagline / කෙටි සටහන (Modal Subtitle)
+                </label>
+                <input id="spContactTagline" class="form-input" value="${esc(c.tagline)}" placeholder="e.g. Modern POS & Intelligent Software Solutions" style="width:100%;box-sizing:border-box">
+              </div>
+              <div>
+                <label style="font-size:12px;color:var(--muted);font-weight:600;display:block;margin-bottom:5px">
+                  පෙරනිමි WhatsApp පණිවිඩය (Default Greeting Message)
+                </label>
+                <input id="spContactWaMsg" class="form-input" value="${esc(c.waMessage)}" placeholder="e.g. Hello MR.Link Technology, I need support for AutoParts POS" style="width:100%;box-sizing:border-box">
+              </div>
+            </div>
+
+            <div>
+              <label style="font-size:12px;color:var(--muted);font-weight:600;display:block;margin-bottom:5px">
+                ලබාදෙන තාක්ෂණික සේවාවන් ලැයිස්තුව (Services List - පේළියකට එකක් බැගින්)
+              </label>
+              <textarea id="spContactServices" rows="5" style="width:100%;box-sizing:border-box;font-family:inherit;font-size:12.5px;padding:10px 12px;background:#0f172a;color:var(--txt);border:1px solid var(--line);border-radius:8px;resize:vertical" placeholder="සෑම සේවාවක්ම වෙනම පේළියක ඇතුළත් කරන්න...">${esc(servicesText)}</textarea>
+            </div>
+
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-top:10px;padding-top:14px;border-top:1px solid var(--line)">
+              <button type="button" class="btn btn-secondary btn-sm" onclick="resetContactSettingsToDefaults()" style="color:#fcd34d;font-weight:600">
+                🔄 Defaults Restore කරන්න
+              </button>
+              <div style="display:flex;gap:10px;align-items:center">
+                <button type="submit" class="btn btn-primary" style="font-weight:700;padding:8px 20px">
+                  💾 තොරතුරු සුරකින්න (Save Changes)
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
       </div>`;
     })() : ''}
 
@@ -1400,7 +1538,53 @@ function setHwAutoDrawer(val){
   toast(val ? 'ස්වයංක්‍රීය Drawer kick ක්‍රියාත්මකයි' : 'ස්වයංක්‍රීය Drawer kick අක්‍රියයි', 'ok');
 }
 
+async function saveSupportSettingsFromPage(){
+  if(window.state?.user?.role !== 'superadmin'){
+    if(typeof toast === 'function') toast('මෙම තොරතුරු වෙනස් කිරීමට අවසර නැත', 'err');
+    return;
+  }
+  const brand = document.getElementById('spContactBrand')?.value.trim();
+  const owner = document.getElementById('spContactOwner')?.value.trim();
+  const ownerFull = document.getElementById('spContactOwnerFull')?.value.trim();
+  const phone = document.getElementById('spContactPhone')?.value.trim();
+  const whatsapp = document.getElementById('spContactWhatsapp')?.value.trim();
+  const email = document.getElementById('spContactEmail')?.value.trim();
+  const tagline = document.getElementById('spContactTagline')?.value.trim();
+  const waMsg = document.getElementById('spContactWaMsg')?.value.trim();
+  const rawServices = document.getElementById('spContactServices')?.value || '';
+
+  if(!brand || !owner || !phone || !whatsapp || !email){
+    if(typeof toast === 'function') toast('කරුණාකර සියලුම අත්‍යවශ්‍ය තොරතුරු ඇතුළත් කරන්න.', 'err');
+    return;
+  }
+
+  const defs = window.DEFAULT_CONTACT_SETTINGS || {};
+  const services = rawServices
+    .split('\n')
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  const updated = {
+    brandName: brand,
+    ownerName: owner,
+    ownerFullName: ownerFull || owner,
+    phone,
+    whatsapp,
+    email,
+    tagline: tagline || defs.tagline,
+    waMessage: waMsg || defs.waMessage,
+    services: services.length ? services : defs.services
+  };
+
+  if(typeof window.saveContactSettings === 'function'){
+    await window.saveContactSettings(updated);
+  }
+  if(typeof toast === 'function') toast('✅ තාක්ෂණික සහාය තොරතුරු සාර්ථකව සුරකින ලදී!', 'ok');
+  if(typeof render === 'function') render();
+}
+
 window.pgSettings = pgSettings;
+window.saveSupportSettingsFromPage = saveSupportSettingsFromPage;
 window.saveShopSettings = saveShopSettings;
 window.saveShop = saveShopSettings;
 window.editUser = editUser;

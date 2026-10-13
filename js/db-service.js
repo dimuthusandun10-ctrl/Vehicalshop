@@ -316,6 +316,11 @@ Object.assign(DB, {
           }
           if(typeof updateTopBarShopSwitcher === 'function') updateTopBarShopSwitcher();
         }
+
+        // Sync dynamic technical support & contact settings from Firestore
+        if(typeof window.syncContactSettingsFromFirebase === 'function'){
+          window.syncContactSettingsFromFirebase().catch(() => {});
+        }
       } catch(err) {
         this.isFirebaseConnected = false;
         console.warn('Operating in local offline storage mode.');
