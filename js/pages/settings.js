@@ -25,14 +25,24 @@ function pgSettings(){
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
         <div>
           <div style="font-size:14.5px;font-weight:700;display:flex;align-items:center;gap:8px;margin-bottom:3px">
-            🚀 පද්ධති සංස්කරණය: <code style="color:#38bdf8;font-size:13px">v2.7.0</code>
+            🚀 පද්ධති සංස්කරණය: <code style="color:#38bdf8;font-size:13px">v2.7.2</code>
             <span class="pill ok" style="font-size:11px">Cloudflare Live</span>
+          </div>
+          <div style="font-size:12px;color:#38bdf8;margin-bottom:5px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            <span>⚡ Powered by <strong>MR.Link Technology</strong></span>
+            <span style="opacity:0.6">•</span>
+            <span style="color:#fcd34d">Owner: <strong>Dimuthu</strong></span>
           </div>
           <small style="color:var(--muted);font-size:12px;display:block">Mobile දුරකථනයේ හෝ පරිගණකයේ අලුත්ම Features නොපෙනේ නම්, පැරණි Cache ඉවත් කර නවතම අනුවාදය ලබාගන්න.</small>
         </div>
-        <button class="btn btn-primary btn-sm" onclick="forceUpdateApp()" style="display:flex;align-items:center;gap:6px;font-weight:700;padding:8px 14px">
-          🔄 යෙදුම යාවත්කාලීන කරන්න (Update App)
-        </button>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button class="btn btn-secondary btn-sm" onclick="openContactModal()" style="display:flex;align-items:center;gap:6px;font-weight:600;padding:8px 12px">
+            📞 Contact Us
+          </button>
+          <button class="btn btn-primary btn-sm" onclick="forceUpdateApp()" style="display:flex;align-items:center;gap:6px;font-weight:700;padding:8px 14px">
+            🔄 යෙදුම යාවත්කාලීන කරන්න (Update App)
+          </button>
+        </div>
       </div>
     </div>
 

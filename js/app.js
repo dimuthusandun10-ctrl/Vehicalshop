@@ -126,29 +126,34 @@ function registerPwaServiceWorker(){
         .catch(err => console.warn('PWA SW registration notice:', err));
     });
 
-    // When the new Service Worker activates and claims clients, reload page seamlessly
+    // When the new Service Worker activates and claims clients, reload page only if NOT mid-update
     let refreshing = false;
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if(!refreshing){
+      if(!_isUpdatingApp && !refreshing){
         refreshing = true;
         window.location.reload();
       }
     });
   }
 
-  // Active check for updates directly from Cloudflare server
+  // Real-time online reconnect check
+  window.addEventListener('online', () => {
+    checkForCloudflareUpdates(true);
+  });
+
+  // Real-time initial check directly from Cloudflare server (1.2s after start)
   setTimeout(() => {
-    checkForCloudflareUpdates();
-  }, 3500);
+    checkForCloudflareUpdates(true);
+  }, 1200);
 
   document.addEventListener('visibilitychange', () => {
     if(document.visibilityState === 'visible'){
-      checkForCloudflareUpdates();
+      checkForCloudflareUpdates(false);
     }
   });
 }
 
-const CURRENT_APP_VERSION = 'v2.7.0';
+const CURRENT_APP_VERSION = 'v2.7.2';
 try {
   if(localStorage.getItem('pos.appVersion') !== CURRENT_APP_VERSION){
     localStorage.setItem('pos.appVersion', CURRENT_APP_VERSION);
@@ -158,11 +163,23 @@ try {
 let _lastUpdateCheckTime = 0;
 let _updateBannerTimer = null;
 
-async function checkForCloudflareUpdates(){
+function updateTopbarUpdateBadge(newVer){
+  const badge = document.getElementById('topbarUpdateBadge');
+  if(!badge) return;
+  if(newVer && newVer !== CURRENT_APP_VERSION){
+    badge.innerHTML = `🚀 Update (${newVer})`;
+    badge.classList.remove('hidden');
+    badge.onclick = () => forceUpdateApp(newVer);
+  } else {
+    badge.classList.add('hidden');
+  }
+}
+
+async function checkForCloudflareUpdates(force = false){
   if(typeof navigator !== 'undefined' && !navigator.onLine) return;
   const now = Date.now();
-  // Throttle update check to once every 5 minutes to avoid polling overhead
-  if(now - _lastUpdateCheckTime < 300000){
+  // Fast throttle of 20 seconds unless explicitly forced
+  if(!force && (now - _lastUpdateCheckTime < 20000)){
     return;
   }
   _lastUpdateCheckTime = now;
@@ -176,10 +193,12 @@ async function checkForCloudflareUpdates(){
         const remoteVer = match[1];
         window._availableRemoteVersion = remoteVer;
         if(remoteVer !== CURRENT_APP_VERSION){
-          console.log('⚡ New version detected on Cloudflare:', remoteVer, 'Current:', CURRENT_APP_VERSION);
+          console.log('⚡ Real-time new version detected on Cloudflare:', remoteVer, 'Current:', CURRENT_APP_VERSION);
           showUpdateBannerDirect(remoteVer);
+          updateTopbarUpdateBadge(remoteVer);
         } else {
           dismissUpdateBanner(true);
+          updateTopbarUpdateBadge(null);
           const sbWrap = document.getElementById('sidebarUpdateWrap');
           if(sbWrap) sbWrap.style.display = 'none';
         }
@@ -202,15 +221,10 @@ function showUpdateBannerDirect(newVer){
     }
   }
 
-  // 2. Prevent repeatedly popping up every few seconds during this session
-  const promptKey = 'pos.updatePrompted.' + newVer;
-  const lastPrompted = sessionStorage.getItem(promptKey);
-  if(lastPrompted && (Date.now() - Number(lastPrompted) < 600000)){ // 10 minutes debounce for floating popup
-    return;
-  }
-  try { sessionStorage.setItem(promptKey, String(Date.now())); } catch(_){}
+  // 2. Also show topbar update badge in header
+  updateTopbarUpdateBadge(newVer);
 
-  // 3. Floating bottom update notification banner (Disappears after ~2 seconds)
+  // 3. Floating bottom update notification banner
   let banner = document.getElementById('updateBanner');
   if(!banner){
     banner = document.createElement('div');
@@ -224,7 +238,7 @@ function showUpdateBannerDirect(newVer){
       <span style="font-size:22px">🚀</span>
       <div>
         <b style="font-size:13px;display:block">නවතම සංස්කරණයක් ඇත (${newVer})!</b>
-        <small style="opacity:0.9;font-size:11px">Sidebar හෝ Settings මඟින් Update කළ හැක</small>
+        <small style="opacity:0.9;font-size:11px">Sidebar, Header හෝ Settings මඟින් Update කළ හැක</small>
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:6px">
@@ -237,15 +251,13 @@ function showUpdateBannerDirect(newVer){
   banner.style.opacity = '1';
   banner.style.transform = 'translateY(0)';
 
-  // 4. Automatically disappear after 2.2 seconds (user requirement: තත්පර 2න් නැති වෙලා යන්න)
   if(_updateBannerTimer) clearTimeout(_updateBannerTimer);
   _updateBannerTimer = setTimeout(() => {
     dismissUpdateBanner();
-  }, 2200);
+  }, 4000);
 
-  // Pause timer if user hovers mouse
   banner.onmouseenter = () => { if(_updateBannerTimer) clearTimeout(_updateBannerTimer); };
-  banner.onmouseleave = () => { _updateBannerTimer = setTimeout(dismissUpdateBanner, 1500); };
+  banner.onmouseleave = () => { _updateBannerTimer = setTimeout(dismissUpdateBanner, 2000); };
 }
 
 function dismissUpdateBanner(immediate = false){
@@ -268,14 +280,125 @@ function showUpdateBanner(reg){
   showUpdateBannerDirect(window._availableRemoteVersion || CURRENT_APP_VERSION);
 }
 
+/* =========================================================
+   🚀 REAL-TIME UPDATE PROGRESS MODAL & HARD REFRESH ENGINE
+   ========================================================= */
+function showUpdateProgressModal(targetVer){
+  let el = document.getElementById('updateProgressOverlay');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'updateProgressOverlay';
+    el.className = 'update-progress-overlay';
+    document.body.appendChild(el);
+  }
+  el.innerHTML = `
+    <div class="update-progress-card">
+      <div class="upc-header">
+        <div class="upc-icon-wrap">
+          <span class="upc-rocket">🚀</span>
+        </div>
+        <h3>පද්ධතිය යාවත්කාලීන වෙමින් පවතී...</h3>
+        <p id="upcTargetVer">${targetVer ? 'සංස්කරණය: ' + targetVer : 'AutoParts POS Live Update'}</p>
+      </div>
+
+      <div class="upc-bar-container">
+        <div class="upc-bar-track">
+          <div id="upcProgressBar" class="upc-bar-fill" style="width: 5%"></div>
+        </div>
+        <div class="upc-bar-meta">
+          <span id="upcStatusText">සූදානම් වෙමින් පවතී...</span>
+          <b id="upcPercentText">5%</b>
+        </div>
+      </div>
+
+      <div class="upc-steps-list">
+        <div class="upc-step active" id="upcStep1">
+          <span class="step-icon">📡</span>
+          <span class="step-text">Cloudflare Server නවතම සංස්කරණය තහවුරු කිරීම</span>
+          <span class="step-status">⏳</span>
+        </div>
+        <div class="upc-step" id="upcStep2">
+          <span class="step-icon">🗑️</span>
+          <span class="step-text">පැරණි Cache Storage හා Service Worker ඉවත් කිරීම</span>
+          <span class="step-status">⚪</span>
+        </div>
+        <div class="upc-step" id="upcStep3">
+          <span class="step-icon">📦</span>
+          <span class="step-text">නවතම App Scripts & Styles බාගත කිරීම</span>
+          <span class="step-status">⚪</span>
+        </div>
+        <div class="upc-step" id="upcStep4">
+          <span class="step-icon">💾</span>
+          <span class="step-text">පද්ධති දත්ත (Local DB) ආරක්ෂා කර සකස් කිරීම</span>
+          <span class="step-status">⚪</span>
+        </div>
+        <div class="upc-step" id="upcStep5">
+          <span class="step-icon">🔄</span>
+          <span class="step-text">සම්පූර්ණ Hard Refresh මඟින් පද්ධතිය ආරම්භ කිරීම</span>
+          <span class="step-status">⚪</span>
+        </div>
+      </div>
+
+      <div class="upc-footer-note">
+        ⚠️ කරුණාකර පිටුව වසන්න හෝ Back ඔබන්න එපා (Do not close or reload)
+      </div>
+    </div>
+  `;
+}
+
+function updateProgressStep(stepNum, percent, statusText){
+  const bar = document.getElementById('upcProgressBar');
+  const percentEl = document.getElementById('upcPercentText');
+  const statusEl = document.getElementById('upcStatusText');
+  if(bar) bar.style.width = percent + '%';
+  if(percentEl) percentEl.textContent = percent + '%';
+  if(statusEl) statusEl.textContent = statusText;
+
+  for(let i = 1; i <= 5; i++){
+    const s = document.getElementById('upcStep' + i);
+    if(!s) continue;
+    const stat = s.querySelector('.step-status');
+    if(i < stepNum){
+      s.className = 'upc-step done';
+      if(stat) stat.textContent = '✅';
+    } else if(i === stepNum){
+      s.className = 'upc-step active';
+      if(stat) stat.textContent = '⏳';
+    } else {
+      s.className = 'upc-step';
+      if(stat) stat.textContent = '⚪';
+    }
+  }
+}
+
 async function forceUpdateApp(targetVer){
-  if(typeof toast === 'function') toast('⏳ නවතම අනුවාදය බාගත කරමින් පවතී... (Updating App)', 'info');
+  _isUpdatingApp = true;
+  let newVer = targetVer || window._availableRemoteVersion || CURRENT_APP_VERSION;
+
+  // 1. Show interactive progress modal
+  showUpdateProgressModal(newVer);
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
 
   try {
-    const newVer = targetVer || window._availableRemoteVersion || CURRENT_APP_VERSION;
-    try { localStorage.setItem('pos.appVersion', newVer); } catch(_){}
+    // STEP 1: Check Cloudflare live version (15%)
+    updateProgressStep(1, 15, 'Cloudflare සේවාදායකයේ නවතම සංස්කරණය තහවුරු කරමින්...');
+    try {
+      const chkRes = await fetch('/service-worker.js?_chk=' + Date.now(), { cache: 'no-store' });
+      if(chkRes.ok){
+        const text = await chkRes.text();
+        const match = text.match(/CACHE_VERSION\s*=\s*['"]([^'"]+)['"]/);
+        if(match && match[1]){
+          newVer = match[1];
+          window._availableRemoteVersion = newVer;
+          const targetEl = document.getElementById('upcTargetVer');
+          if(targetEl) targetEl.textContent = 'නවතම සංස්කරණය: ' + newVer;
+        }
+      }
+    } catch(_){}
+    await sleep(350);
 
-    // 1. Unregister all existing service workers to avoid stale controller interception
+    // STEP 2: Clear old service workers & all Cache Storage (40%)
+    updateProgressStep(2, 40, 'පැරණි Service Worker හා Cache Storage සම්පූර්ණයෙන්ම ඉවත් කරමින්...');
     if('serviceWorker' in navigator){
       try {
         const registrations = await navigator.serviceWorker.getRegistrations();
@@ -288,31 +411,71 @@ async function forceUpdateApp(targetVer){
       } catch(e){}
     }
 
-    // 2. Clear ALL cache storage caches (HTML, CSS, JS)
     if('caches' in window){
       try {
         const keys = await caches.keys();
         await Promise.all(keys.map(k => caches.delete(k)));
       } catch(e){}
     }
+    await sleep(400);
 
-    if(typeof toast === 'function') toast('✅ යෙදුම සාර්ථකව යාවත්කාලීන විය! නැවත පූරණය වේ...', 'ok');
+    // STEP 3: Pre-fetch fresh bundle from network directly (70%)
+    updateProgressStep(3, 70, 'නවතම App Scripts, CSS සහ Layouts බාගත කරමින්...');
+    try {
+      await Promise.all([
+        fetch('/index.html?_ts=' + Date.now(), { cache: 'reload' }),
+        fetch('/css/app-combined.css?v=' + encodeURIComponent(newVer), { cache: 'reload' }),
+        fetch('/js/app.js?v=' + encodeURIComponent(newVer), { cache: 'reload' }),
+        fetch('/service-worker.js?_ts=' + Date.now(), { cache: 'reload' })
+      ]);
+    } catch(_){}
+    await sleep(400);
 
-    // 3. Force hard navigation directly to origin with cache-busting timestamp
+    // STEP 4: Protect local DB & commit version state (90%)
+    updateProgressStep(4, 90, 'දේශීය දත්ත ගබඩාව ආරක්ෂා කරමින් පද්ධතිය සකස් කිරීම...');
+    try {
+      localStorage.setItem('pos.appVersion', newVer);
+      Object.keys(sessionStorage).forEach(k => {
+        if(k.startsWith('pos.updatePrompted.')) sessionStorage.removeItem(k);
+      });
+    } catch(_){}
+    await sleep(350);
+
+    // STEP 5: Hard Refresh (100%)
+    updateProgressStep(5, 100, '✅ සාර්ථකයි! සම්පූර්ණ Hard Refresh මඟින් නැවත ආරම්භ වේ...');
+    for(let i = 1; i <= 5; i++){
+      const s = document.getElementById('upcStep' + i);
+      if(s){
+        s.className = 'upc-step done';
+        const st = s.querySelector('.step-status');
+        if(st) st.textContent = '✅';
+      }
+    }
+    await sleep(500);
+
+    // Hard navigation with cache-busting timestamp and version query
+    const cleanUrl = window.location.origin + window.location.pathname;
+    const targetUrl = cleanUrl + '?v=' + encodeURIComponent(newVer) + '&_hard_refresh=' + Date.now();
+    window.location.replace(targetUrl);
+
+    // Safety fallback
     setTimeout(() => {
-      const cleanUrl = window.location.origin + window.location.pathname;
-      window.location.replace(cleanUrl + '?v=' + encodeURIComponent(newVer) + '&_t=' + Date.now());
-    }, 300);
+      window.location.href = targetUrl;
+    }, 600);
 
   } catch(err){
-    console.error('Force update error:', err);
-    window.location.replace(window.location.origin + window.location.pathname + '?_t=' + Date.now());
+    console.error('Update progress error:', err);
+    updateProgressStep(5, 100, 'Hard Refresh මඟින් නැවත පූරණය වේ...');
+    await sleep(300);
+    const cleanUrl = window.location.origin + window.location.pathname;
+    window.location.replace(cleanUrl + '?v=' + encodeURIComponent(newVer) + '&_hard_refresh=' + Date.now());
   }
 }
 
 window.forceUpdateApp = forceUpdateApp;
 window.updateApp = forceUpdateApp;
 window.checkForCloudflareUpdates = checkForCloudflareUpdates;
+window.openContactModal = window.openContactModal || function(){ if(typeof window.showContactUsModal === 'function') window.showContactUsModal(); };
 
 /* =========================================================
    Custom PWA Install Prompt (Chrome / Edge / Android)

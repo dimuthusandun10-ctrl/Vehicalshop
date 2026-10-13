@@ -13,6 +13,7 @@ window.showForgotHelp = showForgotHelp;
 window.initLoginEnhancements = initLoginEnhancements;
 window.showChangePasswordModal = showChangePasswordModal;
 window.saveNewPassword = saveNewPassword;
+window.openContactModal = window.openContactModal || function(){ if(typeof window.showContactUsModal === 'function') window.showContactUsModal(); };
 
 /* =========================================================
    One-time Cache Invalidation for Auth Migration (FIX 2)
@@ -139,7 +140,7 @@ function showForgotHelp(){
       පද්ධතියේ අයිතිකරු අමතන්න.
     </div>
    </div>`,
-  `<button class="btn" onclick="closeModal()">හරි, තේරුණා</button>`,
+  `<div style="display:flex;gap:8px;justify-content:flex-end;width:100%"><button class="btn btn-secondary" onclick="openContactModal()">📞 Contact Us</button><button class="btn btn-primary" onclick="closeModal()">හරි, තේරුණා</button></div>`,
   false);
 }
 

@@ -76,6 +76,128 @@ function closeModal(){
   if(root) root.innerHTML = '';
 }
 
+/* =========================================================
+   MR.Link Technology (Owner: Dimuthu) Contact Us Modal
+   ========================================================= */
+function copyContactDetails(){
+  const text = `MR.Link Technology — Automotive POS & Software Solutions\nOwner & Developer: Dimuthu\nදුරකථන / Phone: 077 000 0001\nWhatsApp: +94 77 000 0001\nEmail: info.dimuthudishan2002@gmail.com\nAutoParts POS Technical Support`;
+  const setFeedback = () => {
+    const icon = document.getElementById('copyBtnIcon');
+    const txt = document.getElementById('copyBtnTxt');
+    if(icon) icon.textContent = '✅';
+    if(txt) txt.textContent = 'පිටපත් විය! (Copied)';
+    setTimeout(() => {
+      if(icon) icon.textContent = '📋';
+      if(txt) txt.textContent = 'විස්තර පිටපත් කරන්න (Copy)';
+    }, 2500);
+    if(typeof toast === 'function') toast('සම්බන්ධතා විස්තර සාර්ථකව පිටපත් කරන ලදී! 📋', 'ok');
+  };
+
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(setFeedback).catch(() => fallbackCopy(text));
+  } else {
+    fallbackCopy(text);
+  }
+
+  function fallbackCopy(str){
+    const ta = document.createElement('textarea');
+    ta.value = str;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+      document.execCommand('copy');
+      setFeedback();
+    } catch(_){}
+    document.body.removeChild(ta);
+  }
+}
+
+function showContactUsModal(){
+  const bodyHtml = `
+    <div class="contact-modal-body">
+      <div class="contact-brand-header">
+        <div class="contact-brand-logo">
+          <span class="contact-spark">⚡</span>
+        </div>
+        <div class="contact-brand-title">MR.Link Technology</div>
+        <div class="contact-brand-sub">Modern Automotive POS & Intelligent Software Solutions</div>
+        <div class="contact-owner-badge">
+          <span class="owner-icon">👤</span> Owner & Lead Developer: <strong>Dimuthu</strong> (ඩිමුතු දිශාන්)
+        </div>
+      </div>
+
+      <div class="contact-actions-grid">
+        <a href="https://wa.me/94770000001?text=Hello%20MR.Link%20Technology%2C%20I%20need%20support%20for%20AutoParts%20POS" target="_blank" rel="noopener" class="contact-action-card wa-card">
+          <div class="ca-icon">💬</div>
+          <div class="ca-info">
+            <span class="ca-label">WhatsApp (ක්ෂණික පණිවිඩ)</span>
+            <b class="ca-val">+94 77 000 0001</b>
+          </div>
+          <span class="ca-arrow">➔</span>
+        </a>
+
+        <a href="tel:0770000001" class="contact-action-card call-card">
+          <div class="ca-icon">📞</div>
+          <div class="ca-info">
+            <span class="ca-label">දුරකථන ඇමතුම් (Direct Call)</span>
+            <b class="ca-val">077 000 0001</b>
+          </div>
+          <span class="ca-arrow">➔</span>
+        </a>
+
+        <a href="mailto:info.dimuthudishan2002@gmail.com?subject=AutoParts%20POS%20Support%20Inquiry" class="contact-action-card mail-card">
+          <div class="ca-icon">✉️</div>
+          <div class="ca-info">
+            <span class="ca-label">විද්‍යුත් තැපෑල (Email)</span>
+            <b class="ca-val">info.dimuthudishan2002@gmail.com</b>
+          </div>
+          <span class="ca-arrow">➔</span>
+        </a>
+      </div>
+
+      <div class="contact-services-box">
+        <div class="cs-title">🛠️ අප ලබාදෙන තාක්ෂණික සහාය සහ සේවාවන්:</div>
+        <ul class="cs-list">
+          <li><span>✅</span> වාහන අමතර කොටස් POS පද්ධති සැකසුම් (System Setup & Support)</li>
+          <li><span>✅</span> ඔබේ ව්‍යාපාරයට ගැලපෙන නව Features නිර්මාණය කිරීම (Custom Modules)</li>
+          <li><span>✅</span> Barcode Scanners & 80mm/58mm Thermal Printers සම්බන්ධ කිරීම</li>
+          <li><span>✅</span> ආරක්ෂිත Cloud Database & දත්ත ආපසු ලබාගැනීම (Data Recovery)</li>
+          <li><span>✅</span> Password, Super Admin හෝ Cashier Lock ගැටළු විසඳීම</li>
+        </ul>
+      </div>
+
+      <div class="contact-system-meta">
+        <span>🖥️ AutoParts POS System</span>
+        <span>•</span>
+        <span>Powered by MR.Link Technology</span>
+        <span>•</span>
+        <span>Owner: Dimuthu</span>
+      </div>
+    </div>
+  `;
+
+  const footerHtml = `
+    <button type="button" class="btn btn-secondary" onclick="copyContactDetails()" style="display:flex;align-items:center;gap:6px">
+      <span id="copyBtnIcon">📋</span> <span id="copyBtnTxt">විස්තර පිටපත් කරන්න (Copy)</span>
+    </button>
+    <button type="button" class="btn btn-primary" onclick="closeModal()">
+      හරි (Close)
+    </button>
+  `;
+
+  if(typeof openModal === 'function'){
+    openModal('📞 තාක්ෂණික සහාය සහ විමසීම්', 'Contact Us & Technical Support', bodyHtml, footerHtml);
+  } else {
+    alert("MR.Link Technology\nOwner: Dimuthu\nදුරකථන: 077 000 0001\nEmail: info.dimuthudishan2002@gmail.com");
+  }
+}
+
+window.copyContactDetails = copyContactDetails;
+window.showContactUsModal = showContactUsModal;
+window.openContactModal   = showContactUsModal;
+
 function updateClock(){
   const el = $('#clock');
   if(!el) return;
