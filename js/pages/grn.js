@@ -114,7 +114,7 @@ function pgGRN(){
       <div class="card-h" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
         <div>
           <h3 style="margin:0">➕ භාණ්ඩ එකතු කරන්න</h3>
-          <small style="color:var(--muted)">Add Products to GRN · Enter=Add · Tab=Next · F2=Search · Esc=Clear</small>
+          <small class="desktop-only" style="color:var(--muted)">Add Products to GRN · Enter=Add · Tab=Next · F2=Search · Esc=Clear</small>
         </div>
         <button type="button" class="btn btn-sm btn-primary" onclick="grnOpenNewProductModal()" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:6px 12px;font-weight:700">
           ➕ නව භාණ්ඩයක් (New Item)

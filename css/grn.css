@@ -1161,6 +1161,19 @@
     grid-template-columns: 1fr;
   }
 
+  /* Hide keyboard shortcut hints on mobile view */
+  .grn-input-row-actions,
+  .grn-add-subhint,
+  .grn-label-kbd,
+  .grn-sp-empty-badges,
+  .grn-col-subhint {
+    display: none !important;
+  }
+
+  .grn-input-row-wrap {
+    padding: 12px 14px !important;
+  }
+
   /* ----------------------------------------------------
      FIX 1: Footer buttons — 3 columns, single line
      ---------------------------------------------------- */
