@@ -1977,8 +1977,8 @@ function grnShowSuccessModal(grn){
     </div>`;
 
   const footerHtml = `
-    <button type="button" class="btn btn-blue" onclick="grnPrintReceipt('${grn.id}')" style="display:flex;align-items:center;gap:6px">
-      🖨️ GRN බිල Print කරන්න
+    <button type="button" class="btn btn-blue" onclick="openGrnInvoiceModal('${grn.id}')" style="display:flex;align-items:center;gap:6px;font-weight:700">
+      🖨️ GRN Invoice පෙරදසුන සහ Print (Preview &amp; Print)
     </button>
     <button type="button" class="btn btn-green" onclick="closeModal();$('#grnSupplier')?.focus();" style="display:flex;align-items:center;gap:6px;font-weight:700">
       ➕ අලුත් GRN එකක් (New GRN)
@@ -2030,106 +2030,283 @@ function grnPrintReceipt(grnId){
     }
   }
 
-  // Browser standard print window
-  const win = window.open('', '_blank', 'width=700,height=800');
-  if(!win){
-    toast('Popup අවහිර කර ඇත (Please allow popups to print)', 'err');
+  // Open the interactive invoice print preview modal
+  openGrnInvoiceModal(grnId);
+}
+
+/* =========================================================
+   GRN INVOICE PRINT PREVIEW & PDF VOUCHER
+   ========================================================= */
+
+function openGrnInvoiceModal(grnId){
+  const db = window.DB || {};
+  const grn = (db.grns || []).find(g => g.id === grnId);
+  if(!grn){
+    toast('GRN වාර්තාව හමු නොවීය', 'err');
     return;
   }
-  const shop = (db.shops || [])[0] || { name: 'Auto Parts POS', phone: '' };
-  win.document.write(`
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <title>GRN Voucher - ${esc(grn.no)}</title>
-      <style>
-        body { font-family: 'Inter', -apple-system, sans-serif; padding: 24px; color: #111; max-width: 650px; margin: 0 auto; }
-        .hdr { text-align: center; border-bottom: 2px solid #000; padding-bottom: 12px; margin-bottom: 16px; }
-        .hdr h1 { margin: 0; font-size: 22px; }
-        .hdr p { margin: 3px 0; font-size: 13px; color: #555; }
-        .meta { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 16px; }
-        table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 16px; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background: #f4f4f4; }
-        .totals { margin-top: 12px; border-top: 2px solid #222; padding-top: 10px; font-size: 14px; }
-        .row { display: flex; justify-content: space-between; padding: 3px 0; }
-        .row.grand { font-size: 16px; font-weight: bold; border-top: 1px solid #000; margin-top: 6px; padding-top: 6px; }
-        .footer { margin-top: 36px; display: flex; justify-content: space-between; font-size: 12px; padding-top: 24px; }
-        .sig { border-top: 1px dashed #666; width: 160px; text-align: center; padding-top: 4px; }
-        @media print { button { display: none; } }
-      </style>
-    </head>
-    <body>
-      <div class="hdr">
-        <h1>${esc(shop.name)}</h1>
-        <p>GOODS RECEIVED NOTE (GRN) VOUCHER</p>
-        <p>${shop.phone ? 'Tel: ' + esc(shop.phone) : ''}</p>
+  const shop = (typeof state !== 'undefined' && state.activeShop) ? state.activeShop : (db.shops?.[0] || { name: 'Auto Parts Lanka', phone: '' });
+  const paid = Number(grn.paidAmount || 0);
+  const total = Number(grn.total || 0);
+  const due = grn.dueAmount != null ? Number(grn.dueAmount) : Math.max(0, total - paid);
+  const statusStr = (grn.paymentStatus || (due <= 0 && paid > 0 ? 'PAID' : (paid > 0 ? 'PARTIAL' : 'CREDIT'))).toUpperCase();
+  const methodStr = (grn.paymentMethod || 'cash').toUpperCase();
+  const nowStr = new Date(grn.createdAt || Date.now()).toLocaleString('en-LK', { year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+  const operatorName = (window.state?.user?.name) || 'පරිපාලක';
+
+  const invoiceHtml = `
+    <div style="border-bottom:2px solid #0f172a;padding-bottom:10px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:flex-start">
+      <div>
+        <h2 style="margin:0 0 2px 0;font-size:20px;font-weight:800;color:#0f172a">GOODS RECEIVED NOTE (GRN)</h2>
+        <div style="font-size:14px;font-weight:700;color:#1e3a8a">🏪 ${esc(shop.name || 'Auto Parts Lanka')}</div>
+        ${shop.phone ? `<div style="font-size:11px;color:#475569">Tel: ${esc(shop.phone)}</div>` : ''}
       </div>
-      <div class="meta">
-        <div>
-          <b>GRN No:</b> ${esc(grn.no)}<br>
-          <b>Supplier:</b> ${esc(grn.supplier || 'N/A')}<br>
-          <b>Invoice No:</b> ${esc(grn.invoiceNo || 'N/A')}
-        </div>
-        <div style="text-align:right">
-          <b>Date:</b> ${grn.date}<br>
-          <b>Time:</b> ${new Date(grn.createdAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}<br>
-          <b>Status:</b> ${(grn.paymentStatus || 'CREDIT').toUpperCase()}
-        </div>
+      <div style="text-align:right;font-size:11px;color:#475569">
+        <div><b style="font-size:14px;color:#0f172a">GRN No: ${esc(grn.no)}</b></div>
+        <div><b>දිනය / Date:</b> ${nowStr}</div>
+        <div><b>තත්ත්වය:</b> <span style="font-weight:700;color:${due > 0 ? '#b91c1c' : '#15803d'}">${statusStr}</span></div>
       </div>
-      <table>
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Code</th>
-            <th>Item Details</th>
-            <th style="text-align:center">Qty</th>
-            <th style="text-align:right">Unit Cost</th>
-            <th style="text-align:right">Total</th>
+    </div>
+
+    <!-- Metadata Grid -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:10px;margin-bottom:14px;font-size:11.5px">
+      <div>
+        <div style="color:#64748b;font-size:10.5px">සැපයුම්කරු (Supplier):</div>
+        <div style="font-size:13px;font-weight:700;color:#0f172a">${esc(grn.supplier || 'Walk-In')}</div>
+        ${grn.invoiceNo ? `<div style="margin-top:4px;color:#475569"><b>Supplier Inv No:</b> ${esc(grn.invoiceNo)}</div>` : ''}
+      </div>
+      <div style="text-align:right">
+        <div style="color:#64748b;font-size:10.5px">ගෙවීම් ක්‍රමය (Payment Method):</div>
+        <div style="font-size:12.5px;font-weight:700;color:#0f172a">${methodStr}</div>
+        ${grn.chequeNo ? `<div style="margin-top:4px;color:#475569">Chq: ${esc(grn.chequeNo)} (${esc(grn.chequeBank||'')})</div>` : ''}
+      </div>
+    </div>
+
+    <!-- Items Table -->
+    <table style="width:100%;border-collapse:collapse;margin-bottom:14px;font-size:11.5px">
+      <thead>
+        <tr style="background:#f1f5f9;border:1px solid #cbd5e1">
+          <th style="padding:6px 8px;text-align:center;border:1px solid #cbd5e1;width:35px">#</th>
+          <th style="padding:6px 8px;text-align:left;border:1px solid #cbd5e1">කේතය (Code)</th>
+          <th style="padding:6px 8px;text-align:left;border:1px solid #cbd5e1">භාණ්ඩ විස්තරය (Item Description)</th>
+          <th style="padding:6px 8px;text-align:center;border:1px solid #cbd5e1;width:60px">ප්‍රමාණය</th>
+          <th style="padding:6px 8px;text-align:right;border:1px solid #cbd5e1;width:95px">ඒකක පිරිවැය</th>
+          <th style="padding:6px 8px;text-align:right;border:1px solid #cbd5e1;width:105px">මුළු පිරිවැය</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${(grn.items || []).map((it, idx) => `
+          <tr style="border:1px solid #cbd5e1;background:${idx%2===1?'#f8fafc':'#fff'}">
+            <td style="padding:6px 8px;text-align:center;border:1px solid #cbd5e1">${idx + 1}</td>
+            <td style="padding:6px 8px;border:1px solid #cbd5e1"><b>${esc(it.code || '')}</b></td>
+            <td style="padding:6px 8px;border:1px solid #cbd5e1">${esc(it.name || '')}</td>
+            <td style="padding:6px 8px;text-align:center;border:1px solid #cbd5e1;font-weight:700">${it.qty}</td>
+            <td style="padding:6px 8px;text-align:right;border:1px solid #cbd5e1">${money(it.cost)}</td>
+            <td style="padding:6px 8px;text-align:right;border:1px solid #cbd5e1;font-weight:700">${money(it.total)}</td>
           </tr>
-        </thead>
-        <tbody>
-          ${(grn.items || []).map((it, idx) => `
-            <tr>
-              <td>${idx + 1}</td>
-              <td><b>${esc(it.code || '')}</b></td>
-              <td>${esc(it.name || '')}</td>
-              <td style="text-align:center">${it.qty}</td>
-              <td style="text-align:right">${money(it.cost)}</td>
-              <td style="text-align:right">${money(it.total)}</td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-      <div class="totals">
-        <div class="row"><span>Gross Subtotal:</span><span>${money(grn.subtotal || grn.total)}</span></div>
-        ${grn.discount > 0 ? `<div class="row"><span>Discount:</span><span>- ${money(grn.discount)}</span></div>` : ''}
-        <div class="row grand"><span>Grand Total:</span><span>${money(grn.total)}</span></div>
-        <div class="row" style="color:green"><span>Paid Now (${esc((grn.paymentMethod || 'credit').toUpperCase())}):</span><span>${money(grn.paidAmount || 0)}</span></div>
-        <div class="row" style="color:#d9534f;font-weight:bold"><span>Balance Due (Credit):</span><span>${money(grn.dueAmount || 0)}</span></div>
+        `).join('')}
+      </tbody>
+    </table>
+
+    <!-- Totals Summary Box -->
+    <div style="display:flex;justify-content:flex-end;margin-bottom:24px">
+      <div style="width:280px;background:#f8fafc;border:1px solid #cbd5e1;border-radius:6px;padding:10px;font-size:12px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+          <span style="color:#475569">උප එකතුව (Subtotal):</span>
+          <span>${money(grn.subtotal || grn.total)}</span>
+        </div>
+        ${(grn.discount || 0) > 0 ? `
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px;color:#b91c1c">
+            <span>වට්ටම (Discount):</span>
+            <span>- ${money(grn.discount)}</span>
+          </div>
+        ` : ''}
+        <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:800;border-top:1px solid #0f172a;padding-top:6px;margin-top:4px">
+          <span>මුළු එකතුව (Total):</span>
+          <span style="color:#1e3a8a">${money(grn.total)}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:6px;color:#15803d;font-weight:600">
+          <span>ගෙවූ මුදල (Paid):</span>
+          <span>${money(paid)}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:4px;color:${due > 0 ? '#b91c1c' : '#15803d'};font-weight:700;border-top:1px dashed #cbd5e1;padding-top:4px">
+          <span>හිඟ ශේෂය (Due):</span>
+          <span>${money(due)}</span>
+        </div>
       </div>
-      <div class="footer">
-        <div class="sig">Prepared By (Storekeeper)</div>
-        <div class="sig">Authorized By (Manager)</div>
-        <div class="sig">Supplier Signature</div>
+    </div>
+
+    <!-- Signatures -->
+    <div style="display:flex;justify-content:space-between;padding-top:16px;border-top:1px dashed #cbd5e1;margin-top:20px;font-size:11px;color:#475569">
+      <div style="text-align:center;width:160px">
+        <div>........................................</div>
+        <b>භාණ්ඩ භාරගත් නිලධාරී</b><br>
+        <small>${esc(operatorName)}</small>
       </div>
-      <script>
-        window.onload = function(){ window.print(); };
-      </script>
-    </body>
-    </html>
-  `);
-  win.document.close();
+      <div style="text-align:center;width:160px">
+        <div>........................................</div>
+        <b>සැපයුම්කරුගේ අත්සන</b><br>
+        <small>Supplier Signature</small>
+      </div>
+      <div style="text-align:center;width:160px">
+        <div>........................................</div>
+        <b>පරිපාලක අනුමැතිය</b><br>
+        <small>Manager Authorization</small>
+      </div>
+    </div>
+  `;
+
+  const modalBody = `
+    <div style="background:#0b1220;border:1px solid var(--line);border-radius:10px;padding:16px;max-height:70vh;overflow-y:auto">
+      <div style="background:#ffffff;color:#0f172a;border-radius:8px;padding:24px;box-shadow:0 4px 20px rgba(0,0,0,0.3);font-family:'Inter',sans-serif">
+        ${invoiceHtml}
+      </div>
+    </div>
+  `;
+
+  window._activeGrnInvoiceHtml = invoiceHtml;
+  window._activeGrnNo = grn.no;
+
+  const modalFooter = `
+    <button type="button" class="btn" onclick="closeModal()">වසන්න (Close)</button>
+    <button type="button" class="btn btn-green" onclick="closeModal();$('#grnSupplier')?.focus();" style="display:flex;align-items:center;gap:6px">
+      ➕ අලුත් GRN එකක් (New GRN)
+    </button>
+    <button type="button" class="btn btn-primary" onclick="printActiveGrnInvoice()" style="display:flex;align-items:center;gap:6px;font-weight:700;padding:8px 18px;background:#2563eb;border-color:#2563eb">
+      🖨️ Print Invoice (මුද්‍රණය / PDF)
+    </button>
+  `;
+
+  openModal('🧾 GRN Invoice පෙරදසුන (Print Preview)', `${grn.no} · ${grn.supplier || ''}`, modalBody, modalFooter, true);
+}
+
+function printActiveGrnInvoice(){
+  if(window._activeGrnInvoiceHtml){
+    printReportHtml(window._activeGrnInvoiceHtml, 'GRN_Invoice_' + (window._activeGrnNo || 'Doc'), false);
+  }
 }
 
 /* ---------- History Modal & Details Viewer ---------- */
+/* ---------- History Modal & Details Viewer with Filters & PDF Report ---------- */
+window.grnHistoryFilters = window.grnHistoryFilters || {
+  supplier: 'all',
+  status: 'all',
+  date: 'all',
+  search: ''
+};
+
 function grnShowHistory(){
   const db = window.DB || {};
-  const grns = (db.grns || []).slice().reverse().slice(0, 20);
+  const allGrns = (db.grns || []).slice().reverse();
+  const suppliers = [...new Set(allGrns.map(g => g.supplier).filter(Boolean))].sort();
+
+  const flt = window.grnHistoryFilters;
+  let filtered = allGrns;
+
+  if(flt.supplier !== 'all'){
+    filtered = filtered.filter(g => (g.supplier || '').toLowerCase() === flt.supplier.toLowerCase());
+  }
+
+  if(flt.status !== 'all'){
+    filtered = filtered.filter(g => {
+      const paid = Number(g.paidAmount || 0);
+      const total = Number(g.total || 0);
+      const due = g.dueAmount != null ? Number(g.dueAmount) : Math.max(0, total - paid);
+      const st = g.paymentStatus || (due <= 0 && paid > 0 ? 'paid' : (paid > 0 ? 'partial' : 'credit'));
+      return st === flt.status;
+    });
+  }
+
+  if(flt.date === 'today'){
+    const t = today();
+    filtered = filtered.filter(g => (g.date || '').slice(0, 10) === t);
+  } else if(flt.date === 'week'){
+    const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+    filtered = filtered.filter(g => (g.date || '').slice(0, 10) >= weekAgo);
+  } else if(flt.date === 'month'){
+    const monthPrefix = today().slice(0, 7);
+    filtered = filtered.filter(g => (g.date || '').slice(0, 7) === monthPrefix);
+  }
+
+  if(flt.search){
+    const q = flt.search.trim().toLowerCase();
+    filtered = filtered.filter(g => 
+      (g.no || '').toLowerCase().includes(q) ||
+      (g.supplier || '').toLowerCase().includes(q) ||
+      (g.invoiceNo || '').toLowerCase().includes(q)
+    );
+  }
+
+  window._currentFilteredGrns = filtered;
+
+  const totalSum = filtered.reduce((a, g) => a + (Number(g.total) || 0), 0);
+  const paidSum = filtered.reduce((a, g) => a + (Number(g.paidAmount) || 0), 0);
+  const dueSum = filtered.reduce((a, g) => a + (Number(g.dueAmount != null ? g.dueAmount : Math.max(0, (g.total||0) - (g.paidAmount||0)))), 0);
 
   const body = `
-  <div class="grn-history-modal">
-    <div class="tbl-wrap">
+  <div class="grn-history-modal" style="display:flex;flex-direction:column;gap:12px">
+    
+    <!-- Top Filter & Action Bar -->
+    <div style="background:#0f172a;border:1px solid var(--line);border-radius:10px;padding:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <div style="min-width:140px;flex:1">
+        <label style="font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bottom:3px">🏢 සැපයුම්කරු:</label>
+        <select onchange="window.grnHistoryFilters.supplier=this.value;grnShowHistory();" 
+                style="width:100%;padding:6px 10px;font-size:12px;border-radius:6px;background:var(--panel);border:1px solid var(--line);color:var(--txt)">
+          <option value="all" ${flt.supplier==='all'?'selected':''}>සියලු සැපයුම්කරුවන්</option>
+          ${suppliers.map(s => `<option value="${esc(s)}" ${flt.supplier===s?'selected':''}>${esc(s)}</option>`).join('')}
+        </select>
+      </div>
+
+      <div style="min-width:130px;flex:1">
+        <label style="font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bottom:3px">💳 ගෙවීම් තත්ත්වය:</label>
+        <select onchange="window.grnHistoryFilters.status=this.value;grnShowHistory();" 
+                style="width:100%;padding:6px 10px;font-size:12px;border-radius:6px;background:var(--panel);border:1px solid var(--line);color:var(--txt)">
+          <option value="all" ${flt.status==='all'?'selected':''}>සියල්ල (All)</option>
+          <option value="paid" ${flt.status==='paid'?'selected':''}>🟢 Paid (ගෙවා ඇත)</option>
+          <option value="partial" ${flt.status==='partial'?'selected':''}>🟡 Partial (අර්ධ)</option>
+          <option value="credit" ${flt.status==='credit'?'selected':''}>🔴 ණයට (Credit)</option>
+        </select>
+      </div>
+
+      <div style="min-width:130px;flex:1">
+        <label style="font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bottom:3px">📅 දිනය:</label>
+        <select onchange="window.grnHistoryFilters.date=this.value;grnShowHistory();" 
+                style="width:100%;padding:6px 10px;font-size:12px;border-radius:6px;background:var(--panel);border:1px solid var(--line);color:var(--txt)">
+          <option value="all" ${flt.date==='all'?'selected':''}>සියලු දින (All Time)</option>
+          <option value="today" ${flt.date==='today'?'selected':''}>අද (Today)</option>
+          <option value="week" ${flt.date==='week'?'selected':''}>පසුගිය දින 7 (Week)</option>
+          <option value="month" ${flt.date==='month'?'selected':''}>මෙම මාසය (Month)</option>
+        </select>
+      </div>
+
+      <div style="min-width:150px;flex:2">
+        <label style="font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bottom:3px">🔍 සෙවුම (GRN / Inv / Supplier):</label>
+        <input type="text" placeholder="GRN අංකය හෝ නම..." 
+               value="${esc(flt.search || '')}"
+               oninput="window.grnHistoryFilters.search=this.value;grnShowHistory();"
+               style="width:100%;padding:6px 10px;font-size:12px;border-radius:6px;background:var(--panel);border:1px solid var(--line);color:var(--txt)">
+      </div>
+
+      <div style="align-self:flex-end">
+        <button type="button" class="btn btn-sm btn-blue" onclick="exportGrnPdfReport()" style="display:flex;align-items:center;gap:6px;padding:7px 12px;font-weight:600">
+          🖨️ PDF වාර්තාව (Report)
+        </button>
+      </div>
+    </div>
+
+    <!-- Quick Financial Summary Pill Row -->
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:12px;background:rgba(255,255,255,0.02);padding:8px 12px;border-radius:8px">
+      <span>පෙරහන් වූ GRN: <b>${filtered.length}</b></span>
+      <span>•</span>
+      <span>මුළු එකතුව: <b style="color:var(--primary)">${money(totalSum)}</b></span>
+      <span>•</span>
+      <span>ගෙවූ මුදල: <b style="color:#34d399">${money(paidSum)}</b></span>
+      <span>•</span>
+      <span>හිඟ ණය: <b style="color:${dueSum>0?'#fca5a5':'#34d399'}">${money(dueSum)}</b></span>
+    </div>
+
+    <!-- GRN History Table -->
+    <div class="tbl-wrap" style="max-height:55vh;overflow-y:auto">
       <table>
         <thead>
           <tr>
@@ -2138,12 +2315,13 @@ function grnShowHistory(){
             <th>සැපයුම්කරු</th>
             <th>Invoice No</th>
             <th style="text-align:right">වටිනාකම</th>
-            <th style="text-align:center">ගෙවීම (Payment)</th>
-            <th style="text-align:center">ක්‍රියා</th>
+            <th style="text-align:right">ගෙවූ මුදල</th>
+            <th style="text-align:center">ගෙවීම (Status)</th>
+            <th style="text-align:center">ක්‍රියා (Actions)</th>
           </tr>
         </thead>
         <tbody>
-          ${grns.map(g => {
+          ${filtered.map(g => {
             const paid = Number(g.paidAmount || 0);
             const total = Number(g.total || 0);
             const due = g.dueAmount != null ? Number(g.dueAmount) : Math.max(0, total - paid);
@@ -2166,18 +2344,86 @@ function grnShowHistory(){
               <td>${esc(g.supplier)}</td>
               <td><small>${esc(g.invoiceNo || '-')}</small></td>
               <td style="text-align:right;font-weight:700;color:var(--primary)">${money(g.total)}</td>
+              <td style="text-align:right;color:#34d399">${money(paid)}</td>
               <td style="text-align:center">${badgeHtml}</td>
               <td style="text-align:center">
-                <button type="button" class="btn btn-sm btn-blue" onclick="grnViewDetails('${g.id}')">👁️ විස්තර</button>
+                <div style="display:flex;gap:4px;justify-content:center">
+                  <button type="button" class="btn btn-sm btn-blue" onclick="openGrnInvoiceModal('${g.id}')" title="GRN Invoice පෙරදසුන සහ Print">
+                    🧾 Invoice
+                  </button>
+                  <button type="button" class="btn btn-sm" onclick="grnViewDetails('${g.id}')" title="භාණ්ඩ විස්තර බලන්න">
+                    👁️
+                  </button>
+                </div>
               </td>
             </tr>`;
-          }).join('') || '<tr><td colspan="7" class="empty" style="text-align:center;padding:18px">GRN වාර්තා නැත</td></tr>'}
+          }).join('') || '<tr><td colspan="8" class="empty" style="text-align:center;padding:18px">පෙරහන් වලට අදාළ GRN වාර්තා නැත</td></tr>'}
         </tbody>
       </table>
     </div>
   </div>`;
 
-  openModal('📜 පෙර GRN වාර්තා', 'GRN History (Last 20)', body, `<button class="btn" onclick="closeModal()">වසන්න / Close</button>`, true);
+  openModal('📜 GRN ඉතිහාසය සහ වාර්තා (GRN History)', `මුළු වාර්තා: ${filtered.length}ක්`, body, `<button class="btn" onclick="closeModal()">වසන්න / Close</button>`, true);
+}
+
+function exportGrnPdfReport(){
+  const grns = window._currentFilteredGrns || [];
+  if(!grns.length){
+    toast('මුද්‍රණය කිරීමට GRN වාර්තා නැත', 'warn');
+    return;
+  }
+
+  const columns = ['#', 'GRN අංකය', 'දිනය', 'සැපයුම්කරු (Supplier)', 'Supplier Inv', 'වටිනාකම (Total)', 'ගෙවීම් ක්‍රමය', 'ගෙවූ මුදල (Paid)', 'හිඟ ශේෂය (Due)', 'තත්ත්වය'];
+  const alignments = ['center', 'left', 'left', 'left', 'left', 'right', 'center', 'right', 'right', 'center'];
+
+  let totalSum = 0;
+  let paidSum = 0;
+  let dueSum = 0;
+
+  const rows = grns.map((g, idx) => {
+    const total = Number(g.total || 0);
+    const paid = Number(g.paidAmount || 0);
+    const due = g.dueAmount != null ? Number(g.dueAmount) : Math.max(0, total - paid);
+    const method = (g.paymentMethod || 'CASH').toUpperCase();
+    const status = g.paymentStatus || (due <= 0 && paid > 0 ? 'PAID' : (paid > 0 ? 'PARTIAL' : 'CREDIT'));
+
+    totalSum += total;
+    paidSum += paid;
+    dueSum += due;
+
+    return [
+      String(idx + 1),
+      g.no,
+      g.date,
+      g.supplier || 'Walk-In',
+      g.invoiceNo || '—',
+      money(total),
+      method,
+      money(paid),
+      money(due),
+      status.toUpperCase()
+    ];
+  });
+
+  const flt = window.grnHistoryFilters || {};
+  const filterDesc = `සැපයුම්කරු: ${flt.supplier || 'All'} | තත්ත්වය: ${flt.status || 'All'} | දිනය: ${flt.date || 'All'}${flt.search ? ` | සෙවුම: "${flt.search}"` : ''}`;
+
+  openPdfReportModal({
+    title: '📦 භාණ්ඩ ලැබීම් සාරාංශ වාර්තාව (GRN Summary Report)',
+    subtitle: `මුළු GRN වාර්තා: ${grns.length}ක්`,
+    filtersText: filterDesc,
+    summaryCards: [
+      { label: 'මුළු GRN ගණන', value: String(grns.length) },
+      { label: 'මුළු මිලදී ගැනුම් වටිනාකම', value: money(totalSum) },
+      { label: 'ගෙවූ මුදල (PAID)', value: money(paidSum) },
+      { label: 'සැපයුම්කරුවන්ට හිඟ ශේෂය (DUE)', value: money(dueSum) }
+    ],
+    columns: columns,
+    rows: rows,
+    alignments: alignments,
+    landscape: true,
+    filename: `GRN_Report_${today()}.csv`
+  });
 }
 
 function grnViewDetails(grnId){
@@ -2470,5 +2716,9 @@ window.grnGetEffectivePaidAmount = grnGetEffectivePaidAmount;
 window.grnGetPaymentBadgeHtml = grnGetPaymentBadgeHtml;
 window.grnShowSuccessModal = grnShowSuccessModal;
 window.grnPrintReceipt = grnPrintReceipt;
+window.openGrnInvoiceModal = openGrnInvoiceModal;
+window.printActiveGrnInvoice = printActiveGrnInvoice;
+window.exportGrnPdfReport = exportGrnPdfReport;
+
 
 

@@ -149,6 +149,9 @@ function pgReturnsAdmin(){
         <h2>↩️ ආපසු භාරදීම් <small>Returns & Refunds Management · Admin Control</small></h2>
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <button type="button" class="btn btn-sm btn-blue" onclick="exportReturnsPdfReport()" style="font-weight:600;padding:6px 12px;display:flex;align-items:center;gap:5px">
+          🖨️ PDF වාර්තාව
+        </button>
         <button type="button" class="btn btn-sm btn-red" onclick="returnsClearAllPending()" style="font-weight:600;padding:6px 12px;display:flex;align-items:center;gap:5px" title="සියලුම අනුමැතිය අපේක්ෂිත ආපසු ඉල්ලීම් එකවර මකා දමන්න">
           🧹 පරීක්ෂණ ඉල්ලීම් Clear කරන්න
         </button>
@@ -1381,6 +1384,78 @@ window.createBillFromReturn = createBillFromReturn;
 window.returnsDeleteRequest = returnsDeleteRequest;
 window.returnsClearAllPending = returnsClearAllPending;
 window.deleteReturn = returnsDeleteRequest;
+
+/* =========================================================
+   RETURNS PDF REPORT GENERATOR
+   ========================================================= */
+
+function exportReturnsPdfReport(){
+  const db = window.DB || {};
+  const activeTab = window.returnsTab || 'pending';
+  const allReturns = (db.returns || []).slice().reverse();
+  const filters = window.returnsFilters || { status: 'all', date: 'all', cashier: 'all' };
+
+  let list = allReturns;
+  if(activeTab === 'pending'){
+    list = allReturns.filter(r => r.status === 'pending');
+  } else {
+    if(filters.status !== 'all') list = list.filter(r => r.status === filters.status);
+    if(filters.cashier !== 'all') list = list.filter(r => (r.requestedBy || '').toLowerCase() === filters.cashier.toLowerCase());
+    if(filters.date === 'today') list = list.filter(r => (r.date || '').slice(0, 10) === today());
+    else if(filters.date === 'week'){
+      const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+      list = list.filter(r => (r.date || '').slice(0, 10) >= weekAgo);
+    }
+  }
+
+  if(!list.length){
+    toast('මුද්‍රණය කිරීමට ආපසු භාරගැනීම් වාර්තා නැත', 'warn');
+    return;
+  }
+
+  const columns = ['#', 'Return No', 'බිල්පත (Invoice)', 'පාරිභෝගිකයා', 'කැෂියර්', 'දිනය', 'භාණ්ඩ විස්තරය', 'මුදල (Amount)', 'හේතුව (Reason)', 'තත්ත්වය'];
+  const alignments = ['center', 'left', 'left', 'left', 'left', 'left', 'left', 'right', 'left', 'center'];
+
+  let totalAmount = 0;
+  const rows = list.map((r, idx) => {
+    totalAmount += Number(r.amount || 0);
+    const itemsStr = (r.items || []).map(i => `${i.name || ''} × ${i.qty}`).join(', ');
+    const statusStr = r.status === 'approved' ? '✅ අනුමත' : (r.status === 'rejected' ? '❌ ප්‍රතික්ෂේප' : '⏳ අපේක්ෂිත');
+    return [
+      String(idx + 1),
+      r.no,
+      r.invoice || '—',
+      r.customer || 'Walk-In',
+      r.requestedBy || 'Cashier',
+      r.date || '—',
+      itemsStr,
+      money(r.amount),
+      r.reason || '—',
+      statusStr
+    ];
+  });
+
+  const filterDesc = `ටැබ් එක: ${activeTab.toUpperCase()} | තත්ත්වය: ${filters.status} | කැෂියර්: ${filters.cashier} | දිනය: ${filters.date}`;
+
+  openPdfReportModal({
+    title: '↩️ ආපසු භාරදීම් සහ Refund වාර්තාව (Returns & Refunds Report)',
+    subtitle: `මුළු වාර්තා ගණන: ${list.length}ක්`,
+    filtersText: filterDesc,
+    summaryCards: [
+      { label: 'මුළු ආපසු ඉල්ලීම්', value: String(list.length) },
+      { label: 'මුළු මුදල (REFUND TOTAL)', value: money(totalAmount) },
+      { label: 'අනුමත වූ (APPROVED)', value: String(list.filter(x => x.status === 'approved').length) },
+      { label: 'අපේක්ෂිත (PENDING)', value: String(list.filter(x => x.status === 'pending').length) }
+    ],
+    columns: columns,
+    rows: rows,
+    alignments: alignments,
+    landscape: true,
+    filename: `Returns_Report_${today()}.csv`
+  });
+}
+
+window.exportReturnsPdfReport = exportReturnsPdfReport;
 
 // Aliases for backwards compatibility with legacy calls
 window.newReturn = returnsOpenNewRequest;

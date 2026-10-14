@@ -907,6 +907,312 @@ function downloadCSV(filename, headers, rows){
   if(typeof toast === 'function') toast('⬇️ ' + filename + ' බාගත විය', 'ok');
 }
 
-window.downloadCSV = downloadCSV;
+/* =========================================================
+   UNIFIED PDF & PRINT REPORT GENERATOR (ALL TABS)
+   ========================================================= */
+
+function printReportHtml(htmlContent, title = 'Report', landscape = false){
+  let frame = document.getElementById('reportPrintFrame');
+  if(!frame){
+    frame = document.createElement('iframe');
+    frame.id = 'reportPrintFrame';
+    frame.style.position = 'fixed';
+    frame.style.right = '0';
+    frame.style.bottom = '0';
+    frame.style.width = '0';
+    frame.style.height = '0';
+    frame.style.border = '0';
+    document.body.appendChild(frame);
+  }
+
+  const frameDoc = frame.contentWindow.document;
+  frameDoc.open();
+  frameDoc.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <title>${esc(title)}</title>
+      <style>
+        @page {
+          size: A4 ${landscape ? 'landscape' : 'portrait'};
+          margin: 10mm;
+        }
+        * { box-sizing: border-box; }
+        body {
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+          color: #111;
+          background: #fff;
+          margin: 0;
+          padding: 8px;
+          font-size: 11.5px;
+          line-height: 1.4;
+        }
+        .report-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          border-bottom: 2px solid #0f172a;
+          padding-bottom: 8px;
+          margin-bottom: 10px;
+        }
+        .report-title {
+          font-size: 18px;
+          font-weight: 800;
+          color: #0f172a;
+          margin: 0 0 3px 0;
+        }
+        .report-shop {
+          font-size: 13.5px;
+          font-weight: 700;
+          color: #1e3a8a;
+          margin: 0 0 2px 0;
+        }
+        .report-meta {
+          font-size: 10.5px;
+          color: #475569;
+          text-align: right;
+          line-height: 1.5;
+        }
+        .filter-banner {
+          background: #f1f5f9;
+          border-left: 3px solid #2563eb;
+          padding: 6px 10px;
+          font-size: 11px;
+          color: #334155;
+          margin-bottom: 12px;
+          border-radius: 4px;
+        }
+        .kpi-row {
+          display: flex;
+          gap: 10px;
+          margin-bottom: 12px;
+          flex-wrap: wrap;
+        }
+        .kpi-box {
+          flex: 1;
+          min-width: 120px;
+          border: 1px solid #cbd5e1;
+          border-radius: 6px;
+          padding: 6px 10px;
+          background: #f8fafc;
+        }
+        .kpi-label {
+          font-size: 10px;
+          text-transform: uppercase;
+          color: #64748b;
+          font-weight: 600;
+        }
+        .kpi-val {
+          font-size: 14px;
+          font-weight: 800;
+          color: #0f172a;
+          margin-top: 2px;
+        }
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-bottom: 14px;
+        }
+        th, td {
+          border: 1px solid #cbd5e1;
+          padding: 6px 8px;
+          font-size: 11px;
+        }
+        th {
+          background: #f1f5f9;
+          color: #0f172a;
+          font-weight: 700;
+        }
+        tr:nth-child(even) {
+          background: #f8fafc;
+        }
+        .text-left { text-align: left; }
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        .font-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+        .font-bold { font-weight: 700; }
+        .footer-sigs {
+          margin-top: 28px;
+          display: flex;
+          justify-content: space-between;
+          padding-top: 18px;
+        }
+        .sig-col {
+          text-align: center;
+          width: 180px;
+          border-top: 1px dashed #64748b;
+          padding-top: 4px;
+          font-size: 10.5px;
+          color: #475569;
+        }
+        @media print {
+          body { padding: 0; }
+        }
+      </style>
+    </head>
+    <body>
+      ${htmlContent}
+    </body>
+    </html>
+  `);
+  frameDoc.close();
+
+  setTimeout(() => {
+    try {
+      frame.contentWindow.focus();
+      frame.contentWindow.print();
+    } catch(err){
+      console.warn('Iframe print error, falling back to window.print:', err);
+      window.print();
+    }
+  }, 350);
+}
+
+function openPdfReportModal(opts){
+  const db = window.DB || {};
+  const activeShop = (typeof state !== 'undefined' && state.activeShop) ? state.activeShop : (db.shops?.[0] || { name: 'Auto Parts Lanka', phone: '' });
+  const shopName = opts.shopName || activeShop.name || 'Auto Parts Lanka';
+  const shopPhone = activeShop.phone || '';
+  const nowStr = new Date().toLocaleString('en-LK', { year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+  const operatorName = (window.state?.user?.name) || 'පරිපාලක';
+  const opRole = (window.state?.user?.role) || 'Super Admin';
+
+  const title = opts.title || 'වාර්තාව / Report';
+  const subtitle = opts.subtitle || '';
+  const filtersText = opts.filtersText || '';
+  const summaryCards = opts.summaryCards || [];
+  const columns = opts.columns || [];
+  const rows = opts.rows || [];
+  const alignments = opts.alignments || [];
+  const landscape = Boolean(opts.landscape);
+  const filename = opts.filename || (title.replace(/[^a-zA-Z0-9]/g, '_') + '_' + today() + '.csv');
+
+  // Build the clean printable HTML
+  const printableHtml = `
+    <div class="report-header">
+      <div>
+        <div class="report-title">${esc(title)}</div>
+        <div class="report-shop">🏪 ${esc(shopName)}</div>
+        ${subtitle ? `<div style="font-size:11.5px;color:#475569;margin-top:2px">${esc(subtitle)}</div>` : ''}
+      </div>
+      <div class="report-meta">
+        <div><b>දිනය:</b> ${nowStr}</div>
+        <div><b>නිකුත් කළේ:</b> ${esc(operatorName)} (${esc(opRole)})</div>
+        ${shopPhone ? `<div><b>Tel:</b> ${esc(shopPhone)}</div>` : ''}
+        <div style="font-size:9.5px;color:#64748b;margin-top:2px">Powered by MR.Link Technology</div>
+      </div>
+    </div>
+
+    ${filtersText ? `<div class="filter-banner">🔍 <b>පෙරහන් (Filters):</b> ${esc(filtersText)}</div>` : ''}
+
+    ${summaryCards.length > 0 ? `
+      <div class="kpi-row">
+        ${summaryCards.map(c => `
+          <div class="kpi-box">
+            <div class="kpi-label">${esc(c.label)}</div>
+            <div class="kpi-val">${esc(c.value)}</div>
+          </div>
+        `).join('')}
+      </div>
+    ` : ''}
+
+    <table>
+      <thead>
+        <tr>
+          ${columns.map((col, idx) => {
+            const align = alignments[idx] || 'left';
+            return `<th class="text-${align}">${esc(col)}</th>`;
+          }).join('')}
+        </tr>
+      </thead>
+      <tbody>
+        ${rows.length > 0 ? rows.map(r => `
+          <tr>
+            ${r.map((cell, cIdx) => {
+              const align = alignments[cIdx] || 'left';
+              const isBold = cIdx === 0 || cIdx === 1;
+              return `<td class="text-${align} ${isBold ? 'font-bold' : ''}">${cell}</td>`;
+            }).join('')}
+          </tr>
+        `).join('') : `
+          <tr><td colspan="${columns.length}" style="text-align:center;padding:16px;color:#64748b">දත්ත හමු නොවීය (No Records)</td></tr>
+        `}
+      </tbody>
+    </table>
+
+    <div class="footer-sigs">
+      <div class="sig-col">
+        <div>........................................</div>
+        <b>සකස් කළේ (Prepared By)</b><br>
+        <small>${esc(operatorName)}</small>
+      </div>
+      <div class="sig-col">
+        <div>........................................</div>
+        <b>පරීක්ෂා කළේ (Checked By)</b><br>
+        <small>ගිණුම් අංශය / Accounts</small>
+      </div>
+      <div class="sig-col">
+        <div>........................................</div>
+        <b>අනුමත කළේ (Authorized By)</b><br>
+        <small>පරිපාලක / Management</small>
+      </div>
+    </div>
+  `;
+
+  // Modal body preview
+  const previewBody = `
+    <div style="background:#0b1220;border:1px solid var(--line);border-radius:10px;padding:16px;max-height:68vh;overflow-y:auto">
+      <div style="background:#ffffff;color:#0f172a;border-radius:8px;padding:20px;box-shadow:0 4px 20px rgba(0,0,0,0.3);font-family:'Inter',sans-serif">
+        ${printableHtml}
+      </div>
+    </div>
+  `;
+
+  // Window references for action buttons
+  window._activeReportPrintData = {
+    html: printableHtml,
+    title: title,
+    landscape: landscape,
+    filename: filename,
+    columns: columns,
+    rows: rows
+  };
+
+  const previewFooter = `
+    <button type="button" class="btn" onclick="closeModal()">වසන්න (Close)</button>
+    <button type="button" class="btn btn-secondary" onclick="exportActiveReportCSV()" style="display:flex;align-items:center;gap:6px">
+      📥 Excel (CSV) බාගත
+    </button>
+    <button type="button" class="btn btn-primary" onclick="printActiveReportDocument()" style="display:flex;align-items:center;gap:6px;font-weight:700;padding:8px 18px;background:#2563eb;border-color:#2563eb">
+      🖨️ PDF / මුද්‍රණය කරන්න (Print)
+    </button>
+  `;
+
+  openModal('📊 වාර්තා පෙරදසුන (Report Preview)', title + (subtitle ? ` · ${subtitle}` : ''), previewBody, previewFooter, true);
+}
+
+function printActiveReportDocument(){
+  if(window._activeReportPrintData){
+    printReportHtml(window._activeReportPrintData.html, window._activeReportPrintData.title, window._activeReportPrintData.landscape);
+  }
+}
+
+function exportActiveReportCSV(){
+  if(window._activeReportPrintData){
+    const d = window._activeReportPrintData;
+    // Strip HTML tags from rows for clean CSV
+    const cleanRows = (d.rows || []).map(r => 
+      r.map(cell => String(cell || '').replace(/<[^>]*>/g, '').trim())
+    );
+    downloadCSV(d.filename, d.columns, cleanRows);
+  }
+}
+
+window.printReportHtml = printReportHtml;
+window.openPdfReportModal = openPdfReportModal;
+window.printActiveReportDocument = printActiveReportDocument;
+window.exportActiveReportCSV = exportActiveReportCSV;
+
 
 

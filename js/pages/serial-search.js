@@ -4,22 +4,58 @@
    ========================================================= */
 
 window._serialQuery = window._serialQuery || '';
+window.serialFilters = window.serialFilters || { status: 'all', date: 'all' };
 
 function pgSerialSearch(){
   const db = window.DB || {};
   const q = (window._serialQuery || '').trim().toUpperCase();
+  const f = window.serialFilters;
 
   const records = getSerializedRecords(db, q);
+  const allRaw = getSerializedRecords(db, '', { status: 'all', date: 'all' });
+  const countActive = allRaw.filter(r => r.isValid && !r.isClaimed).length;
+  const countExpiring = allRaw.filter(r => r.isValid && !r.isClaimed && r.daysLeft <= 30).length;
+  const countExpired = allRaw.filter(r => !r.isValid && !r.isClaimed).length;
+  const countClaimed = allRaw.filter(r => r.isClaimed).length;
 
   return `
   <div class="serial-search-page">
   <div class="serial-search-hero">
     <div class="card-h" style="margin-bottom:8px">
       <h3>🛡️ Serial අංකය සහ වගකීම් සොයන්න<small>Warranty & Serial Number Lookup</small></h3>
-      <span class="pill info">ලියාපදිංචි Serial: ${records.length}</span>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span class="pill info">ප්‍රතිඵල: ${records.length} / ${allRaw.length}</span>
+        <button class="btn btn-secondary btn-sm" onclick="exportSerialPdfReport()" style="display:inline-flex;align-items:center;gap:5px;font-weight:600">
+          🖨️ PDF වාර්තාව
+        </button>
+      </div>
     </div>
+
+    <!-- Filter Controls -->
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px;background:rgba(255,255,255,0.03);padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.06)">
+      <div style="display:flex;align-items:center;gap:6px">
+        <label style="font-size:12px;color:var(--muted);font-weight:600">තත්ත්වය:</label>
+        <select class="form-input" style="padding:5px 8px;font-size:12px;width:auto" onchange="window.serialFilters.status=this.value;renderSerialList()">
+          <option value="all" ${f.status==='all'?'selected':''}>සියලුම තත්ත්වයන් (${allRaw.length})</option>
+          <option value="valid" ${f.status==='valid'?'selected':''}>🟢 වලංගුයි (${countActive})</option>
+          <option value="expiring" ${f.status==='expiring'?'selected':''}>🟡 දින 30න් ඉකුත් වන (${countExpiring})</option>
+          <option value="expired" ${f.status==='expired'?'selected':''}>🔴 කල් ඉකුත් වූ (${countExpired})</option>
+          <option value="claimed" ${f.status==='claimed'?'selected':''}>⚠️ Claim කරන ලද (${countClaimed})</option>
+        </select>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <label style="font-size:12px;color:var(--muted);font-weight:600">දිනය:</label>
+        <select class="form-input" style="padding:5px 8px;font-size:12px;width:auto" onchange="window.serialFilters.date=this.value;renderSerialList()">
+          <option value="all" ${f.date==='all'?'selected':''}>ඕනෑම දිනයක්</option>
+          <option value="today" ${f.date==='today'?'selected':''}>අද (Today)</option>
+          <option value="month" ${f.date==='month'?'selected':''}>මෙම මස (This Month)</option>
+          <option value="year" ${f.date==='year'?'selected':''}>මෙම වසර (This Year)</option>
+        </select>
+      </div>
+    </div>
+
     <div class="serial-search-input-wrap">
-      <input id="serialSearchInp" placeholder="🔍 Serial අංකය ඇතුළත් කරන්න (උදා: AMR-2024-A001)..."
+      <input id="serialSearchInp" placeholder="🔍 Serial අංකය, වාහන අංකය හෝ පාරිභෝගික නම ඇතුළත් කරන්න..."
              value="${esc(window._serialQuery || '')}"
              oninput="window._serialQuery=this.value;renderSerialList()"
              onkeydown="if(event.key==='Enter'){window._serialQuery=this.value;render();}">
@@ -54,10 +90,20 @@ function scanSerialForSearch(){
   }
 }
 
-function getSerializedRecords(db, q){
+function getSerializedRecords(db, q, filtersOverride){
+  const f = filtersOverride || window.serialFilters || { status: 'all', date: 'all' };
+  const curToday = typeof today === 'function' ? today() : new Date().toISOString().slice(0, 10);
   const records = [];
+
   (db.sales || []).forEach(s => {
     if(!s.itemSerials) return;
+    const sDate = (s.date || '').slice(0, 10);
+
+    // Apply date filter
+    if(f.date === 'today' && sDate !== curToday) return;
+    if(f.date === 'month' && !sDate.startsWith(curToday.slice(0, 7))) return;
+    if(f.date === 'year' && !sDate.startsWith(curToday.slice(0, 4))) return;
+
     Object.entries(s.itemSerials).forEach(([pid, serials]) => {
       const p = (db.getProd ? db.getProd(pid) : null) || (s.items || []).find(it => it.pid === pid) || (db.products || []).find(x => x.id === pid) || {};
       const expDateStr = (s.warrantyExpiry && s.warrantyExpiry[pid])
@@ -74,44 +120,58 @@ function getSerializedRecords(db, q){
         if(!serial) return;
         const upperSerial = String(serial).trim().toUpperCase();
 
-        if(!q || upperSerial.includes(q) || (s.customer || '').toUpperCase().includes(q) || (s.vehicle || '').toUpperCase().includes(q) || (s.no || '').toUpperCase().includes(q)){
-          // Check if this serial was already claimed
-          const isClaimed = Boolean(
-            (s.claimedSerials && s.claimedSerials.includes(upperSerial)) ||
-            (db.returns || []).some(r => r.serial === upperSerial || (r.items && r.items.some(it => it.serial === upperSerial || (it.serials && it.serials.includes(upperSerial)))))
-          );
+        // Check if this serial was already claimed
+        const isClaimed = Boolean(
+          (s.claimedSerials && s.claimedSerials.includes(upperSerial)) ||
+          (db.returns || []).some(r => r.serial === upperSerial || (r.items && r.items.some(it => it.serial === upperSerial || (it.serials && it.serials.includes(upperSerial)))))
+        );
 
-          const claimRecord = (db.returns || []).find(r => 
-            r.serial === upperSerial || 
-            (r.items && r.items.some(it => it.serial === upperSerial || (it.serials && it.serials.includes(upperSerial))))
-          ) || null;
+        // Apply status filter
+        if(f.status === 'valid' && (!isValid || isClaimed)) return;
+        if(f.status === 'expiring' && (!isValid || isClaimed || daysLeft > 30)) return;
+        if(f.status === 'expired' && (isValid || isClaimed)) return;
+        if(f.status === 'claimed' && !isClaimed) return;
 
-          const replacedBy = (s.replacementSerials && s.replacementSerials[upperSerial]) || (claimRecord ? claimRecord.newSerial : null);
+        const matchQuery = !q || upperSerial.includes(q) 
+          || (s.customer || '').toUpperCase().includes(q) 
+          || (s.vehicle || '').toUpperCase().includes(q) 
+          || (s.no || '').toUpperCase().includes(q)
+          || (p.name || '').toUpperCase().includes(q)
+          || (p.code || '').toUpperCase().includes(q)
+          || (p.oemNo || '').toUpperCase().includes(q);
 
-          records.push({
-            serial: upperSerial,
-            productId: pid,
-            productName: p.name || 'වාහන අමතර කොටස',
-            productNameEn: p.nameEn || '',
-            productCode: p.code || '',
-            oemNo: p.oemNo || '',
-            rack: p.rack || '',
-            bin: p.bin || '',
-            warrantyMonths: p.warranty || 0,
-            saleId: s.id,
-            saleNo: s.no,
-            saleDate: s.date,
-            customer: s.customer || 'වෝක්-ඉන්',
-            vehicle: s.vehicle || '',
-            cashier: s.cashier || '',
-            expiryDate: expDateStr,
-            daysLeft,
-            isValid,
-            isClaimed,
-            claimRecord,
-            replacedBy
-          });
-        }
+        if(!matchQuery) return;
+
+        const claimRecord = (db.returns || []).find(r => 
+          r.serial === upperSerial || 
+          (r.items && r.items.some(it => it.serial === upperSerial || (it.serials && it.serials.includes(upperSerial))))
+        ) || null;
+
+        const replacedBy = (s.replacementSerials && s.replacementSerials[upperSerial]) || (claimRecord ? claimRecord.newSerial : null);
+
+        records.push({
+          serial: upperSerial,
+          productId: pid,
+          productName: p.name || 'වාහන අමතර කොටස',
+          productNameEn: p.nameEn || '',
+          productCode: p.code || '',
+          oemNo: p.oemNo || '',
+          rack: p.rack || '',
+          bin: p.bin || '',
+          warrantyMonths: p.warranty || 0,
+          saleId: s.id,
+          saleNo: s.no,
+          saleDate: s.date,
+          customer: s.customer || 'වෝක්-ඉන්',
+          vehicle: s.vehicle || '',
+          cashier: s.cashier || '',
+          expiryDate: expDateStr,
+          daysLeft,
+          isValid,
+          isClaimed,
+          claimRecord,
+          replacedBy
+        });
       });
     });
   });
@@ -580,6 +640,103 @@ function printWarrantyCard(saleId, productId, serialNo){
      <button class="btn btn-primary" onclick="window.print()">🖨️ මුද්‍රණය කරන්න (Print)</button>`);
 }
 
+function exportSerialPdfReport(){
+  const db = window.DB || {};
+  const q = (window._serialQuery || '').trim().toUpperCase();
+  const f = window.serialFilters || { status: 'all', date: 'all' };
+  const records = getSerializedRecords(db, q);
+
+  if(!records.length){
+    toast('වාර්තාව සකස් කිරීමට දත්ත හමු නොවීය', 'warn');
+    return;
+  }
+
+  const totalCount = records.length;
+  const activeCount = records.filter(r => r.isValid && !r.isClaimed).length;
+  const expiringCount = records.filter(r => r.isValid && !r.isClaimed && r.daysLeft <= 30).length;
+  const expiredCount = records.filter(r => !r.isValid && !r.isClaimed).length;
+  const claimedCount = records.filter(r => r.isClaimed).length;
+
+  const summaryCards = [
+    { label: 'සෙවුම් ප්‍රතිඵල (Total)', val: totalCount, color: 'blue' },
+    { label: '🟢 වලංගු (Active)', val: activeCount, color: 'green' },
+    { label: '🟡 දින 30න් ඉකුත්වන', val: expiringCount, color: 'amber' },
+    { label: '🔴 කල් ඉකුත් වූ', val: expiredCount, color: 'red' },
+    { label: '⚠️ Claim කළ ප්‍රමාණය', val: claimedCount, color: 'gray' }
+  ];
+
+  const filterSummary = [
+    { label: 'තත්ත්වය', val: f.status === 'all' ? 'සියල්ල' : f.status === 'valid' ? 'වලංගුයි' : f.status === 'expiring' ? 'දින 30න් ඉකුත්වන' : f.status === 'expired' ? 'කල් ඉකුත් වූ' : 'Claim කළ' },
+    { label: 'දිනය', val: f.date === 'all' ? 'සියල්ල' : f.date === 'today' ? 'අද' : f.date === 'month' ? 'මෙම මස' : 'මෙම වසර' },
+    ...(q ? [{ label: 'සෙවුම් පදය', val: q }] : [])
+  ];
+
+  const tableHtml = `
+    <table>
+      <thead>
+        <tr>
+          <th style="width:30px">#</th>
+          <th>Serial අංකය</th>
+          <th>භාණ්ඩය සහ කේතය</th>
+          <th>පාරිභෝගිකයා / වාහනය</th>
+          <th>බිල් අංකය & දිනය</th>
+          <th>වගකීම් කාලය</th>
+          <th>කල් ඉකුත්වන දිනය</th>
+          <th>තත්ත්වය (Status)</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${records.map((r, idx) => {
+          let statusBadge = '';
+          if(r.isClaimed){
+            statusBadge = `<span class="badge badge-red">⚠️ Claimed ${r.replacedBy ? `(මාරු: ${r.replacedBy})` : ''}</span>`;
+          } else if(r.isValid){
+            if(r.daysLeft <= 30){
+              statusBadge = `<span class="badge badge-amber">🟡 වලංගුයි (දින ${r.daysLeft} ඉතිරි)</span>`;
+            } else {
+              statusBadge = `<span class="badge badge-green">🟢 වලංගුයි (දින ${r.daysLeft})</span>`;
+            }
+          } else {
+            statusBadge = `<span class="badge badge-red">🔴 කල් ඉකුත් (දින ${Math.abs(r.daysLeft)} පෙර)</span>`;
+          }
+
+          return `
+            <tr>
+              <td style="color:#64748b">${idx + 1}</td>
+              <td style="font-family:monospace;font-weight:700;color:#2563eb">${esc(r.serial)}</td>
+              <td>
+                <b>${esc(r.productName)}</b>
+                ${r.productCode ? `<div style="font-size:11px;color:#64748b">Code: ${esc(r.productCode)}</div>` : ''}
+              </td>
+              <td>
+                <div><b>${esc(r.customer)}</b></div>
+                ${r.vehicle ? `<div style="font-size:11px;color:#64748b">🚗 ${esc(r.vehicle)}</div>` : ''}
+              </td>
+              <td>
+                <div><b>${esc(r.saleNo)}</b></div>
+                <div style="font-size:11px;color:#64748b">${r.saleDate ? new Date(r.saleDate).toLocaleDateString('en-GB') : '—'}</div>
+              </td>
+              <td>${r.warrantyMonths} මාස</td>
+              <td><b>${esc(r.expiryDate)}</b></td>
+              <td>${statusBadge}</td>
+            </tr>
+          `;
+        }).join('')}
+      </tbody>
+    </table>
+  `;
+
+  openPdfReportModal({
+    title: '🛡️ Serial අංක සහ වගකීම් වාර්තාව (Warranty Report)',
+    subtitle: 'ලියාපදිංචි Serial අංක, වගකීම් වලංගුභාවය සහ Claim විස්තර සාරාංශය',
+    printTitle: 'Vehicle Parts Serial & Warranty Report',
+    orientation: 'landscape',
+    summaryCards,
+    filterSummary,
+    tableHtml
+  });
+}
+
 window.pgSerialSearch = pgSerialSearch;
 window.renderSerialList = renderSerialList;
 window.printWarrantyCard = printWarrantyCard;
@@ -589,3 +746,5 @@ window.openWarrantyClaimModal = openWarrantyClaimModal;
 window.toggleClaimResolution = toggleClaimResolution;
 window.confirmWarrantyClaim = confirmWarrantyClaim;
 window.showClaimDetailsModal = showClaimDetailsModal;
+window.exportSerialPdfReport = exportSerialPdfReport;
+

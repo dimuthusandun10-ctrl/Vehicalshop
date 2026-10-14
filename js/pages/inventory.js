@@ -327,6 +327,9 @@ function pgInventory(){
                 🧹 අනුපිටපත් Clear
               </button>
             ` : ''}
+            <button class="btn btn-sm btn-blue" onclick="exportInventoryPdfReport()" title="පෙරහන් කර ඇති භාණ්ඩ තොග වාර්තාව PDF / Print කරන්න" style="display:flex;align-items:center;gap:4px;padding:7px 11px;font-size:12px;font-weight:600">
+              🖨️ PDF වාර්තාව
+            </button>
             <button class="btn btn-sm" onclick="exportInventoryCSV()" title="සම්පූර්ණ තොග නාමාවලිය CSV ලෙස බාගත කරන්න" style="display:flex;align-items:center;gap:4px;padding:7px 11px;font-size:12px">
               ⬇️ CSV
             </button>
@@ -913,6 +916,74 @@ async function cleanDuplicateProducts(){
   toast(`අනුපිටපත් භාණ්ඩ ${duplicates.length}ක් සාර්ථකව පිරිසිදු කරන ලදී 🧹`, 'ok');
 }
 
+/* =========================================================
+   INVENTORY PDF REPORT GENERATOR
+   ========================================================= */
+
+function exportInventoryPdfReport(){
+  const list = getFilteredInventory();
+  if(!list.length){
+    toast('මුද්‍රණය කිරීමට භාණ්ඩ හමු නොවීය', 'warn');
+    return;
+  }
+
+  const columns = ['#', 'කේතය (Code)', 'භාණ්ඩ විස්තරය (Item)', 'OEM අංකය', 'කාණ්ඩය', 'තොගය (Qty)', 'මිලදී ගත් මිල', 'විකුණුම් මිල', 'තොග වටිනාකම'];
+  const alignments = ['center', 'left', 'left', 'left', 'left', 'center', 'right', 'right', 'right'];
+
+  let totalQty = 0;
+  let totalCostVal = 0;
+  let totalRetailVal = 0;
+
+  const rows = list.map((p, idx) => {
+    const qty = Number(p.qty || 0);
+    const cost = Number(p.cost || 0);
+    const price = Number(p.price || 0);
+    const costVal = qty * cost;
+    const retailVal = qty * price;
+
+    totalQty += qty;
+    totalCostVal += costVal;
+    totalRetailVal += retailVal;
+
+    const qtyDisplay = qty <= (p.reorder || 5)
+      ? `<span style="color:#dc2626;font-weight:bold">${qty} (LOW)</span>`
+      : `${qty}`;
+
+    return [
+      String(idx + 1),
+      p.code || '—',
+      p.name || '—',
+      p.oemNo || '—',
+      p.cat || 'General',
+      qtyDisplay,
+      money(cost),
+      money(price),
+      money(retailVal)
+    ];
+  });
+
+  const catText = state.invCategory === 'all' ? 'සියලු කාණ්ඩ' : state.invCategory;
+  const statusText = state.invStatus === 'low' ? 'අඩු තොග (Low Stock)' : (state.invStatus === 'out' ? 'තොග අවසන් (Out of Stock)' : 'සියලු තත්ත්ව');
+  const searchText = state.invSearch ? ` | සෙවුම: "${state.invSearch}"` : '';
+
+  openPdfReportModal({
+    title: '📦 භාණ්ඩ තොග වාර්තාව (Inventory Stock Report)',
+    subtitle: `කාණ්ඩය: ${catText} · පෙරහන් තත්ත්වය: ${statusText}${searchText}`,
+    filtersText: `කාණ්ඩය: ${catText} | තත්ත්වය: ${statusText}${searchText}`,
+    summaryCards: [
+      { label: 'මුළු අයිතම වර්ග (SKUs)', value: String(list.length) },
+      { label: 'මුළු තොග ඒකක (UNITS)', value: String(totalQty) },
+      { label: 'මිලදී ගත් මුළු වටිනාකම', value: money(totalCostVal) },
+      { label: 'විකුණුම් මුළු වටිනාකම', value: money(totalRetailVal) }
+    ],
+    columns: columns,
+    rows: rows,
+    alignments: alignments,
+    landscape: true,
+    filename: `Inventory_Report_${today()}.csv`
+  });
+}
+
 window.pgInventory = pgInventory;
 window.setInvFilter = setInvFilter;
 window.debouncedInvSearch = debouncedInvSearch;
@@ -929,3 +1000,5 @@ window.saveProduct = saveProduct;
 window.delProduct = delProduct;
 window.cleanDuplicateProducts = cleanDuplicateProducts;
 window.deleteProduct = delProduct;
+window.exportInventoryPdfReport = exportInventoryPdfReport;
+
