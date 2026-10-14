@@ -27,7 +27,7 @@ function pgSettings(){
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
         <div>
           <div style="font-size:14.5px;font-weight:700;display:flex;align-items:center;gap:8px;margin-bottom:3px">
-            🚀 පද්ධති සංස්කරණය: <code style="color:#38bdf8;font-size:13px">v2.7.3</code>
+            🚀 පද්ධති සංස්කරණය: <code style="color:#38bdf8;font-size:13px">${window.CURRENT_APP_VERSION || 'v2.7.5'}</code>
             <span class="pill ok" style="font-size:11px">Cloudflare Live</span>
           </div>
           <div style="font-size:12px;color:#38bdf8;margin-bottom:5px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">

@@ -2,6 +2,11 @@
    js/app.js - Application Lifecycle & Global Event Listeners
    ========================================================= */
 
+window.CURRENT_APP_VERSION = 'v2.7.5';
+const CURRENT_APP_VERSION = window.CURRENT_APP_VERSION;
+let _isUpdatingApp = false;
+window._isUpdatingApp = false;
+
 /* Global Keyboard Shortcuts */
 window.addEventListener('keydown', e => {
   // If modal is currently displayed
@@ -127,9 +132,10 @@ function registerPwaServiceWorker(){
     });
 
     // When the new Service Worker activates and claims clients, reload page only if NOT mid-update
+    const hadController = Boolean(navigator.serviceWorker.controller);
     let refreshing = false;
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if(!_isUpdatingApp && !refreshing){
+      if(hadController && !window._isUpdatingApp && !refreshing){
         refreshing = true;
         window.location.reload();
       }
@@ -153,7 +159,6 @@ function registerPwaServiceWorker(){
   });
 }
 
-const CURRENT_APP_VERSION = 'v2.7.3';
 try {
   if(localStorage.getItem('pos.appVersion') !== CURRENT_APP_VERSION){
     localStorage.setItem('pos.appVersion', CURRENT_APP_VERSION);
@@ -372,6 +377,7 @@ function updateProgressStep(stepNum, percent, statusText){
 }
 
 async function forceUpdateApp(targetVer){
+  window._isUpdatingApp = true;
   _isUpdatingApp = true;
   let newVer = targetVer || window._availableRemoteVersion || CURRENT_APP_VERSION;
 
