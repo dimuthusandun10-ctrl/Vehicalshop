@@ -313,6 +313,14 @@ async function doLogin(){
     // 5. Token & Session Storage
     const token = await credential.user.getIdToken();
     sessionStorage.setItem('pos.authToken', token);
+    const resolvedAuthEmail = credential.user.email || email;
+    sessionStorage.setItem('pos.authEmail', resolvedAuthEmail);
+    if(window.Security && typeof window.Security.hashPassword === 'function'){
+      try {
+        const passHash = await window.Security.hashPassword(p);
+        sessionStorage.setItem('pos.unlockPasswordHash', passHash);
+      } catch(_){}
+    }
 
     // Clear Rate Limiting Failures on successful authentication
     if(window.Security && typeof window.Security.clearAttempts === 'function'){
@@ -659,6 +667,8 @@ function performLogout(){
     sessionStorage.removeItem('pos.currentUser');
     sessionStorage.removeItem('pos.currentPage');
     sessionStorage.removeItem('pos.authToken');
+    sessionStorage.removeItem('pos.authEmail');
+    sessionStorage.removeItem('pos.unlockPasswordHash');
     sessionStorage.removeItem('pos.screenLocked');
     localStorage.removeItem('pos.currentUser');
     localStorage.removeItem('pos.currentPage');
@@ -834,6 +844,9 @@ async function restoreSession(){
 
     state.user = user;
     state.authUid = user.authUid || user.id;
+    if(!state.user.email && sessionStorage.getItem('pos.authEmail')){
+      state.user.email = sessionStorage.getItem('pos.authEmail');
+    }
 
     // Set active shop
     const allShops = (db.shops && db.shops.length > 0) ? db.shops : (window.INITIAL_SHOPS || []);
@@ -1089,29 +1102,81 @@ async function unlockScreen(){
 
     let isValid = false;
 
-    // 1. Check against user.password hash with bcrypt
-    if(user.password && window.Security && typeof window.Security.verifyPassword === 'function'){
-      isValid = await window.Security.verifyPassword(entered, user.password);
+    // 1. Check against stored unlock password hash in sessionStorage
+    const storedHash = sessionStorage.getItem('pos.unlockPasswordHash');
+    if(storedHash && window.Security && typeof window.Security.verifyPassword === 'function'){
+      try {
+        isValid = await window.Security.verifyPassword(entered, storedHash);
+      } catch(_){}
     }
 
-    // 2. Fallback: check matching user in db.users
-    if(!isValid && window.DB?.users){
+    // 2. Check against user.password hash with bcrypt
+    if(!isValid && user.password && window.Security && typeof window.Security.verifyPassword === 'function'){
+      try {
+        isValid = await window.Security.verifyPassword(entered, user.password);
+      } catch(_){}
+    }
+
+    // 3. Fallback: check matching user in db.users
+    if(!isValid && window.DB?.users && window.Security && typeof window.Security.verifyPassword === 'function'){
       const dbUser = window.DB.users.find(u => u.id === user.id || u.username === user.username || u.email === user.email);
-      if(dbUser && dbUser.password && window.Security){
-        isValid = await window.Security.verifyPassword(entered, dbUser.password);
+      if(dbUser && dbUser.password){
+        try {
+          isValid = await window.Security.verifyPassword(entered, dbUser.password);
+        } catch(_){}
       }
     }
 
-    // 3. Fallback: verify via Firebase Auth signInWithEmailAndPassword
-    if(!isValid && window.FB && typeof window.FB.getAuth === 'function' && typeof window.FB.getAuthModule === 'function' && user.email){
+    // 4. Fallback: verify via Firebase Auth signInWithEmailAndPassword across all candidate emails
+    if(!isValid && window.FB){
       try {
-        const authMod = window.FB.getAuthModule();
-        const auth = window.FB.getAuth();
-        if(auth && authMod){
-          await authMod.signInWithEmailAndPassword(auth, user.email, entered);
-          isValid = true;
+        if(typeof window.FB.initFirebase === 'function'){
+          await window.FB.initFirebase();
         }
-      } catch(fbErr){}
+        const authMod = (typeof window.FB.getAuthModule === 'function') ? window.FB.getAuthModule() : null;
+        const auth = (typeof window.FB.getAuth === 'function') ? window.FB.getAuth() : null;
+
+        if(auth && authMod){
+          const candidateEmails = [
+            auth.currentUser?.email,
+            sessionStorage.getItem('pos.authEmail'),
+            user.email,
+            (user.role === 'superadmin' ? 'info.dimuthudishan2002@gmail.com' : null),
+            (user.role === 'superadmin' ? 'dimuthusandun10@gmail.com' : null),
+            (user.role === 'superadmin' ? 'superadmin@autoparts.local' : null),
+            (user.role === 'superadmin' ? 'superadmin@autoparts.lk' : null),
+            (user.role === 'admin' ? 'admin@autoparts.lk' : null),
+            (user.role === 'admin' ? 'admin@autoparts.local' : null),
+            (user.role === 'cashier' ? 'cashier@autoparts.lk' : null),
+            (user.role === 'cashier' ? 'cashier@autoparts.local' : null),
+            (user.username ? `${user.username.toLowerCase()}@autoparts.local` : null),
+            (user.username ? `${user.username.toLowerCase()}@autoparts.lk` : null)
+          ].filter(Boolean);
+
+          const uniqueEmails = [...new Set(candidateEmails)];
+
+          for(const em of uniqueEmails){
+            try {
+              await authMod.signInWithEmailAndPassword(auth, em, entered);
+              isValid = true;
+              // Save verified hash for instant future unlocks
+              if(window.Security && typeof window.Security.hashPassword === 'function'){
+                try {
+                  const newHash = await window.Security.hashPassword(entered);
+                  sessionStorage.setItem('pos.unlockPasswordHash', newHash);
+                  user.password = newHash;
+                  user.email = em;
+                } catch(_){}
+              }
+              break;
+            } catch(fbAuthErr){
+              // continue to next candidate email
+            }
+          }
+        }
+      } catch(fbErr){
+        console.warn('Firebase Auth unlock check warning:', fbErr);
+      }
     }
 
     if(isValid){
