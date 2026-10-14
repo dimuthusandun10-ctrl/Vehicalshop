@@ -1547,20 +1547,32 @@ function openCheckout(){
 
   const serialsHtml = serialItems.length ? `
     <div class="checkout-serials-card">
-      <div class="checkout-serials-title">
+      <div class="checkout-serials-title" style="display:flex;justify-content:space-between;align-items:center">
         <span>🛡️ Serial Numbers Required</span>
+        <button type="button" class="btn btn-sm btn-primary" onclick="scanNextEmptySerialCheckout()" 
+                title="Serial Barcode එකින් එක Scan කරන්න" 
+                style="font-size:11px;padding:3px 9px;display:inline-flex;align-items:center;gap:4px">
+          📷 <span>Scan Serial</span>
+        </button>
       </div>
       ${serialItems.map(item => {
         const p = db.getProd ? db.getProd(item.pid) : (db.products || []).find(x => x.id === item.pid);
         const prefix = p?.brand ? (p.brand.slice(0, 3).toUpperCase() + '-' + new Date().getFullYear() + '-') : 'SN-';
         const rows = [];
         for(let u = 0; u < item.qty; u++){
+          const inputId = `coSerial_${item.pid}_${u}`;
           rows.push(`
             <div class="serial-input-row">
-              <span style="font-size:11px;color:var(--muted);width:36px">#${u+1}:</span>
-              <input class="co-serial-inp" data-pid="${item.pid}" data-idx="${u}"
+              <span style="font-size:11px;color:var(--muted);width:32px;font-weight:600">#${u+1}:</span>
+              <input id="${inputId}" class="co-serial-inp" data-pid="${item.pid}" data-idx="${u}"
                      placeholder="S/N: [${prefix}____]" autocomplete="off"
-                     oninput="this.value=this.value.toUpperCase()">
+                     oninput="this.value=this.value.toUpperCase()"
+                     onkeydown="if(event.key==='Enter'){event.preventDefault();focusNextSerialOrCheckout(this);}">
+              <button type="button" class="co-serial-scan-btn"
+                      onclick="scanSerialForCheckout('${inputId}')"
+                      title="Camera එකෙන් Serial Barcode එක Scan කරන්න">
+                📷 <span>Scan</span>
+              </button>
             </div>
           `);
         }
@@ -1725,12 +1737,17 @@ function openCheckout(){
     window._checkoutKeyHandler = checkoutKeyHandler;
     window.addEventListener('keydown', window._checkoutKeyHandler);
 
-    // Auto-focus (Feature S4)
+    // Auto-focus: If serial numbers required, focus first empty serial input, else coPaid
     setTimeout(() => {
-      const inp = $('#coPaid');
-      if(inp){
-        inp.focus();
-        inp.select();
+      const firstSerial = document.querySelector('.co-serial-inp');
+      if(firstSerial && !firstSerial.value){
+        firstSerial.focus();
+      } else {
+        const inp = $('#coPaid');
+        if(inp){
+          inp.focus();
+          inp.select();
+        }
       }
     }, 150);
   };
@@ -1739,6 +1756,89 @@ function openCheckout(){
     setTimeout(doOpenCheckoutModal, 250);   // matches cart slide-down animation
   } else {
     doOpenCheckoutModal();
+  }
+}
+
+/* ---------- Serial Barcode Scanner Helpers for Checkout ---------- */
+function scanSerialForCheckout(inputId){
+  if(typeof BarcodeScanner !== 'undefined' && BarcodeScanner.open){
+    BarcodeScanner.open((code) => {
+      const cleanCode = (code || '').trim().toUpperCase();
+      const inp = document.getElementById(inputId);
+      if(inp){
+        inp.value = cleanCode;
+        inp.focus();
+        if(typeof toast === 'function') toast('Serial අංකය ඇතුළත් විය: ' + cleanCode, 'ok');
+
+        // Auto-focus next empty serial input if available
+        const allInps = Array.from(document.querySelectorAll('.co-serial-inp'));
+        const curIdx = allInps.indexOf(inp);
+        if(curIdx >= 0 && curIdx < allInps.length - 1){
+          const nextInp = allInps[curIdx + 1];
+          if(nextInp && !nextInp.value){
+            setTimeout(() => nextInp.focus(), 350);
+          }
+        } else {
+          // If all serials are filled, focus paid input
+          const paidInp = document.getElementById('coPaid');
+          if(paidInp){
+            setTimeout(() => { paidInp.focus(); paidInp.select(); }, 350);
+          }
+        }
+      }
+    }, { requireShopProduct: false });
+  } else {
+    if(typeof toast === 'function') toast('Camera Barcode Scanner සක්‍රීය නැත', 'warn');
+  }
+}
+
+function scanNextEmptySerialCheckout(){
+  const allInps = Array.from(document.querySelectorAll('.co-serial-inp'));
+  const firstEmpty = allInps.find(inp => !inp.value.trim());
+  if(!firstEmpty){
+    if(typeof toast === 'function') toast('සියලුම Serial අංක දැනටමත් සම්පූර්ණ කර ඇත', 'info');
+    return;
+  }
+
+  if(typeof BarcodeScanner !== 'undefined' && BarcodeScanner.open){
+    BarcodeScanner.open((code) => {
+      const cleanCode = (code || '').trim().toUpperCase();
+      const inps = Array.from(document.querySelectorAll('.co-serial-inp'));
+      const target = inps.find(inp => !inp.value.trim());
+      if(target){
+        target.value = cleanCode;
+        if(typeof toast === 'function') toast(`Serial #${target.dataset.idx ? Number(target.dataset.idx)+1 : ''} ඇතුළත් විය: ${cleanCode}`, 'ok');
+
+        // Check if there are more empty ones
+        const remaining = inps.filter(inp => !inp.value.trim());
+        if(remaining.length === 0){
+          if(typeof toast === 'function') toast('සියලු Serial අංක ඇතුළත් කර අවසන්!', 'ok');
+          if(BarcodeScanner.close) BarcodeScanner.close();
+          const paidInp = document.getElementById('coPaid');
+          if(paidInp){
+            setTimeout(() => { paidInp.focus(); paidInp.select(); }, 350);
+          }
+        }
+      } else {
+        if(BarcodeScanner.close) BarcodeScanner.close();
+      }
+    }, { requireShopProduct: false });
+  } else {
+    if(typeof toast === 'function') toast('Camera Barcode Scanner සක්‍රීය නැත', 'warn');
+  }
+}
+
+function focusNextSerialOrCheckout(currentInp){
+  const allInps = Array.from(document.querySelectorAll('.co-serial-inp'));
+  const curIdx = allInps.indexOf(currentInp);
+  if(curIdx >= 0 && curIdx < allInps.length - 1){
+    allInps[curIdx + 1].focus();
+  } else {
+    const paidInp = document.getElementById('coPaid');
+    if(paidInp){
+      paidInp.focus();
+      paidInp.select();
+    }
   }
 }
 
@@ -2395,4 +2495,8 @@ window.closeMobileCart = closeMobileCart;
 window.updateFab = updateFab;
 window.updateBillingPrinterBtn = updateBillingPrinterBtn;
 window.openPrinterQuickModal = openPrinterQuickModal;
+window.scanSerialForCheckout = scanSerialForCheckout;
+window.scanNextEmptySerialCheckout = scanNextEmptySerialCheckout;
+window.focusNextSerialOrCheckout = focusNextSerialOrCheckout;
+
 

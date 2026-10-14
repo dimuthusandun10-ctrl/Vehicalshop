@@ -6595,6 +6595,28 @@ body.cart-open .pos-cart-backdrop {
   text-transform: uppercase;
 }
 
+.co-serial-scan-btn {
+  background: rgba(59, 130, 246, 0.15);
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  color: #93c5fd;
+  font-weight: 600;
+  padding: 6px 10px;
+  font-size: 12px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+.co-serial-scan-btn:hover {
+  background: rgba(59, 130, 246, 0.3);
+  border-color: #3b82f6;
+  color: #fff;
+}
+
+
 /* ---------- 1.5 Core Deposit ---------- */
 .core-deposit-row, .cart-core-row {
   display: inline-flex;
