@@ -2,7 +2,18 @@
    js/app.js - Application Lifecycle & Global Event Listeners
    ========================================================= */
 
-window.CURRENT_APP_VERSION = 'v2.7.7';
+function resolveAppVersion(){
+  try {
+    const scripts = document.querySelectorAll('script[src*="js/app.js"]');
+    for(const s of scripts){
+      const src = s.getAttribute('src') || '';
+      const m = src.match(/[?&]v=([0-9a-zA-Z\.\-]+)/);
+      if(m && m[1]) return m[1].startsWith('v') ? m[1] : ('v' + m[1]);
+    }
+  } catch(_){}
+  return 'v2.7.8';
+}
+window.CURRENT_APP_VERSION = resolveAppVersion();
 const CURRENT_APP_VERSION = window.CURRENT_APP_VERSION;
 let _isUpdatingApp = false;
 window._isUpdatingApp = false;
@@ -215,6 +226,13 @@ async function checkForCloudflareUpdates(force = false){
 }
 
 function showUpdateBannerDirect(newVer){
+  if(!newVer || newVer === CURRENT_APP_VERSION || newVer === window.CURRENT_APP_VERSION){
+    dismissUpdateBanner(true);
+    updateTopbarUpdateBadge(null);
+    const sbWrap = document.getElementById('sidebarUpdateWrap');
+    if(sbWrap) sbWrap.style.display = 'none';
+    return;
+  }
   // 1. Reveal sidebar update button in the side menu (stays accessible at all times)
   const sbWrap = document.getElementById('sidebarUpdateWrap');
   if(sbWrap){
@@ -282,7 +300,11 @@ function dismissUpdateBanner(immediate = false){
 }
 
 function showUpdateBanner(reg){
-  showUpdateBannerDirect(window._availableRemoteVersion || CURRENT_APP_VERSION);
+  if(window._availableRemoteVersion && window._availableRemoteVersion !== CURRENT_APP_VERSION){
+    showUpdateBannerDirect(window._availableRemoteVersion);
+  } else {
+    checkForCloudflareUpdates(true);
+  }
 }
 
 /* =========================================================
