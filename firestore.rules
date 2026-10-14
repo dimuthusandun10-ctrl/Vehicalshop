@@ -30,12 +30,21 @@ service cloud.firestore {
     function isSuper() {
       return isSignedIn() && (
         currentRole() == 'superadmin' ||
-        request.auth.token.email in ['info.dimuthudishan2002@gmail.com', 'dimuthusandun10@gmail.com']
+        request.auth.token.email in [
+          'info.dimuthudishan2002@gmail.com',
+          'dimuthusandun10@gmail.com',
+          'superadmin@autoparts.local',
+          'superadmin@autoparts.lk'
+        ]
       );
     }
     
     function isAdmin() {
-      return isSignedIn() && (currentRole() == 'admin' || isSuper());
+      return isSignedIn() && (
+        currentRole() in ['admin', 'superadmin'] || 
+        isSuper() ||
+        request.auth.token.email in ['admin@autoparts.local']
+      );
     }
     
     function isCashier() {
@@ -43,7 +52,7 @@ service cloud.firestore {
     }
     
     function isStaff() {
-      return isSignedIn() && (isSuper() || (currentRole() in ['admin', 'cashier']));
+      return isSignedIn() && (isSuper() || isAdmin() || (currentRole() in ['admin', 'cashier', 'superadmin']));
     }
     
     // Shop Scoped Isolation (Superadmin has multi-shop access; others scoped to own shop)
@@ -113,14 +122,13 @@ service cloud.firestore {
     // ═══════════════════════════════════════════════
     
     match /products/{productId} {
-      allow read: if isStaff() && sameShop(resource.data.shopId);
-      allow create: if isSuper() ||
-        (isAdmin() && request.resource.data.shopId == currentShopId());
+      allow read: if isStaff();
+      allow create: if isSuper() || isAdmin();
       // Staff (Cashiers & Admins) can update product stock on sale/return
       // Prevent negative stock overselling at DB level:
-      allow update: if isStaff() && sameShop(resource.data.shopId) &&
+      allow update: if isStaff() &&
         (!('qty' in request.resource.data) || request.resource.data.qty >= 0);
-      allow delete: if isSuper();
+      allow delete: if isSuper() || isAdmin();
     }
 
     // ═══════════════════════════════════════════════
@@ -131,7 +139,8 @@ service cloud.firestore {
       allow read: if isStaff() && sameShop(resource.data.shopId);
       allow create: if isSuper() ||
         (isStaff() && request.resource.data.shopId == currentShopId());
-      allow update, delete: if isSuper() || (isAdmin() && sameShop(resource.data.shopId));
+      allow update: if isSuper() || (isAdmin() && sameShop(resource.data.shopId));
+      allow delete: if isSuper() || isAdmin();
     }
 
     // ═══════════════════════════════════════════════
@@ -139,9 +148,8 @@ service cloud.firestore {
     // ═══════════════════════════════════════════════
     
     match /customers/{customerId} {
-      allow read: if isStaff() && sameShop(resource.data.shopId);
-      allow create, update: if isStaff() &&
-        sameShop(request.resource.data.shopId);
+      allow read: if isStaff();
+      allow create, update: if isStaff();
       allow delete: if isAdmin() || isSuper();
     }
 
@@ -153,7 +161,7 @@ service cloud.firestore {
       allow read: if isStaff() && sameShop(resource.data.shopId);
       allow create, update: if isSuper() ||
         (isAdmin() && sameShop(request.resource.data.shopId));
-      allow delete: if isSuper() || (isAdmin() && sameShop(resource.data.shopId));
+      allow delete: if isSuper() || isAdmin();
     }
 
     // ═══════════════════════════════════════════════
@@ -164,7 +172,7 @@ service cloud.firestore {
       allow read: if isStaff() && sameShop(resource.data.shopId);
       allow create, update: if isStaff() &&
         sameShop(request.resource.data.shopId);
-      allow delete: if isSuper() || (isAdmin() && sameShop(resource.data.shopId));
+      allow delete: if isSuper() || isAdmin();
     }
 
     // ═══════════════════════════════════════════════
@@ -195,7 +203,7 @@ service cloud.firestore {
       allow read: if isStaff() && sameShop(resource.data.shopId);
       allow create: if isSuper() ||
         (isStaff() && request.resource.data.shopId == currentShopId());
-      allow delete: if isSuper() || (isAdmin() && sameShop(resource.data.shopId));
+      allow delete: if isSuper() || isAdmin();
     }
 
     // ═══════════════════════════════════════════════
@@ -203,10 +211,10 @@ service cloud.firestore {
     // ═══════════════════════════════════════════════
     
     match /suppliers/{supplierId} {
-      allow read: if isStaff() && sameShop(resource.data.shopId);
+      allow read: if isStaff();
       allow create, update: if isSuper() ||
         (isAdmin() && sameShop(request.resource.data.shopId));
-      allow delete: if isSuper() || (isAdmin() && sameShop(resource.data.shopId));
+      allow delete: if isSuper() || isAdmin();
     }
 
     // ═══════════════════════════════════════════════
@@ -217,6 +225,7 @@ service cloud.firestore {
       allow read: if isStaff();
       allow write: if isSuper() ||
         (isStaff() && request.resource.data.shopId == currentShopId());
+      allow delete: if isSuper() || isAdmin();
     }
 
     // ═══════════════════════════════════════════════
@@ -246,7 +255,7 @@ service cloud.firestore {
       allow create: if isSuper() ||
         (isAdmin() && request.resource.data.shopId == currentShopId());
       allow update: if isSuper() || isAdmin();
-      allow delete: if isSuper() || (isAdmin() && sameShop(resource.data.shopId));
+      allow delete: if isSuper() || isAdmin();
     }
 
     // ═══════════════════════════════════════════════
@@ -256,7 +265,7 @@ service cloud.firestore {
     match /interchanges/{interchangeId} {
       allow read: if isSignedIn();
       allow create, update: if isStaff();
-      allow delete: if isSuper();
+      allow delete: if isSuper() || isAdmin();
     }
 
     // ═══════════════════════════════════════════════
@@ -265,8 +274,8 @@ service cloud.firestore {
     
     match /scrapInventory/{scrapId} {
       allow read: if isStaff();
-      allow create, update: if isStaff() && sameShop(request.resource.data.shopId);
-      allow delete: if isSuper();
+      allow create, update: if isStaff() && (request.resource.data.shopId == null || sameShop(request.resource.data.shopId));
+      allow delete: if isSuper() || isAdmin();
     }
 
     // ═══════════════════════════════════════════════

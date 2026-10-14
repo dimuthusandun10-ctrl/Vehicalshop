@@ -799,25 +799,40 @@ async function delProduct(id){
   const code = p ? p.code : null;
   const docId = p ? p._docId : null;
 
-  // 1. Remove from local memory
-  db.products = (db.products || []).filter(x => x.id !== id && x._docId !== id);
+  // 1. Remove from local memory — remove ALL duplicates matching id, docId, or code!
+  db.products = (db.products || []).filter(x => 
+    x.id !== id && 
+    x._docId !== id && 
+    (!docId || (x.id !== docId && x._docId !== docId)) &&
+    (!code || x.code !== code)
+  );
 
-  // 2. Permanently delete from Firestore
-  if(window.FB && window.FB.fbDelete){
-    try {
-      if(docId) await window.FB.fbDelete(window.FB.COL.products, docId);
-      if(id && id !== docId) await window.FB.fbDelete(window.FB.COL.products, id);
-      if(code) await window.FB.fbDelete(window.FB.COL.products, code);
-    } catch(err){
-      console.warn('Product delete error:', err);
+  // 2. Scrub ALL local storage databases (all shops and global cache)
+  try {
+    for(let i = 0; i < localStorage.length; i++){
+      const k = localStorage.key(i);
+      if(k && (k.startsWith('pos.localDB.') || k === 'autoparts_pos_db')){
+        try {
+          const parsed = JSON.parse(localStorage.getItem(k) || '{}');
+          if(Array.isArray(parsed.products)){
+            parsed.products = parsed.products.filter(x => 
+              x.id !== id && 
+              x._docId !== id && 
+              (!docId || (x.id !== docId && x._docId !== docId)) &&
+              (!code || x.code !== code)
+            );
+            localStorage.setItem(k, JSON.stringify(parsed));
+          }
+        } catch(_){}
+      }
     }
-  }
+  } catch(_){}
 
-  // 3. Purge from sync queue
+  // 3. Purge from sync queue & offline queue
   try {
     if(window.Offline && Array.isArray(window.Offline.queue)){
       window.Offline.queue = window.Offline.queue.filter(q => 
-        !(q.collection === 'products' && (q.docId === id || q.docId === docId || (q.data && (q.data.id === id || q.data.code === code))))
+        !(q.collection === 'products' && (q.docId === id || q.docId === docId || (q.data && (q.data.id === id || (code && q.data.code === code)))))
       );
       window.Offline.persist();
     }
@@ -826,14 +841,50 @@ async function delProduct(id){
       const parsedQ = JSON.parse(rawQ);
       if(Array.isArray(parsedQ)){
         const filteredQ = parsedQ.filter(q => 
-          !(q.collection === 'products' && (q.docId === id || q.docId === docId || (q.data && (q.data.id === id || q.data.code === code))))
+          !(q.collection === 'products' && (q.docId === id || q.docId === docId || (q.data && (q.data.id === id || (code && q.data.code === code)))))
         );
         localStorage.setItem('pos.syncQueue', JSON.stringify(filteredQ));
       }
     }
   } catch(_){}
 
-  if(typeof saveDB === 'function') saveDB();
+  // 4. Permanently delete from Firestore across all doc IDs and codes
+  if(window.FB){
+    try {
+      if(typeof window.FB.ensureFirebaseAuth === 'function'){
+        await window.FB.ensureFirebaseAuth();
+      }
+      const mods = window.FB._getModules ? window.FB._getModules() : null;
+      const fsDb = window.FB._getDb ? window.FB._getDb() : null;
+      if(mods?.fsMod && fsDb){
+        const { doc, deleteDoc, collection, query, where, getDocs } = mods.fsMod;
+        if(docId) try { await deleteDoc(doc(fsDb, 'products', docId)); } catch(_){}
+        if(id && id !== docId) try { await deleteDoc(doc(fsDb, 'products', id)); } catch(_){}
+        if(code){
+          try {
+            const snap = await getDocs(query(collection(fsDb, 'products'), where('code', '==', code)));
+            for(const d of snap.docs){
+              try { await deleteDoc(doc(fsDb, 'products', d.id)); } catch(_){}
+            }
+          } catch(_){}
+        }
+      }
+    } catch(err){
+      console.warn('Direct Firestore delete error:', err);
+    }
+
+    if(window.FB.fbDelete){
+      try {
+        if(docId) await window.FB.fbDelete(window.FB.COL.products, docId);
+        if(id && id !== docId) await window.FB.fbDelete(window.FB.COL.products, id);
+        if(code) await window.FB.fbDelete(window.FB.COL.products, code);
+      } catch(err){
+        console.warn('Product delete error:', err);
+      }
+    }
+  }
+
+  if(typeof saveDB === 'function') saveDB(true);
 
   toast('භාණ්ඩය සාර්ථකව මකා දමන ලදී 🗑️', 'ok');
   renderInvList();
@@ -879,17 +930,50 @@ async function cleanDuplicateProducts(){
   // 1. Remove from local memory
   db.products = db.products.filter(p => !dupIds.includes(p.id) && !dupDocIds.includes(p._docId));
 
-  // 2. Delete duplicates from Firestore permanently
-  if(window.FB && window.FB.fbDelete){
-    for(const d of duplicates){
-      try {
-        if(d._docId) await window.FB.fbDelete(window.FB.COL.products, d._docId);
-        if(d.id && d.id !== d._docId) await window.FB.fbDelete(window.FB.COL.products, d.id);
-      } catch(_){}
+  // 2. Scrub ALL local storage databases
+  try {
+    for(let i = 0; i < localStorage.length; i++){
+      const k = localStorage.key(i);
+      if(k && (k.startsWith('pos.localDB.') || k === 'autoparts_pos_db')){
+        try {
+          const parsed = JSON.parse(localStorage.getItem(k) || '{}');
+          if(Array.isArray(parsed.products)){
+            parsed.products = parsed.products.filter(p => !dupIds.includes(p.id) && !dupDocIds.includes(p._docId));
+            localStorage.setItem(k, JSON.stringify(parsed));
+          }
+        } catch(_){}
+      }
+    }
+  } catch(_){}
+
+  // 3. Delete duplicates from Firestore permanently
+  if(window.FB){
+    try {
+      if(typeof window.FB.ensureFirebaseAuth === 'function'){
+        await window.FB.ensureFirebaseAuth();
+      }
+      const mods = window.FB._getModules ? window.FB._getModules() : null;
+      const fsDb = window.FB._getDb ? window.FB._getDb() : null;
+      if(mods?.fsMod && fsDb){
+        const { doc, deleteDoc } = mods.fsMod;
+        for(const d of duplicates){
+          if(d._docId) try { await deleteDoc(doc(fsDb, 'products', d._docId)); } catch(_){}
+          if(d.id && d.id !== d._docId) try { await deleteDoc(doc(fsDb, 'products', d.id)); } catch(_){}
+        }
+      }
+    } catch(_){}
+
+    if(window.FB.fbDelete){
+      for(const d of duplicates){
+        try {
+          if(d._docId) await window.FB.fbDelete(window.FB.COL.products, d._docId);
+          if(d.id && d.id !== d._docId) await window.FB.fbDelete(window.FB.COL.products, d.id);
+        } catch(_){}
+      }
     }
   }
 
-  // 3. Purge from sync queue
+  // 4. Purge from sync queue
   try {
     if(window.Offline && Array.isArray(window.Offline.queue)){
       window.Offline.queue = window.Offline.queue.filter(q => 
@@ -910,7 +994,7 @@ async function cleanDuplicateProducts(){
     }
   } catch(_){}
 
-  if(typeof saveDB === 'function') saveDB();
+  if(typeof saveDB === 'function') saveDB(true);
   renderInvList();
   render();
   toast(`අනුපිටපත් භාණ්ඩ ${duplicates.length}ක් සාර්ථකව පිරිසිදු කරන ලදී 🧹`, 'ok');

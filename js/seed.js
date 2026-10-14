@@ -179,6 +179,7 @@ var INITIAL_USERS = [
 ];
 
 async function seedIfEmpty(){
+  if(localStorage.getItem('pos.productionCleanSlate') === 'true') return false;
   if(!window.FB) return false;
   if(window.FB.isPermissionDenied && window.FB.isPermissionDenied()) return false;
 

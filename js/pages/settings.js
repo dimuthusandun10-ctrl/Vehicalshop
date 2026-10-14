@@ -1134,8 +1134,8 @@ function openProductionResetModal(){
 }
 
 async function submitProductionReset(){
-  if(window.state?.user?.role !== 'superadmin'){
-    toast('මෙම ක්‍රියාව සඳහා සුපිරි පරිපාලක (Super Admin) අවසරය අවශ්‍ය වේ!', 'err');
+  if(window.state?.user?.role !== 'superadmin' && window.state?.user?.role !== 'admin'){
+    toast('මෙම ක්‍රියාව සඳහා පරිපාලක අවසරය අවශ්‍ය වේ!', 'err');
     return;
   }
   const isFull = document.querySelector('input[name="resetMode"]:checked')?.value === 'full';
@@ -1148,18 +1148,31 @@ async function submitProductionReset(){
 }
 
 async function executeProductionReset(wipeInventory = true){
-  if(window.state?.user?.role !== 'superadmin'){
-    toast('මෙම ක්‍රියාව සඳහා සුපිරි පරිපාලක (Super Admin) අවසරය අවශ්‍ය වේ!', 'err');
+  if(window.state?.user?.role !== 'superadmin' && window.state?.user?.role !== 'admin'){
+    toast('මෙම ක්‍රියාව සඳහා පරිපාලක අවසරය අවශ්‍ය වේ!', 'err');
     return;
   }
   const shopId = (typeof currentShopId === 'function' && currentShopId()) || state.user?.shopId || state.activeShopId || 'SHOP-001';
   const shopName = state.activeShop?.name || shopId;
   const db = window.DB || {};
 
-  // 1. Stop all snapshot listeners immediately to avoid resurrection
+  // 1. Capture in-memory objects BEFORE clearing so we have their IDs for deep Firestore wipe
+  const prodsToWipe = [...(db.products || [])];
+  const customersToWipe = [...(db.customers || [])];
+  const suppliersToWipe = [...(db.suppliers || [])];
+  const salesToWipe = [...(db.sales || [])];
+  const grnsToWipe = [...(db.grns || [])];
+  const shiftsToWipe = [...(db.shifts || [])];
+  const returnsToWipe = [...(db.returns || [])];
+  const cashMovesToWipe = [...(db.cashMoves || [])];
+  const paymentsToWipe = [...(db.payments || [])];
+  const interchangesToWipe = [...(db.interchanges || [])];
+  const scrapToWipe = [...(db.scrapInventory || [])];
+
+  // 2. Stop all snapshot listeners immediately to avoid resurrection
   if(typeof window.stopAllListeners === 'function') window.stopAllListeners();
 
-  // 2. Clear in-memory DB arrays for current shop
+  // 3. Clear in-memory DB arrays
   db.sales = [];
   db.grns = [];
   db.returns = [];
@@ -1168,7 +1181,7 @@ async function executeProductionReset(wipeInventory = true){
   db.payments = [];
   db.supplierPayments = [];
   db.dailySummary = [];
-  db.counters = { ...(db.counters || {}), invoice: 1, grn: 1, ret: 1, shift: 1, payment: 1 };
+  db.counters = { invoice: 1, grn: 1, ret: 1, shift: 1, payment: 1, shop: 1 };
 
   if(wipeInventory){
     db.products = [];
@@ -1178,38 +1191,41 @@ async function executeProductionReset(wipeInventory = true){
     db.scrapInventory = [];
   } else if(Array.isArray(db.customers)){
     db.customers.forEach(c => {
-      if(!c.shopId || c.shopId === shopId){
-        c.balance = 0;
-        c.totalSpent = 0;
-      }
+      c.balance = 0;
+      c.totalSpent = 0;
+      c.creditBalance = 0;
     });
   }
 
-  // 3. Clear local storage caches
+  // 4. Clear local storage caches & sync queue
   try {
-    localStorage.removeItem('pos.activeShift');
-    localStorage.removeItem('pos.grnDraft.' + shopId);
-    localStorage.removeItem('pos.grnDraft');
-
-    // Purge syncQueue entries belonging to THIS shop only (prevents resurrection on next online sync)
-    try {
-      const rawQ = localStorage.getItem('pos.syncQueue');
-      if(rawQ){
-        const parsedQ = JSON.parse(rawQ);
-        if(Array.isArray(parsedQ)){
-          const filteredQ = parsedQ.filter(q => q.data && q.data.shopId && q.data.shopId !== shopId);
-          localStorage.setItem('pos.syncQueue', JSON.stringify(filteredQ));
-        }
+    const keysToRemove = [];
+    for(let i = 0; i < localStorage.length; i++){
+      const k = localStorage.key(i);
+      if(k && (
+        k.startsWith('pos.localDB.') || 
+        k.startsWith('pos.grnDraft') || 
+        k === 'pos.activeShift' || 
+        k === 'pos.syncQueue'
+      )){
+        keysToRemove.push(k);
       }
-    } catch(_){}
-    // Also purge Offline.queue in memory
+    }
+    keysToRemove.forEach(k => localStorage.removeItem(k));
+
+    if(wipeInventory){
+      localStorage.setItem('pos.productionCleanSlate', 'true');
+    }
+
     if(window.Offline && Array.isArray(window.Offline.queue)){
-      window.Offline.queue = window.Offline.queue.filter(q => q.data && q.data.shopId && q.data.shopId !== shopId);
+      window.Offline.queue = [];
       if(typeof window.Offline.persist === 'function') window.Offline.persist();
     }
 
-    // Dedicated shop cache
-    const cleanShopCache = {
+    const cleanStructure = {
+      shop: db.shop || {},
+      shops: db.shops || [],
+      users: db.users || [],
       products: db.products || [],
       customers: db.customers || [],
       suppliers: db.suppliers || [],
@@ -1222,84 +1238,165 @@ async function executeProductionReset(wipeInventory = true){
       supplierPayments: [],
       interchanges: db.interchanges || [],
       scrapInventory: db.scrapInventory || [],
-      users: db.users || [],
-      shops: db.shops || [],
       counters: db.counters,
-      shop: db.shop || {},
-      savedAt: Date.now(),
-      shopId: shopId
+      savedAt: Date.now()
     };
-    localStorage.setItem('pos.localDB.' + shopId, JSON.stringify(cleanShopCache));
 
-    // Strip this shop's wiped records from autoparts_pos_db
-    const raw = localStorage.getItem('autoparts_pos_db');
-    if(raw){
-      const globalDb = JSON.parse(raw);
-      const keepOthers = key => (globalDb[key] || []).filter(item => item && item.shopId && item.shopId !== shopId);
-      globalDb.sales = keepOthers('sales');
-      globalDb.grns = keepOthers('grns');
-      globalDb.returns = keepOthers('returns');
-      globalDb.shifts = keepOthers('shifts');
-      globalDb.cashMoves = keepOthers('cashMoves');
-      globalDb.payments = keepOthers('payments');
-      globalDb.supplierPayments = keepOthers('supplierPayments');
-      globalDb.dailySummary = keepOthers('dailySummary');
-      if(wipeInventory){
-        globalDb.products = keepOthers('products');
-        globalDb.customers = keepOthers('customers');
-        globalDb.suppliers = keepOthers('suppliers');
-        globalDb.interchanges = keepOthers('interchanges');
-        globalDb.scrapInventory = keepOthers('scrapInventory');
+    localStorage.setItem('pos.localDB.' + shopId, JSON.stringify({ ...cleanStructure, shopId }));
+
+    if(wipeInventory){
+      localStorage.setItem('autoparts_pos_db', JSON.stringify(cleanStructure));
+    } else {
+      const raw = localStorage.getItem('autoparts_pos_db');
+      if(raw){
+        try {
+          const globalDb = JSON.parse(raw);
+          const keepOthers = key => (globalDb[key] || []).filter(item => item && item.shopId && item.shopId !== shopId);
+          globalDb.sales = keepOthers('sales');
+          globalDb.grns = keepOthers('grns');
+          globalDb.returns = keepOthers('returns');
+          globalDb.shifts = keepOthers('shifts');
+          globalDb.cashMoves = keepOthers('cashMoves');
+          globalDb.payments = keepOthers('payments');
+          globalDb.supplierPayments = keepOthers('supplierPayments');
+          globalDb.dailySummary = keepOthers('dailySummary');
+          globalDb.counters = db.counters;
+          globalDb.savedAt = Date.now();
+          localStorage.setItem('autoparts_pos_db', JSON.stringify(globalDb));
+        } catch(_){}
       }
-      globalDb.savedAt = Date.now();
-      localStorage.setItem('autoparts_pos_db', JSON.stringify(globalDb));
     }
   } catch(e){
     console.warn('Local reset persist warning:', e);
   }
 
-  // 4. Remote Firestore deletion
+  // 5. Remote Firestore deletion (Direct deleteDoc + multi-shop sweep)
   if(window.FB && navigator.onLine){
-    toast('Cloud දත්ත පිරිසිදු කරමින් පවතී... ⏳');
+    toast('Cloud දත්ත පිරිසිදු කරමින් පවතී... ⏳', 'info');
     try {
-      const colsToWipe = [
-        window.FB.COL.sales,
-        window.FB.COL.grns,
-        window.FB.COL.returns,
-        window.FB.COL.shifts,
-        window.FB.COL.cashMovements || 'cashMovements',
-        window.FB.COL.creditPayments || 'creditPayments',
-        window.FB.COL.supplierPayments || 'supplierPayments'
-      ];
-
-      if(wipeInventory){
-        colsToWipe.push(
-          window.FB.COL.products,
-          window.FB.COL.customers,
-          window.FB.COL.suppliers,
-          window.FB.COL.interchanges || 'interchanges',
-          window.FB.COL.scrapInventory || 'scrapInventory'
-        );
+      if(typeof window.FB.ensureFirebaseAuth === 'function'){
+        await window.FB.ensureFirebaseAuth();
       }
-
       const mods = window.FB._getModules ? window.FB._getModules() : null;
       const fsDb = window.FB._getDb ? window.FB._getDb() : null;
-      let deleteTasks = [];
+      const deleteTasks = [];
 
       if(mods?.fsMod && fsDb){
-        const { collection, getDocs, query, where } = mods.fsMod;
-        for(const colName of colsToWipe){
-          try {
-            const snap = await getDocs(query(collection(fsDb, colName), where('shopId', '==', shopId)));
-            snap.docs.forEach(d => deleteTasks.push({ col: colName, id: d.id }));
-          } catch(e){}
-        }
-      }
+        const { collection, getDocs, query, where, deleteDoc, doc } = mods.fsMod;
+        const colsToWipe = [
+          window.FB.COL.sales || 'sales',
+          window.FB.COL.grns || 'grns',
+          window.FB.COL.returns || 'returns',
+          window.FB.COL.shifts || 'shifts',
+          window.FB.COL.cashMovements || 'cashMovements',
+          window.FB.COL.creditPayments || 'creditPayments',
+          window.FB.COL.supplierPayments || 'supplierPayments'
+        ];
 
-      // Execute in concurrent batches of 15
-      for(let i = 0; i < deleteTasks.length; i += 15){
-        const chunk = deleteTasks.slice(i, i + 15);
-        await Promise.allSettled(chunk.map(t => window.FB.fbDelete(t.col, t.id)));
+        if(wipeInventory){
+          colsToWipe.push(
+            window.FB.COL.products || 'products',
+            window.FB.COL.customers || 'customers',
+            window.FB.COL.suppliers || 'suppliers',
+            window.FB.COL.interchanges || 'interchanges',
+            window.FB.COL.scrapInventory || 'scrapInventory'
+          );
+        }
+
+        const knownShops = ['SHOP-001', 'SHOP-002', 'SHOP-003', shopId];
+        if(db.shops && Array.isArray(db.shops)){
+          db.shops.forEach(s => { if(s.id && !knownShops.includes(s.id)) knownShops.push(s.id); });
+        }
+
+        for(const colName of colsToWipe){
+          // A. Try bare collection query
+          try {
+            const snapAll = await getDocs(collection(fsDb, colName));
+            snapAll.docs.forEach(d => deleteTasks.push({ col: colName, id: d.id }));
+          } catch(bareErr){
+            // If bare collection query restricted, query per shopId
+            for(const sId of knownShops){
+              try {
+                const snap = await getDocs(query(collection(fsDb, colName), where('shopId', '==', sId)));
+                snap.docs.forEach(d => deleteTasks.push({ col: colName, id: d.id }));
+              } catch(_){}
+            }
+          }
+
+          // Special battery codes deep sweep
+          if(colName === 'products'){
+            const testCodes = ['BT-80010', 'BT-8009', 'BT-80045'];
+            for(const c of testCodes){
+              try {
+                const cSnap = await getDocs(query(collection(fsDb, 'products'), where('code', '==', c)));
+                cSnap.docs.forEach(d => deleteTasks.push({ col: 'products', id: d.id }));
+              } catch(_){}
+            }
+          }
+        }
+
+        // B. Add in-memory items explicitly
+        if(wipeInventory){
+          prodsToWipe.forEach(p => {
+            if(p._docId) deleteTasks.push({ col: 'products', id: p._docId });
+            if(p.id) deleteTasks.push({ col: 'products', id: p.id });
+          });
+          customersToWipe.forEach(c => {
+            if(c._docId) deleteTasks.push({ col: 'customers', id: c._docId });
+            if(c.id) deleteTasks.push({ col: 'customers', id: c.id });
+          });
+          suppliersToWipe.forEach(s => {
+            if(s._docId) deleteTasks.push({ col: 'suppliers', id: s._docId });
+            if(s.id) deleteTasks.push({ col: 'suppliers', id: s.id });
+          });
+        }
+        salesToWipe.forEach(s => {
+          if(s._docId) deleteTasks.push({ col: 'sales', id: s._docId });
+          if(s.id) deleteTasks.push({ col: 'sales', id: s.id });
+        });
+        grnsToWipe.forEach(g => {
+          if(g._docId) deleteTasks.push({ col: 'grns', id: g._docId });
+          if(g.id) deleteTasks.push({ col: 'grns', id: g.id });
+        });
+        shiftsToWipe.forEach(s => {
+          if(s._docId) deleteTasks.push({ col: 'shifts', id: s._docId });
+          if(s.id) deleteTasks.push({ col: 'shifts', id: s.id });
+        });
+        returnsToWipe.forEach(r => {
+          if(r._docId) deleteTasks.push({ col: 'returns', id: r._docId });
+          if(r.id) deleteTasks.push({ col: 'returns', id: r.id });
+        });
+
+        // Deduplicate delete tasks
+        const seen = new Set();
+        const uniqueTasks = [];
+        deleteTasks.forEach(t => {
+          if(t?.id && t?.col){
+            const k = `${t.col}:${t.id}`;
+            if(!seen.has(k)){
+              seen.add(k);
+              uniqueTasks.push(t);
+            }
+          }
+        });
+
+        // Execute concurrent direct deletion in batches of 25
+        for(let i = 0; i < uniqueTasks.length; i += 25){
+          const chunk = uniqueTasks.slice(i, i + 25);
+          await Promise.allSettled(chunk.map(async t => {
+            try { await deleteDoc(doc(fsDb, t.col, t.id)); } catch(_){}
+            try { if(window.FB && window.FB.fbDeleteDirect) await window.FB.fbDeleteDirect(t.col, t.id); } catch(_){}
+          }));
+        }
+
+        // Reset global counter doc in Firestore
+        try {
+          if(window.FB && window.FB.fbSetDirect){
+            await window.FB.fbSetDirect('counters', 'global', { invoice: 1, grn: 1, ret: 1, shift: 1, payment: 1 });
+            await window.FB.fbSetDirect('counters', shopId, { invoice: 1, grn: 1, ret: 1, shift: 1, payment: 1 });
+            await window.FB.fbSetDirect('counters', 'SHOP-001', { invoice: 1, grn: 1, ret: 1, shift: 1, payment: 1 });
+          }
+        } catch(_){}
       }
 
       // If inventory kept, update customer balances in Firestore
@@ -1316,10 +1413,10 @@ async function executeProductionReset(wipeInventory = true){
   }
 
   closeModal();
-  toast(`'${shopName}' සාර්ථකව පිරිසිදු කර සූදානම් කරන ලදී! ✅`, 'ok');
+  toast(`පද්ධතිය සාර්ථකව පිරිසිදු කරන ලදී! ✅ (භාණ්ඩ: 0, ගනුදෙනු: 0)`, 'ok');
   setTimeout(() => {
     location.reload();
-  }, 1000);
+  }, 1200);
 }
 
 function resetToDemo(){

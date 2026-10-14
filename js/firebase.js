@@ -71,6 +71,24 @@ async function initFirebase(){
   }
 }
 
+async function ensureFirebaseAuth(){
+  if(!_fbReady) await initFirebase();
+  if(!_fbAuth) return null;
+  if(_fbAuth.currentUser) return _fbAuth.currentUser;
+  if(!_fbModules?.authMod?.onAuthStateChanged) return null;
+  return new Promise(resolve => {
+    try {
+      const unsub = _fbModules.authMod.onAuthStateChanged(_fbAuth, user => {
+        try { unsub(); } catch(_){}
+        resolve(user);
+      });
+      setTimeout(() => resolve(_fbAuth?.currentUser || null), 2500);
+    } catch(e){
+      resolve(null);
+    }
+  });
+}
+
 /* =====================================================
    FIREBASE AUTH HELPERS
    ===================================================== */
@@ -523,10 +541,16 @@ async function fbDeleteDirect(colName, id){
   const { doc, deleteDoc, collection, query, where, getDocs } = _fbModules.fsMod;
   if(!id) return true;
 
+  let permErr = null;
+
   // 1. Direct delete by ID
   try {
     await deleteDoc(doc(_fbDb, colName, id));
-  } catch(e){}
+  } catch(e){
+    if(e && (e.code === 'permission-denied' || e.message?.includes('permission'))){
+      permErr = e;
+    }
+  }
 
   // 2. Query delete if document was created with an auto-gen Firestore doc ID
   try {
@@ -534,10 +558,20 @@ async function fbDeleteDirect(colName, id){
     const s1 = await getDocs(q1);
     for(const d of s1.docs){
       if(d.id !== id){
-        await deleteDoc(doc(_fbDb, colName, d.id));
+        try {
+          await deleteDoc(doc(_fbDb, colName, d.id));
+        } catch(e2){
+          if(e2 && (e2.code === 'permission-denied' || e2.message?.includes('permission'))){
+            permErr = e2;
+          }
+        }
       }
     }
-  } catch(e){}
+  } catch(e){
+    if(e && (e.code === 'permission-denied' || e.message?.includes('permission'))){
+      permErr = e;
+    }
+  }
 
   // 3. For returns, also delete by 'no' (e.g. RET-0002)
   if(colName === 'returns' || colName === COL.returns){
@@ -545,9 +579,19 @@ async function fbDeleteDirect(colName, id){
       const q2 = query(collection(_fbDb, colName), where('no', '==', id));
       const s2 = await getDocs(q2);
       for(const d of s2.docs){
-        await deleteDoc(doc(_fbDb, colName, d.id));
+        try {
+          await deleteDoc(doc(_fbDb, colName, d.id));
+        } catch(e3){
+          if(e3 && (e3.code === 'permission-denied' || e3.message?.includes('permission'))){
+            permErr = e3;
+          }
+        }
       }
-    } catch(e){}
+    } catch(e){
+      if(e && (e.code === 'permission-denied' || e.message?.includes('permission'))){
+        permErr = e;
+      }
+    }
   }
 
   // 4. For products, also check by 'code' (e.g. BT-80010)
@@ -556,11 +600,22 @@ async function fbDeleteDirect(colName, id){
       const q3 = query(collection(_fbDb, colName), where('code', '==', id));
       const s3 = await getDocs(q3);
       for(const d of s3.docs){
-        await deleteDoc(doc(_fbDb, colName, d.id));
+        try {
+          await deleteDoc(doc(_fbDb, colName, d.id));
+        } catch(e4){
+          if(e4 && (e4.code === 'permission-denied' || e4.message?.includes('permission'))){
+            permErr = e4;
+          }
+        }
       }
-    } catch(e){}
+    } catch(e){
+      if(e && (e.code === 'permission-denied' || e.message?.includes('permission'))){
+        permErr = e;
+      }
+    }
   }
 
+  if(permErr) throw permErr;
   return true;
 }
 
@@ -750,9 +805,10 @@ function currentShopId(){
   if(window.state.user.role === 'superadmin'){
     return window.state.activeShopId 
         || (window.state.activeShop && window.state.activeShop.id) 
-        || null;
+        || localStorage.getItem('pos.activeShopId')
+        || 'SHOP-001';
   }
-  return window.state.user.shopId || null;
+  return window.state.user.shopId || localStorage.getItem('pos.activeShopId') || 'SHOP-001';
 }
 
 function shopQuery(colName){
@@ -831,10 +887,12 @@ window.fbSignIn = fbSignIn;
 window.fbSignOut = fbSignOut;
 window.fbCreateUser = fbCreateUser;
 window.createUserWithoutLogout = createUserWithoutLogout;
+window.ensureFirebaseAuth = ensureFirebaseAuth;
 
 window.FB = {
   COL,
   initFirebase,
+  ensureFirebaseAuth,
   fbGetAll,
   fbGet,
   fbGetDirect,

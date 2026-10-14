@@ -2,7 +2,7 @@
    js/app.js - Application Lifecycle & Global Event Listeners
    ========================================================= */
 
-window.CURRENT_APP_VERSION = 'v2.7.5';
+window.CURRENT_APP_VERSION = 'v2.7.7';
 const CURRENT_APP_VERSION = window.CURRENT_APP_VERSION;
 let _isUpdatingApp = false;
 window._isUpdatingApp = false;

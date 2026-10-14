@@ -406,16 +406,22 @@ Object.assign(DB, {
       this.shifts    = filterByShop(cached.shifts);
       this.cashMoves = filterByShop(cached.cashMoves);
       this.payments  = filterByShop(cached.payments);
+      this.supplierPayments = filterByShop(cached.supplierPayments);
+      this.interchanges = filterByShop(cached.interchanges);
+      this.scrapInventory = filterByShop(cached.scrapInventory);
     } else {
-      this.products = cached.products || [];
-      this.customers = cached.customers || [];
-      this.suppliers = cached.suppliers || [];
-      this.sales = cached.sales || [];
-      this.grns = cached.grns || [];
-      this.returns = cached.returns || [];
-      this.shifts = cached.shifts || [];
-      this.cashMoves = cached.cashMoves || [];
-      this.payments = cached.payments || [];
+      this.products  = [];
+      this.customers = [];
+      this.suppliers = [];
+      this.sales     = [];
+      this.grns      = [];
+      this.returns   = [];
+      this.shifts    = [];
+      this.cashMoves = [];
+      this.payments  = [];
+      this.supplierPayments = [];
+      this.interchanges = [];
+      this.scrapInventory = [];
     }
 
     if(cached.counters) this.counters = { ...this.counters, ...cached.counters };

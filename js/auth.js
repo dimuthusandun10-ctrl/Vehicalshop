@@ -388,10 +388,20 @@ async function doLogin(){
         : ['billing','dashboard','customers','lowstock','profile'];
     }
 
-    // Touch updatedAt timestamp (without changing role/shopId/permissions)
-    if(window.FB && typeof window.FB.fbUpdateDirect === 'function'){
+    // Ensure user document in Firestore always has matching authUid, role and permissions
+    if(window.FB && typeof window.FB.fbSetDirect === 'function'){
       try {
-        await window.FB.fbUpdateDirect('users', authUid, {
+        await window.FB.fbSetDirect('users', authUid, {
+          id: authUid,
+          authUid: authUid,
+          username: user.username || u,
+          email: user.email || email,
+          role: user.role,
+          name: user.name,
+          shopId: user.shopId,
+          active: true,
+          locked: false,
+          permissions: user.permissions,
           updatedAt: new Date().toISOString()
         });
       } catch(syncErr){}
