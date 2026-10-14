@@ -19,6 +19,7 @@ function pgSettings(){
         <button class="btn btn-sm ${tab==='backup'?'btn-primary':''}" onclick="state.settingsTab='backup';render()">💾 දත්ත Backup</button>
         ${state.user?.role==='superadmin'?`<button class="btn btn-sm ${tab==='maintenance'?'btn-primary':''}" onclick="state.settingsTab='maintenance';render()">🛠️ Maintenance (නඩත්තුව)</button>`:''}
         ${state.user?.role==='superadmin'?`<button class="btn btn-sm ${tab==='support'?'btn-primary':''}" onclick="state.settingsTab='support';render()">📞 තාක්ෂණික සහාය (Contact Info)</button>`:''}
+        ${state.user?.role==='superadmin'?`<button class="btn btn-sm" onclick="openSuperAdminBugReportsModal()" style="color:#f87171;border-color:rgba(239,68,68,0.3)">🐞 Bug Reports</button>`:''}
       </div>
     </div>
 
@@ -40,6 +41,9 @@ function pgSettings(){
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <button class="btn btn-secondary btn-sm" onclick="openContactModal()" style="display:flex;align-items:center;gap:6px;font-weight:600;padding:8px 12px">
             📞 Contact Us
+          </button>
+          <button class="btn btn-sm" onclick="openContactModal('report')" style="display:flex;align-items:center;gap:6px;font-weight:600;padding:8px 12px;background:rgba(239,68,68,0.15);color:#fca5a5;border:1px solid rgba(239,68,68,0.3)">
+            🐞 Report Bug
           </button>
           <button class="btn btn-primary btn-sm" onclick="forceUpdateApp()" style="display:flex;align-items:center;gap:6px;font-weight:700;padding:8px 14px">
             🔄 යෙදුම යාවත්කාලීන කරන්න (Update App)

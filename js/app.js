@@ -99,6 +99,14 @@ async function initApp(){
 
   // Register PWA Service Worker
   registerPwaServiceWorker();
+
+  // Periodic Bug Reports badge refresh for Super Admin
+  if(typeof window.refreshBugBadge === 'function') window.refreshBugBadge();
+  setInterval(() => {
+    if(window.state?.user?.role === 'superadmin' && typeof window.refreshBugBadge === 'function'){
+      window.refreshBugBadge();
+    }
+  }, 45000);
 }
 
 /* =========================================================

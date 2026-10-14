@@ -490,6 +490,7 @@ async function doLogin(){
     roleBadge.className = 'badge ' + user.role;
     roleBadge.textContent = ROLE_EN[user.role];
   }
+  if(typeof refreshBugBadge === 'function') refreshBugBadge();
 
   const shortcut = window.state?.shortcutPage;
   state.page = (shortcut && typeof can === 'function' && can(shortcut)) ? shortcut : 'billing';
@@ -891,6 +892,7 @@ async function restoreSession(){
       roleBadge.className = 'badge ' + user.role;
       roleBadge.textContent = typeof ROLE_EN !== 'undefined' ? ROLE_EN[user.role] : user.role;
     }
+    if(typeof refreshBugBadge === 'function') refreshBugBadge();
 
     // Determine target page: URL shortcut > sessionStorage saved page > default 'billing'
     const savedPage = sessionStorage.getItem('pos.currentPage') || localStorage.getItem('pos.currentPage');

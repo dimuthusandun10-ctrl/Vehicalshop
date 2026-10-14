@@ -27,7 +27,8 @@ const COL = {
   interchanges: 'interchanges',         /* Part Interchange */
   scrapInventory: 'scrapInventory',     /* Core Scrap Batteries */
   settings:  'settings',
-  counters:  'counters'
+  counters:  'counters',
+  bugReports:'bugReports'
 };
 
 let _fbApp = null;
@@ -872,6 +873,167 @@ async function migrateOrphanDocumentsToShop(defaultShopId = 'SHOP-001'){
   } catch(e){}
 }
 
+/* =====================================================
+   BUG REPORTS & SYSTEM SUPPORT SERVICES
+   ===================================================== */
+const BUG_LOCAL_KEY = 'autoparts_bug_reports';
+
+function getLocalBugReports(){
+  try {
+    const raw = localStorage.getItem(BUG_LOCAL_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch(_){
+    return [];
+  }
+}
+
+function saveLocalBugReports(list){
+  try {
+    localStorage.setItem(BUG_LOCAL_KEY, JSON.stringify(list || []));
+  } catch(_){}
+}
+
+async function createBugReport(reportData){
+  const id = reportData.id || ('BUG-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).slice(2, 6).toUpperCase());
+  const newReport = {
+    id,
+    title: reportData.title || 'System Issue',
+    category: reportData.category || 'other',
+    description: reportData.description || '',
+    photoUrl: reportData.photoUrl || '',
+    reportedBy: reportData.reportedBy || (window.state?.user?.name || window.state?.user?.username || 'Staff'),
+    reportedByUid: reportData.reportedByUid || (window.state?.user?.authUid || window.state?.user?.id || 'anonymous'),
+    role: reportData.role || (window.state?.user?.role || 'staff'),
+    shopId: reportData.shopId || (window.state?.user?.shopId || 'GLOBAL'),
+    shopName: reportData.shopName || (window.DB?.shop?.name || ''),
+    page: reportData.page || (window.state?.page || 'pos'),
+    device: reportData.device || `${navigator.platform || ''} · ${navigator.userAgent && navigator.userAgent.includes('Mobile') ? 'Mobile' : 'Desktop'}`,
+    status: 'pending', // 'pending' | 'in_progress' | 'fixed'
+    adminNote: '',
+    createdAt: new Date().toISOString(),
+    fixedAt: null
+  };
+
+  // 1. Save local
+  const localList = getLocalBugReports();
+  localList.unshift(newReport);
+  saveLocalBugReports(localList);
+
+  // 2. Sync to Firestore
+  try {
+    if(!_fbReady) await initFirebase();
+    if(_fbReady && _fbDb && !_fbPermissionDenied){
+      await fbSetDirect('bugReports', id, newReport);
+    }
+  } catch(err){
+    console.warn('⚠️ Firestore error while saving bug report, saved locally:', err);
+  }
+
+  if(typeof window.refreshBugBadge === 'function') window.refreshBugBadge();
+  return newReport;
+}
+
+async function getBugReports(filterShopId = null){
+  let cloudReports = [];
+  try {
+    if(!_fbReady) await initFirebase();
+    if(_fbReady && _fbDb && !_fbPermissionDenied){
+      cloudReports = await fbGetAll('bugReports');
+    }
+  } catch(e){
+    console.warn('Failed to fetch bug reports from cloud:', e);
+  }
+
+  const localReports = getLocalBugReports();
+  const map = new Map();
+  // Cloud reports take precedence
+  cloudReports.forEach(r => { if(r && r.id) map.set(r.id, r); });
+  localReports.forEach(r => {
+    if(r && r.id && !map.has(r.id)) map.set(r.id, r);
+  });
+
+  let all = Array.from(map.values());
+  // Sort descending by date
+  all.sort((a,b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+
+  // If user is not superadmin, scope to own reports or shop
+  const isSuper = window.state?.user?.role === 'superadmin';
+  if(!isSuper){
+    const uid = window.state?.user?.authUid || window.state?.user?.id;
+    const shop = filterShopId || window.state?.user?.shopId;
+    all = all.filter(r => (uid && r.reportedByUid === uid) || (shop && r.shopId === shop));
+  }
+  return all;
+}
+
+async function updateBugReportStatus(reportId, status, adminNote = ''){
+  const updateObj = {
+    status,
+    adminNote: adminNote || '',
+    updatedAt: new Date().toISOString()
+  };
+  if(status === 'fixed'){
+    updateObj.fixedAt = new Date().toISOString();
+  }
+
+  // Update local
+  const localList = getLocalBugReports();
+  const idx = localList.findIndex(r => r.id === reportId);
+  if(idx !== -1){
+    Object.assign(localList[idx], updateObj);
+    saveLocalBugReports(localList);
+  }
+
+  // Update cloud
+  try {
+    if(!_fbReady) await initFirebase();
+    if(_fbReady && _fbDb && !_fbPermissionDenied){
+      await fbUpdateDirect('bugReports', reportId, updateObj);
+    }
+  } catch(e){
+    console.warn('Error updating bug report in cloud:', e);
+  }
+
+  if(typeof window.refreshBugBadge === 'function') window.refreshBugBadge();
+  return true;
+}
+
+async function deleteBugReport(reportId){
+  // Remove local
+  let localList = getLocalBugReports();
+  localList = localList.filter(r => r.id !== reportId);
+  saveLocalBugReports(localList);
+
+  // Remove cloud
+  try {
+    if(!_fbReady) await initFirebase();
+    if(_fbReady && _fbDb && !_fbPermissionDenied){
+      await fbDeleteDirect('bugReports', reportId);
+    }
+  } catch(e){
+    console.warn('Error deleting bug report in cloud:', e);
+  }
+
+  if(typeof window.refreshBugBadge === 'function') window.refreshBugBadge();
+  return true;
+}
+
+async function clearAllFixedBugReports(filterShopId = null){
+  const all = await getBugReports(filterShopId);
+  const fixed = all.filter(r => r.status === 'fixed');
+  let deletedCount = 0;
+  for(const r of fixed){
+    await deleteBugReport(r.id);
+    deletedCount++;
+  }
+  return deletedCount;
+}
+
+async function getPendingBugReportsCount(){
+  const reports = await getBugReports();
+  return reports.filter(r => r.status === 'pending').length;
+}
+
 window.currentShopId = currentShopId;
 window.shopQuery = shopQuery;
 window.shopAdd = shopAdd;
@@ -888,6 +1050,16 @@ window.fbSignOut = fbSignOut;
 window.fbCreateUser = fbCreateUser;
 window.createUserWithoutLogout = createUserWithoutLogout;
 window.ensureFirebaseAuth = ensureFirebaseAuth;
+
+window.BugService = {
+  createBugReport,
+  getBugReports,
+  updateBugReportStatus,
+  deleteBugReport,
+  clearAllFixedBugReports,
+  getPendingBugReportsCount,
+  watchBugReports: (cb) => fbWatch('bugReports', cb)
+};
 
 window.FB = {
   COL,
@@ -921,6 +1093,7 @@ window.FB = {
   createUserWithoutLogout: createUserWithoutLogout,
   executeSaleTransaction,
   executeSaleOffline,
+  BugService: window.BugService,
   _getModules: () => _fbModules,
   _getDb: () => _fbDb
 };

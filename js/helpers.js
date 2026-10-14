@@ -209,7 +209,284 @@ function copyContactDetails(){
   }
 }
 
-function showContactUsModal(){
+/* =====================================================
+   IMAGE COMPRESSION & LIGHTBOX HELPERS
+   ===================================================== */
+window._activeBugPhoto = null;
+window._bugAdminFilter = 'all';
+
+function compressImageFile(file, maxWidth = 1024, maxHeight = 1024, quality = 0.72){
+  return new Promise((resolve, reject) => {
+    if(!file || !file.type.startsWith('image/')){
+      return reject(new Error('කරුණාකර වලංගු ඡායාරූපයක් (Image) තෝරන්න.'));
+    }
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('ගොනුව කියවීමට නොහැකි විය.'));
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('ඡායාරූපය load කිරීමට නොහැකි විය.'));
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+        if(width > maxWidth || height > maxHeight){
+          if(width / height > maxWidth / maxHeight){
+            height = Math.round(height * (maxWidth / width));
+            width = maxWidth;
+          } else {
+            width = Math.round(width * (maxHeight / height));
+            height = maxHeight;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        const sizeKb = Math.round((dataUrl.length * 3 / 4) / 1024);
+        resolve({ dataUrl, sizeKb, width, height });
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function openImageLightbox(imageUrl, title = 'Screenshot'){
+  const old = document.getElementById('bugLightbox');
+  if(old) old.remove();
+
+  const wrap = document.createElement('div');
+  wrap.id = 'bugLightbox';
+  wrap.className = 'bug-lightbox-backdrop';
+  wrap.onclick = (e) => {
+    if(e.target === wrap) wrap.remove();
+  };
+  wrap.innerHTML = `
+    <div class="bug-lightbox-content">
+      <button class="bug-lightbox-close" onclick="document.getElementById('bugLightbox')?.remove()" title="Close">✕</button>
+      <img src="${imageUrl}" class="bug-lightbox-img" alt="${esc(title)}">
+      <div style="color:#e2e8f0;font-size:12px;margin-top:8px;text-align:center;font-weight:600">${esc(title)}</div>
+    </div>
+  `;
+  document.body.appendChild(wrap);
+}
+
+async function handleBugFileSelect(e){
+  const file = e.target.files && e.target.files[0];
+  if(file){
+    await processBugImageFile(file);
+  }
+}
+
+async function processBugImageFile(file){
+  try {
+    const previewEl = document.getElementById('bugPhotoPreview');
+    const wrapEl = document.getElementById('bugPreviewWrap');
+    const sizeEl = document.getElementById('bugPreviewSize');
+    const statusEl = document.getElementById('bugUploadStatus');
+    if(statusEl) statusEl.textContent = '⏳ Photo එක සම්පීඩනය කරමින් (Compressing)...';
+
+    const compressed = await compressImageFile(file, 1024, 1024, 0.72);
+    window._activeBugPhoto = compressed;
+
+    if(previewEl) previewEl.src = compressed.dataUrl;
+    if(sizeEl) sizeEl.textContent = `සම්පීඩිතයි: ${compressed.sizeKb} KB`;
+    if(wrapEl) wrapEl.style.display = 'inline-block';
+    if(statusEl) statusEl.textContent = `✅ ඡායාරූපය සූදානම් (${compressed.sizeKb} KB - Storage සුරැකේ)`;
+  } catch(err){
+    if(typeof toast === 'function') toast(err.message || 'ඡායාරූපය සැකසීමට නොහැකි විය.', 'err');
+  }
+}
+
+function removeBugPhoto(){
+  window._activeBugPhoto = null;
+  const wrapEl = document.getElementById('bugPreviewWrap');
+  const previewEl = document.getElementById('bugPhotoPreview');
+  const fileInput = document.getElementById('bugPhotoInput');
+  const statusEl = document.getElementById('bugUploadStatus');
+  if(wrapEl) wrapEl.style.display = 'none';
+  if(previewEl) previewEl.src = '';
+  if(fileInput) fileInput.value = '';
+  if(statusEl) statusEl.textContent = '';
+}
+
+if(!window._bugPasteListenerAttached){
+  window.addEventListener('paste', (e) => {
+    const dropzone = document.getElementById('bugDropzone');
+    if(!dropzone) return;
+    const items = (e.clipboardData || e.originalEvent?.clipboardData)?.items;
+    if(!items) return;
+    for(let i = 0; i < items.length; i++){
+      if(items[i].type && items[i].type.startsWith('image/')){
+        const blob = items[i].getAsFile();
+        if(blob){
+          e.preventDefault();
+          processBugImageFile(blob);
+          break;
+        }
+      }
+    }
+  });
+  window._bugPasteListenerAttached = true;
+}
+
+function setupDropzoneEvents(){
+  const dz = document.getElementById('bugDropzone');
+  if(!dz) return;
+  ['dragenter', 'dragover'].forEach(name => {
+    dz.addEventListener(name, (e) => {
+      e.preventDefault();
+      dz.classList.add('dragover');
+    }, false);
+  });
+  ['dragleave', 'drop'].forEach(name => {
+    dz.addEventListener(name, (e) => {
+      e.preventDefault();
+      dz.classList.remove('dragover');
+    }, false);
+  });
+  dz.addEventListener('drop', (e) => {
+    const dt = e.dataTransfer;
+    const files = dt.files;
+    if(files && files[0]){
+      processBugImageFile(files[0]);
+    }
+  }, false);
+}
+
+async function submitBugReportForm(){
+  const title = document.getElementById('bugTitle')?.value?.trim();
+  const category = document.getElementById('bugCategory')?.value || 'other';
+  const description = document.getElementById('bugDesc')?.value?.trim();
+  const btn = document.getElementById('bugSubmitBtn');
+
+  if(!title){
+    if(typeof toast === 'function') toast('කරුණාකර ගැටළුව පිළිබඳ කෙටි මාතෘකාවක් ඇතුළත් කරන්න.', 'err');
+    document.getElementById('bugTitle')?.focus();
+    return;
+  }
+  if(!description){
+    if(typeof toast === 'function') toast('කරුණාකර දෝෂය පිළිබඳ විස්තරයක් ඇතුළත් කරන්න.', 'err');
+    document.getElementById('bugDesc')?.focus();
+    return;
+  }
+
+  if(btn){
+    btn.disabled = true;
+    btn.innerHTML = '⏳ යොමු කරමින් පවතී...';
+  }
+
+  try {
+    const reportData = {
+      title,
+      category,
+      description,
+      photoUrl: window._activeBugPhoto?.dataUrl || '',
+      page: window.state?.page || 'pos'
+    };
+    if(window.BugService && typeof window.BugService.createBugReport === 'function'){
+      await window.BugService.createBugReport(reportData);
+    }
+    window._activeBugPhoto = null;
+    if(typeof toast === 'function') toast('✅ ගැටළුව Super Admin වෙත සාර්ථකව යොමු කරන ලදී!', 'ok');
+    showContactUsModal('my_reports');
+  } catch(e){
+    if(typeof toast === 'function') toast('දෝෂය යොමු කිරීම අසාර්ථක විය: ' + e.message, 'err');
+    if(btn){
+      btn.disabled = false;
+      btn.innerHTML = '🚀 Super Admin වෙත යොමු කරන්න';
+    }
+  }
+}
+
+async function deleteMyBugReport(reportId){
+  if(!confirm('මෙම ගැටළු වාර්තාව පද්ධතියෙන් සම්පූර්ණයෙන්ම ඉවත් කර Database ඉඩ නිදහස් කිරීමට අවශ්‍යද?')) return;
+  try {
+    if(window.BugService && typeof window.BugService.deleteBugReport === 'function'){
+      await window.BugService.deleteBugReport(reportId);
+    }
+    if(typeof toast === 'function') toast('🗑️ වාර්තාව සාර්ථකව ඉවත් කරන ලදී.', 'ok');
+    showContactUsModal('my_reports');
+  } catch(e){
+    if(typeof toast === 'function') toast('ඉවත් කිරීම අසාර්ථක විය.', 'err');
+  }
+}
+
+async function updateBugStatusPrompt(reportId, newStatus){
+  let note = '';
+  if(newStatus === 'fixed'){
+    note = prompt('Super Admin සටහන (Solution Note):\nඋදා: "ගැටළුව Fix කරන ලදී. Version 2.7.9 බලන්න හෝ Refresh කරන්න."', 'ගැටළුව නිරාකරණය කරන ලදී. කරුණාකර පද්ධතිය Refresh කරන්න.');
+    if(note === null) return;
+  }
+  try {
+    if(window.BugService && typeof window.BugService.updateBugReportStatus === 'function'){
+      await window.BugService.updateBugReportStatus(reportId, newStatus, note);
+    }
+    if(typeof toast === 'function') toast(`✅ තත්ත්වය "${newStatus === 'fixed' ? 'විසඳන ලදී' : 'සකසමින් පවතී'}" ලෙස යාවත්කාලීන විය!`, 'ok');
+    showContactUsModal('admin_bugs');
+  } catch(e){
+    if(typeof toast === 'function') toast('යාවත්කාලීන කිරීම අසාර්ථක විය.', 'err');
+  }
+}
+
+async function adminDeleteBugReport(reportId){
+  if(!confirm('මෙම Bug Report එක සහ ඡායාරූපය Database එකෙන් සම්පූර්ණයෙන්ම Delete කිරීමට අවශ්‍යද?')) return;
+  try {
+    if(window.BugService && typeof window.BugService.deleteBugReport === 'function'){
+      await window.BugService.deleteBugReport(reportId);
+    }
+    if(typeof toast === 'function') toast('🗑️ Bug Report එක දත්ත ගබඩාවෙන් ඉවත් කරන ලදී.', 'ok');
+    showContactUsModal('admin_bugs');
+  } catch(e){
+    if(typeof toast === 'function') toast('Delete කිරීම අසාර්ථක විය.', 'err');
+  }
+}
+
+async function adminClearAllFixedBugs(){
+  if(!confirm('Fix කර අවසන් වූ සියලුම Bug Reports Database එකෙන් ස්ථිරවම ඉවත් කර Database Storage නිදහස් කිරීමට අවශ්‍යද?')) return;
+  try {
+    if(window.BugService && typeof window.BugService.clearAllFixedBugReports === 'function'){
+      const count = await window.BugService.clearAllFixedBugReports();
+      if(typeof toast === 'function') toast(`🧹 විසඳන ලද වාර්තා ${count}ක් සාර්ථකව ඉවත් කර Storage Free කරන ලදී!`, 'ok');
+    }
+    showContactUsModal('admin_bugs');
+  } catch(e){
+    if(typeof toast === 'function') toast('පැරණි දත්ත ඉවත් කිරීම අසාර්ථක විය.', 'err');
+  }
+}
+
+async function refreshBugBadge(){
+  const isSuper = window.state?.user?.role === 'superadmin';
+  const badgeEl = document.getElementById('topbarBugBadge');
+  const countEl = document.getElementById('topbarBugCount');
+  if(!badgeEl) return;
+  if(!isSuper){
+    badgeEl.classList.add('hidden');
+    return;
+  }
+  try {
+    if(window.BugService && typeof window.BugService.getPendingBugReportsCount === 'function'){
+      const pendingCount = await window.BugService.getPendingBugReportsCount();
+      if(pendingCount > 0){
+        if(countEl) countEl.textContent = pendingCount;
+        badgeEl.classList.remove('hidden');
+      } else {
+        badgeEl.classList.add('hidden');
+      }
+    }
+  } catch(_){
+    badgeEl.classList.add('hidden');
+  }
+}
+
+function openSuperAdminBugReportsModal(){
+  showContactUsModal('admin_bugs');
+}
+
+async function showContactUsModal(activeTab = 'contact'){
   const c = getContactSettings();
   const cleanWa = (c.whatsapp || '').replace(/[^0-9]/g, '');
   const waUrl = `https://wa.me/${cleanWa}?text=${encodeURIComponent(c.waMessage || 'Hello MR.Link Technology, I need support for AutoParts POS')}`;
@@ -217,79 +494,418 @@ function showContactUsModal(){
   const phoneUrl = `tel:${cleanPhone}`;
   const mailUrl = `mailto:${c.email}?subject=${encodeURIComponent(c.brandName + ' - AutoParts POS Support Inquiry')}`;
   const isSuper = window.state?.user?.role === 'superadmin';
+  const currentUser = window.state?.user || {};
+  const currentShop = window.DB?.shop || {};
 
-  const bodyHtml = `
-    <div class="contact-modal-body">
-      <div class="contact-brand-header">
-        <div class="contact-brand-logo">
-          <span class="contact-spark">⚡</span>
-        </div>
-        <div class="contact-brand-title">${esc(c.brandName)}</div>
-        <div class="contact-brand-sub">${esc(c.tagline)}</div>
-        <div class="contact-owner-badge">
-          <span class="owner-icon">👤</span> Owner & Lead Developer: <strong>${esc(c.ownerFullName || c.ownerName)}</strong>
-        </div>
-      </div>
+  // Fetch bug reports if user is viewing reports
+  let myReports = [];
+  let allAdminReports = [];
+  if(activeTab === 'my_reports' || activeTab === 'admin_bugs'){
+    if(window.BugService && typeof window.BugService.getBugReports === 'function'){
+      try {
+        const list = await window.BugService.getBugReports();
+        if(isSuper){
+          allAdminReports = list;
+        }
+        myReports = list;
+      } catch(e){
+        console.warn('Failed to load reports:', e);
+      }
+    }
+  }
 
-      <div class="contact-actions-grid">
-        <a href="${waUrl}" target="_blank" rel="noopener" class="contact-action-card wa-card">
-          <div class="ca-icon">💬</div>
-          <div class="ca-info">
-            <span class="ca-label">WhatsApp (ක්ෂණික පණිවිඩ)</span>
-            <b class="ca-val">${esc(c.whatsapp)}</b>
-          </div>
-          <span class="ca-arrow">➔</span>
-        </a>
-
-        <a href="${phoneUrl}" class="contact-action-card call-card">
-          <div class="ca-icon">📞</div>
-          <div class="ca-info">
-            <span class="ca-label">දුරකථන ඇමතුම් (Direct Call)</span>
-            <b class="ca-val">${esc(c.phone)}</b>
-          </div>
-          <span class="ca-arrow">➔</span>
-        </a>
-
-        <a href="${mailUrl}" class="contact-action-card mail-card">
-          <div class="ca-icon">✉️</div>
-          <div class="ca-info">
-            <span class="ca-label">විද්‍යුත් තැපෑල (Email)</span>
-            <b class="ca-val">${esc(c.email)}</b>
-          </div>
-          <span class="ca-arrow">➔</span>
-        </a>
-      </div>
-
-      <div class="contact-services-box">
-        <div class="cs-title">🛠️ අප ලබාදෙන තාක්ෂණික සහාය සහ සේවාවන්:</div>
-        <ul class="cs-list">
-          ${(c.services || []).map(s => `<li><span>✅</span> ${esc(s)}</li>`).join('')}
-        </ul>
-      </div>
-
-      <div class="contact-system-meta">
-        <span>🖥️ AutoParts POS System</span>
-        <span>•</span>
-        <span>Powered by ${esc(c.brandName)}</span>
-        <span>•</span>
-        <span>Owner: ${esc(c.ownerName)}</span>
-      </div>
+  // Header Nav Tabs
+  const navTabsHtml = `
+    <div class="modal-nav-tabs">
+      <button type="button" class="modal-tab-btn ${activeTab==='contact'?'active':''}" onclick="showContactUsModal('contact')">
+        📞 සහාය තොරතුරු (Support)
+      </button>
+      <button type="button" class="modal-tab-btn ${activeTab==='report'?'active':''}" onclick="showContactUsModal('report')">
+        🐞 දෝෂයක් වාර්තා කරන්න (Report Bug)
+      </button>
+      <button type="button" class="modal-tab-btn ${activeTab==='my_reports'?'active':''}" onclick="showContactUsModal('my_reports')">
+        📋 මගේ වාර්තා (My Reports)
+      </button>
+      ${isSuper ? `
+        <button type="button" class="modal-tab-btn ${activeTab==='admin_bugs'?'active':''}" onclick="showContactUsModal('admin_bugs')" style="color:#fcd34d;border-color:rgba(252,211,77,0.3)">
+          👑 Bug Management
+        </button>
+      ` : ''}
     </div>
   `;
+
+  let tabBodyHtml = '';
+
+  // 1. TAB: CONTACT INFO
+  if(activeTab === 'contact'){
+    tabBodyHtml = `
+      <div class="contact-modal-body">
+        <div class="contact-brand-header">
+          <div class="contact-brand-logo">
+            <span class="contact-spark">⚡</span>
+          </div>
+          <div class="contact-brand-title">${esc(c.brandName)}</div>
+          <div class="contact-brand-sub">${esc(c.tagline)}</div>
+          <div class="contact-owner-badge">
+            <span class="owner-icon">👤</span> Owner & Lead Developer: <strong>${esc(c.ownerFullName || c.ownerName)}</strong>
+          </div>
+        </div>
+
+        <div class="contact-actions-grid">
+          <a href="${waUrl}" target="_blank" rel="noopener" class="contact-action-card wa-card">
+            <div class="ca-icon">💬</div>
+            <div class="ca-info">
+              <span class="ca-label">WhatsApp (ක්ෂණික පණිවිඩ)</span>
+              <b class="ca-val">${esc(c.whatsapp)}</b>
+            </div>
+            <span class="ca-arrow">➔</span>
+          </a>
+
+          <a href="${phoneUrl}" class="contact-action-card call-card">
+            <div class="ca-icon">📞</div>
+            <div class="ca-info">
+              <span class="ca-label">දුරකථන ඇමතුම් (Direct Call)</span>
+              <b class="ca-val">${esc(c.phone)}</b>
+            </div>
+            <span class="ca-arrow">➔</span>
+          </a>
+
+          <a href="${mailUrl}" class="contact-action-card mail-card">
+            <div class="ca-icon">✉️</div>
+            <div class="ca-info">
+              <span class="ca-label">විද්‍යුත් තැපෑල (Email)</span>
+              <b class="ca-val">${esc(c.email)}</b>
+            </div>
+            <span class="ca-arrow">➔</span>
+          </a>
+        </div>
+
+        <div class="contact-services-box">
+          <div class="cs-title">🛠️ අප ලබාදෙන තාක්ෂණික සහාය සහ සේවාවන්:</div>
+          <ul class="cs-list">
+            ${(c.services || []).map(s => `<li><span>✅</span> ${esc(s)}</li>`).join('')}
+          </ul>
+        </div>
+
+        <div style="background:rgba(56,189,248,0.06);border:1px solid rgba(56,189,248,0.2);border-radius:10px;padding:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+          <div>
+            <b style="color:#38bdf8;font-size:12.5px;display:block">🐞 පද්ධතියේ කිසියම් දෝෂයක් හෝ ගැටළුවක් ඇත්ද?</b>
+            <span style="color:var(--muted);font-size:11.5px">Screenshot එකක් සහිතව Super Admin වෙත කෙලින්ම වාර්තා කරන්න.</span>
+          </div>
+          <button type="button" class="btn btn-primary btn-sm" onclick="showContactUsModal('report')" style="font-weight:600">
+            🐞 Bug එකක් වාර්තා කරන්න
+          </button>
+        </div>
+
+        <div class="contact-system-meta">
+          <span>🖥️ AutoParts POS System</span>
+          <span>•</span>
+          <span>Powered by ${esc(c.brandName)}</span>
+          <span>•</span>
+          <span>Owner: ${esc(c.ownerName)}</span>
+        </div>
+      </div>
+    `;
+  }
+
+  // 2. TAB: REPORT A BUG
+  else if(activeTab === 'report'){
+    tabBodyHtml = `
+      <div style="display:flex;flex-direction:column;gap:12px;padding:4px 0">
+        <div style="background:linear-gradient(135deg,rgba(239,68,68,0.08),rgba(245,158,11,0.06));border:1px solid rgba(239,68,68,0.25);border-radius:10px;padding:12px 14px">
+          <div style="font-weight:700;font-size:13px;color:#fca5a5;display:flex;align-items:center;gap:6px">
+            <span>🐞</span> පද්ධතියේ දෝෂයක් හෝ Bug එකක් වාර්තා කරන්න (Report System Issue)
+          </div>
+          <div style="font-size:11.5px;color:var(--muted);margin-top:3px">
+            මෙහි විස්තරයක් සහ Screenshot එකක් ඇතුළත් කර එවන්න. Super Admin විසින් එය පරීක්ෂා කර නිරාකරණය කරනු ඇත.
+          </div>
+        </div>
+
+        <div class="grid2" style="gap:10px">
+          <div>
+            <label style="font-size:12px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">
+              ගැටළු කාණ්ඩය (Issue Category) <span style="color:#ef4444">*</span>
+            </label>
+            <select id="bugCategory" class="form-input" style="width:100%;box-sizing:border-box">
+              <option value="billing">💳 POS / බිල්පත් ගැටළුවක් (Billing Issue)</option>
+              <option value="inventory">📦 භාණ්ඩ හා තොග ගැටළුවක් (Inventory Issue)</option>
+              <option value="grn">📥 GRN / සැපයුම්කරු ගැටළුවක් (GRN Issue)</option>
+              <option value="barcode">🏷️ Barcode / ස්කෑනර් ගැටළුවක් (Scanner Issue)</option>
+              <option value="login">🔐 Login / මුරපද ගැටළුවක් (Login / Access)</option>
+              <option value="other" selected>⚙️ වෙනත් පද්ධති ගැටළුවක් (Other Issue)</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:12px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">
+              කෙටි මාතෘකාව (Subject) <span style="color:#ef4444">*</span>
+            </label>
+            <input id="bugTitle" class="form-input" placeholder="e.g. බිල Save වන විට දෝෂයක් එනවා" style="width:100%;box-sizing:border-box" required>
+          </div>
+        </div>
+
+        <div>
+          <label style="font-size:12px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">
+            දෝෂය පිළිබඳ පැහැදිලි විස්තරයක් (Detailed Description) <span style="color:#ef4444">*</span>
+          </label>
+          <textarea id="bugDesc" rows="3" style="width:100%;box-sizing:border-box;font-family:inherit;font-size:12.5px;padding:8px 10px;background:#0f172a;color:var(--txt);border:1px solid var(--line);border-radius:8px;resize:vertical" placeholder="සිදුවූ දෝෂය සහ පියවර පැහැදිලි කරන්න..."></textarea>
+        </div>
+
+        <div>
+          <label style="font-size:12px;color:var(--muted);font-weight:600;display:block;margin-bottom:4px">
+            📸 Screenshot හෝ Photo එකක් (Screen Capture / Image)
+          </label>
+          <div class="bug-dropzone" id="bugDropzone" onclick="document.getElementById('bugPhotoInput')?.click()">
+            <input type="file" id="bugPhotoInput" accept="image/*" style="display:none" onchange="handleBugFileSelect(event)">
+            <div style="font-size:26px;margin-bottom:4px">📷</div>
+            <div style="font-weight:700;font-size:13px;color:#38bdf8">Screenshot හෝ Photo එකක් එක් කරන්න</div>
+            <div style="font-size:11.5px;color:var(--muted);margin-top:2px">
+              Click කර තෝරන්න, Drag & Drop කරන්න, හෝ <kbd style="background:#1e293b;padding:2px 6px;border-radius:4px;border:1px solid #475569;color:#fcd34d">Ctrl + V</kbd> මගින් Screenshot එක Paste කරන්න
+            </div>
+            <div id="bugUploadStatus" style="font-size:11.5px;margin-top:6px;font-weight:600;color:#38bdf8"></div>
+            <div id="bugPreviewWrap" class="bug-preview-wrap" style="display:${window._activeBugPhoto ? 'inline-block' : 'none'}">
+              <img id="bugPhotoPreview" src="${window._activeBugPhoto?.dataUrl || ''}" class="bug-preview-img" onclick="event.stopPropagation();if(window._activeBugPhoto?.dataUrl)openImageLightbox(window._activeBugPhoto.dataUrl, 'Screenshot Preview')" title="විශාල කර බලන්න (Click to zoom)">
+              <span id="bugPreviewSize" class="bug-preview-size">${window._activeBugPhoto ? 'සම්පීඩිතයි: ' + window._activeBugPhoto.sizeKb + ' KB' : ''}</span>
+              <button type="button" class="bug-remove-img-btn" onclick="event.stopPropagation();removeBugPhoto()" title="ඉවත් කරන්න">✕</button>
+            </div>
+          </div>
+          <small style="color:#64748b;font-size:11px;display:block;margin-top:4px">
+            💡 <b>Storage Optimization:</b> Database පිරී යාම වැළැක්වීමට ඡායාරූපය Browser එකෙන්ම ~50KB දක්වා Compress කර සුරැකේ.
+          </small>
+        </div>
+
+        <div style="background:rgba(255,255,255,0.03);border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-size:11px;color:var(--muted)">
+          📍 <b>වාර්තාකරු:</b> ${esc(currentUser.name || currentUser.username || 'Staff')} (${esc(currentUser.role || 'user')}) · 
+          🏪 <b>සාප්පුව:</b> ${esc(currentShop.name || currentUser.shopId || 'AutoParts')} · 
+          📄 <b>පිටුව:</b> ${esc(window.state?.page || 'dashboard')}
+        </div>
+
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:6px">
+          <button type="button" class="btn btn-secondary" onclick="showContactUsModal('contact')">✕ අවලංගුයි</button>
+          <button type="button" id="bugSubmitBtn" class="btn btn-primary" onclick="submitBugReportForm()" style="font-weight:700;padding:8px 18px">
+            🚀 Super Admin වෙත යොමු කරන්න
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  // 3. TAB: MY SUBMITTED BUG REPORTS
+  else if(activeTab === 'my_reports'){
+    const categoryLabels = {
+      billing: '💳 Billing / POS',
+      inventory: '📦 Inventory',
+      grn: '📥 GRN',
+      barcode: '🏷️ Barcode',
+      login: '🔐 Login',
+      other: '⚙️ General'
+    };
+
+    if(!myReports || myReports.length === 0){
+      tabBodyHtml = `
+        <div style="text-align:center;padding:40px 20px;color:var(--muted)">
+          <div style="font-size:40px;margin-bottom:8px">🎉</div>
+          <div style="font-size:14px;font-weight:600;color:var(--txt)">කිසිදු ගැටළු වාර්තාවක් නොමැත</div>
+          <div style="font-size:12px;margin-top:4px">ඔබ විසින් මෑතකදී ඉදිරිපත් කළ ගැටළු වාර්තා කිසිවක් නැත.</div>
+          <button type="button" class="btn btn-primary btn-sm" onclick="showContactUsModal('report')" style="margin-top:14px">
+            ➕ අලුත් ගැටළුවක් වාර්තා කරන්න
+          </button>
+        </div>
+      `;
+    } else {
+      tabBodyHtml = `
+        <div style="display:flex;flex-direction:column;gap:10px;max-height:60vh;overflow-y:auto;padding-right:4px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+            <span style="font-size:12px;color:var(--muted)">වාර්තා ගණන: <b>${myReports.length}</b></span>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="showContactUsModal('report')">
+              ➕ අලුත් වාර්තාවක්
+            </button>
+          </div>
+
+          ${myReports.map(r => {
+            const statusBadge = r.status === 'fixed'
+              ? `<span class="bug-badge bug-badge-fixed">🟢 විසඳන ලදී (Fixed)</span>`
+              : (r.status === 'in_progress'
+                ? `<span class="bug-badge bug-badge-progress">🔵 සකසමින් පවතී (In Progress)</span>`
+                : `<span class="bug-badge bug-badge-pending">🟡 විමර්ශනය වෙමින් (Pending)</span>`);
+
+            const dateStr = r.createdAt ? new Date(r.createdAt).toLocaleString('si-LK', { dateStyle:'medium', timeStyle:'short' }) : '—';
+            const catBadge = categoryLabels[r.category] || '⚙️ General';
+
+            return `
+              <div class="bug-card" style="border-left:4px solid ${r.status==='fixed'?'#10b981':(r.status==='in_progress'?'#38bdf8':'#f59e0b')}">
+                <div class="bug-card-header">
+                  <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                    <span style="font-size:11px;background:rgba(255,255,255,0.08);padding:2px 6px;border-radius:4px;color:#94a3b8">${esc(catBadge)}</span>
+                    <strong style="font-size:13.5px;color:#f8fafc">${esc(r.title)}</strong>
+                  </div>
+                  <div>${statusBadge}</div>
+                </div>
+
+                <div style="font-size:12px;color:#cbd5e1;line-height:1.45;margin:6px 0;white-space:pre-wrap">${esc(r.description)}</div>
+
+                ${r.photoUrl ? `
+                  <div style="margin:8px 0">
+                    <img src="${r.photoUrl}" style="max-height:80px;border-radius:6px;border:1px solid var(--line);cursor:pointer;vertical-align:middle" onclick="openImageLightbox('${r.photoUrl}', '${esc(r.title)}')" title="විශාල කර බලන්න (Click to zoom)">
+                    <small style="color:var(--muted);font-size:11px;margin-left:6px">📸 Screenshot අමුණා ඇත (Click to view)</small>
+                  </div>
+                ` : ''}
+
+                ${r.status === 'fixed' ? `
+                  <div class="bug-admin-note">
+                    <div style="font-weight:700;color:#34d399;display:flex;align-items:center;gap:6px">
+                      <span>✅</span> Super Admin පිළිතුර:
+                    </div>
+                    <div style="margin-top:2px;font-size:12px">${esc(r.adminNote || 'ගැටළුව සාර්ථකව විසඳන ලදී.')}</div>
+                  </div>
+                ` : ''}
+
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.06);font-size:11px;color:var(--muted)">
+                  <span>🕒 ${esc(dateStr)}</span>
+                  ${r.status === 'fixed' ? `
+                    <button type="button" class="btn btn-sm" onclick="deleteMyBugReport('${r.id}')" style="background:rgba(239,68,68,0.12);color:#f87171;border:1px solid rgba(239,68,68,0.3);font-size:11.5px;padding:3px 8px" title="Database ඉඩ නිදහස් කිරීමට මෙම විසඳූ වාර්තාව මකන්න">
+                      🗑️ ඉවත් කරන්න (Dismiss & Free Storage)
+                    </button>
+                  ` : ''}
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+  }
+
+  // 4. TAB: SUPER ADMIN BUG MANAGEMENT (Only for Super Admin)
+  else if(activeTab === 'admin_bugs' && isSuper){
+    const filter = window._bugAdminFilter || 'all';
+    let filtered = allAdminReports;
+    if(filter !== 'all'){
+      filtered = allAdminReports.filter(r => r.status === filter);
+    }
+
+    const pendingCount = allAdminReports.filter(r => r.status === 'pending').length;
+    const fixedCount = allAdminReports.filter(r => r.status === 'fixed').length;
+
+    tabBodyHtml = `
+      <div style="display:flex;flex-direction:column;gap:12px;padding:4px 0">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;background:rgba(15,23,42,0.8);border:1px solid var(--line);border-radius:10px;padding:8px 12px">
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="btn btn-sm ${filter==='all'?'btn-primary':'btn-secondary'}" onclick="window._bugAdminFilter='all';showContactUsModal('admin_bugs')">
+              සියල්ල (${allAdminReports.length})
+            </button>
+            <button class="btn btn-sm ${filter==='pending'?'btn-primary':'btn-secondary'}" onclick="window._bugAdminFilter='pending';showContactUsModal('admin_bugs')" style="${pendingCount>0?'border-color:#ef4444;color:#fca5a5':''}">
+              🟡 Pending (${pendingCount})
+            </button>
+            <button class="btn btn-sm ${filter==='in_progress'?'btn-primary':'btn-secondary'}" onclick="window._bugAdminFilter='in_progress';showContactUsModal('admin_bugs')">
+              🔵 In Progress
+            </button>
+            <button class="btn btn-sm ${filter==='fixed'?'btn-primary':'btn-secondary'}" onclick="window._bugAdminFilter='fixed';showContactUsModal('admin_bugs')">
+              🟢 Fixed (${fixedCount})
+            </button>
+          </div>
+          <div style="display:flex;gap:6px">
+            ${fixedCount > 0 ? `
+              <button class="btn btn-sm" onclick="adminClearAllFixedBugs()" style="background:rgba(239,68,68,0.15);color:#ef4444;border:1px solid rgba(239,68,68,0.3);font-weight:600" title="විසඳූ සියලු Bug Reports Database එකෙන් මකා දමා Storage නිදහස් කරන්න">
+                🧹 විසඳූ සියල්ල මකන්න (Clear Fixed)
+              </button>
+            ` : ''}
+            <button class="btn btn-secondary btn-sm" onclick="showContactUsModal('admin_bugs')" title="නැවත ලබාගන්න">
+              🔄 Refresh
+            </button>
+          </div>
+        </div>
+
+        <div style="max-height:58vh;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding-right:4px">
+          ${filtered.length === 0 ? `
+            <div style="text-align:center;padding:30px;color:var(--muted)">
+              මෙම Filter එක යටතේ වාර්තා කිසිවක් නොමැත.
+            </div>
+          ` : filtered.map(r => {
+            const dateStr = r.createdAt ? new Date(r.createdAt).toLocaleString('si-LK', { dateStyle:'medium', timeStyle:'short' }) : '—';
+            return `
+              <div class="bug-card" style="border-left:4px solid ${r.status==='fixed'?'#10b981':(r.status==='in_progress'?'#38bdf8':'#f59e0b')}">
+                <div class="bug-card-header">
+                  <div>
+                    <strong style="font-size:14px;color:#fff">${esc(r.title)}</strong>
+                    <div style="font-size:11px;color:var(--muted);margin-top:2px">
+                      👤 <b>${esc(r.reportedBy || 'Staff')}</b> (${esc(r.role || 'user')}) · 
+                      🏪 <b>${esc(r.shopName || r.shopId || 'AutoParts')}</b> · 
+                      📄 <b>${esc(r.page || 'pos')}</b> · 
+                      🕒 ${esc(dateStr)}
+                    </div>
+                  </div>
+                  <div>
+                    ${r.status === 'fixed'
+                      ? `<span class="bug-badge bug-badge-fixed">🟢 Fixed</span>`
+                      : (r.status === 'in_progress'
+                        ? `<span class="bug-badge bug-badge-progress">🔵 In Progress</span>`
+                        : `<span class="bug-badge bug-badge-pending">🟡 Pending</span>`)}
+                  </div>
+                </div>
+
+                <div style="font-size:12.5px;color:#cbd5e1;line-height:1.45;margin:8px 0;white-space:pre-wrap">${esc(r.description)}</div>
+
+                ${r.photoUrl ? `
+                  <div style="margin:8px 0">
+                    <img src="${r.photoUrl}" style="max-height:110px;border-radius:6px;border:1px solid var(--line);cursor:pointer" onclick="openImageLightbox('${r.photoUrl}', '${esc(r.title)} - ${esc(r.reportedBy)}')" title="විශාල කර බලන්න">
+                    <small style="color:#38bdf8;font-size:11px;margin-left:6px">🔍 Screenshot Click කර විශාල කර බලන්න</small>
+                  </div>
+                ` : ''}
+
+                ${r.adminNote ? `
+                  <div class="bug-admin-note" style="margin-top:6px">
+                    <b>Super Admin Note:</b> ${esc(r.adminNote)}
+                  </div>
+                ` : ''}
+
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.06)">
+                  <div style="display:flex;gap:6px">
+                    ${r.status !== 'in_progress' && r.status !== 'fixed' ? `
+                      <button type="button" class="btn btn-sm btn-secondary" onclick="updateBugStatusPrompt('${r.id}', 'in_progress')">
+                        🔵 Fix කරමින් (In Progress)
+                      </button>
+                    ` : ''}
+                    ${r.status !== 'fixed' ? `
+                      <button type="button" class="btn btn-sm btn-primary" onclick="updateBugStatusPrompt('${r.id}', 'fixed')">
+                        🟢 Fixed ලෙස සලකුණු කරන්න
+                      </button>
+                    ` : `
+                      <button type="button" class="btn btn-sm btn-secondary" onclick="updateBugStatusPrompt('${r.id}', 'fixed')">
+                        ✏️ Admin Note වෙනස් කරන්න
+                      </button>
+                    `}
+                  </div>
+                  <div>
+                    <button type="button" class="btn btn-sm" onclick="adminDeleteBugReport('${r.id}')" style="background:rgba(239,68,68,0.15);color:#ef4444;border:1px solid rgba(239,68,68,0.3)">
+                      🗑️ Delete Report
+                    </button>
+                  </div>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  const fullBodyHtml = navTabsHtml + tabBodyHtml;
 
   const footerHtml = `
     <div style="display:flex;justify-content:space-between;align-items:center;width:100%;flex-wrap:wrap;gap:8px">
       <div>
-        ${isSuper ? `
+        ${isSuper && activeTab === 'contact' ? `
           <button type="button" class="btn btn-sm" onclick="openEditContactModal()" style="display:inline-flex;align-items:center;gap:6px;background:rgba(56,189,248,0.12);color:#38bdf8;border:1px solid rgba(56,189,248,0.3);font-weight:600;padding:6px 12px;border-radius:8px;cursor:pointer">
             ⚙️ විස්තර වෙනස් කරන්න (Edit)
           </button>
         ` : ''}
       </div>
       <div style="display:flex;gap:8px">
-        <button type="button" class="btn btn-secondary" onclick="copyContactDetails()" style="display:flex;align-items:center;gap:6px">
-          <span id="copyBtnIcon">📋</span> <span id="copyBtnTxt">විස්තර පිටපත් කරන්න (Copy)</span>
-        </button>
+        ${activeTab === 'contact' ? `
+          <button type="button" class="btn btn-secondary" onclick="copyContactDetails()" style="display:flex;align-items:center;gap:6px">
+            <span id="copyBtnIcon">📋</span> <span id="copyBtnTxt">විස්තර පිටපත් කරන්න (Copy)</span>
+          </button>
+        ` : ''}
         <button type="button" class="btn btn-primary" onclick="closeModal()">
           හරි (Close)
         </button>
@@ -298,7 +914,8 @@ function showContactUsModal(){
   `;
 
   if(typeof openModal === 'function'){
-    openModal('📞 තාක්ෂණික සහාය සහ විමසීම්', 'Contact Us & Technical Support', bodyHtml, footerHtml);
+    openModal('📞 තාක්ෂණික සහාය සහ පද්ධති විමසීම්', 'Support & Bug Reports', fullBodyHtml, footerHtml, true);
+    setTimeout(setupDropzoneEvents, 50);
   } else {
     alert(`${c.brandName}\nOwner: ${c.ownerName}\nදුරකථන: ${c.phone}\nEmail: ${c.email}`);
   }
@@ -473,6 +1090,20 @@ window.resetContactSettingsToDefaults = resetContactSettingsToDefaults;
 window.copyContactDetails = copyContactDetails;
 window.showContactUsModal = showContactUsModal;
 window.openContactModal   = showContactUsModal;
+
+window.compressImageFile = compressImageFile;
+window.openImageLightbox = openImageLightbox;
+window.handleBugFileSelect = handleBugFileSelect;
+window.processBugImageFile = processBugImageFile;
+window.removeBugPhoto = removeBugPhoto;
+window.submitBugReportForm = submitBugReportForm;
+window.deleteMyBugReport = deleteMyBugReport;
+window.updateBugStatusPrompt = updateBugStatusPrompt;
+window.adminDeleteBugReport = adminDeleteBugReport;
+window.adminClearAllFixedBugs = adminClearAllFixedBugs;
+window.refreshBugBadge = refreshBugBadge;
+window.openSuperAdminBugReportsModal = openSuperAdminBugReportsModal;
+
 
 function updateClock(){
   const el = $('#clock');

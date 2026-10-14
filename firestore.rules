@@ -288,7 +288,26 @@ service cloud.firestore {
     }
 
     // ═══════════════════════════════════════════════
-    // 20. DEFAULT DENY — catch-all for unknown paths
+    // 20. BUG REPORTS & SYSTEM SUPPORT
+    // ═══════════════════════════════════════════════
+    
+    match /bugReports/{reportId} {
+      // Read: Superadmin reads all; Staff can read own or same shop reports
+      allow read: if isSignedIn() && (
+        isSuper() ||
+        (request.auth.uid == resource.data.reportedByUid) ||
+        (resource.data.shopId != null && sameShop(resource.data.shopId))
+      );
+      // Create: Any authenticated staff member can report a bug
+      allow create: if isSignedIn();
+      // Update: Superadmin updates status/adminNote; author can update own
+      allow update: if isSuper() || (isSignedIn() && request.auth.uid == resource.data.reportedByUid);
+      // Delete: Superadmin can delete; author can delete after resolution
+      allow delete: if isSuper() || (isSignedIn() && request.auth.uid == resource.data.reportedByUid);
+    }
+
+    // ═══════════════════════════════════════════════
+    // 21. DEFAULT DENY — catch-all for unknown paths
     // ═══════════════════════════════════════════════
     
     match /{document=**} {
@@ -296,3 +315,4 @@ service cloud.firestore {
     }
   }
 }
+
