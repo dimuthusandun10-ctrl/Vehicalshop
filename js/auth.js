@@ -243,6 +243,7 @@ async function doLogin(){
       const s = String(identifier).trim().toLowerCase();
       return (
         s === 'info.dimuthudishan2002@gmail.com' ||
+        s === 'dimuthusandun10@gmail.com' ||
         s === 'superadmin' ||
         s === 'superadmin@autoparts.local' ||
         s === 'superadmin@autoparts.lk' ||
@@ -252,7 +253,9 @@ async function doLogin(){
 
     const normalized = u.toLowerCase();
     let email = normalized;
-    if(isSuperAdminIdentifier(normalized)){
+    if(normalized === 'dimuthusandun10@gmail.com'){
+      email = 'dimuthusandun10@gmail.com';
+    } else if(isSuperAdminIdentifier(normalized)){
       email = 'info.dimuthudishan2002@gmail.com';
     } else if(!normalized.includes('@')){
       email = `${normalized}@autoparts.local`;
@@ -548,9 +551,11 @@ async function doLogin(){
           window.startPageListeners(state.page || 'billing');
         }
         if(typeof render === 'function') render();
+        if(window.Offline && typeof window.Offline.sync === 'function') setTimeout(() => window.Offline.sync(), 1000);
       }).catch(err => {
         console.warn('Background sync failed (using local data):', err);
         hideSyncIndicator();
+        if(window.Offline && typeof window.Offline.sync === 'function') setTimeout(() => window.Offline.sync(), 1000);
       });
     } else if(typeof window.startPageListeners === 'function'){
       window.startPageListeners('billing');
@@ -900,6 +905,10 @@ async function restoreSession(){
     // Restore lock state if previously locked within this tab session
     if(sessionStorage.getItem('pos.screenLocked') === 'true' || localStorage.getItem('pos.screenLocked') === 'true'){
       lockScreen();
+    }
+
+    if(window.Offline && typeof window.Offline.sync === 'function'){
+      setTimeout(() => window.Offline.sync(), 1500);
     }
 
     return true;

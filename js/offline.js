@@ -33,6 +33,17 @@ const Offline = {
       localStorage.setItem('pos.uidMigrationDone', 'v1');
     }
 
+    // One-time cleanup for stale shift items from offline queue
+    if(localStorage.getItem('pos.shiftQueuePurged') !== 'v1'){
+      const initialLen = this.queue.length;
+      this.queue = this.queue.filter(item => !(item.collection === 'shifts' && (!item.data || !item.data.cashierId || item.docId === 'SH001')));
+      if(this.queue.length !== initialLen){
+        this.persist();
+        console.log(`🧹 Dropped ${initialLen - this.queue.length} stale shift items from sync queue.`);
+      }
+      localStorage.setItem('pos.shiftQueuePurged', 'v1');
+    }
+
     // 2. Listen to browser network state transitions
     if(typeof window !== 'undefined'){
       window.addEventListener('online', () => this.onOnline());
@@ -136,6 +147,15 @@ const Offline = {
 
   async sync(){
     if(this.isSyncing || (typeof navigator !== 'undefined' && !navigator.onLine) || !this.queue.length) return;
+
+    // 🛡️ Do NOT attempt sync if user is not authenticated yet!
+    // Unauthenticated writes to Firestore will always fail with permission-denied
+    // and cause legitimate offline queue items to be dropped.
+    const auth = (window.FB && typeof window.FB.getAuth === 'function') ? window.FB.getAuth() : null;
+    const isUserAuth = Boolean((auth && auth.currentUser) || (window.state && window.state.user));
+    if(!isUserAuth){
+      return;
+    }
 
     this.isSyncing = true;
     this.updateUI();

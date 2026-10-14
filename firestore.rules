@@ -26,11 +26,11 @@ service cloud.firestore {
       return hasUserDoc() && ('shopId' in getUserData()) ? getUserData().shopId : null;
     }
     
-    // Superadmin identified EITHER by Firestore role OR single break-glass emergency email:
+    // Superadmin identified EITHER by Firestore role OR break-glass emergency email:
     function isSuper() {
       return isSignedIn() && (
         currentRole() == 'superadmin' ||
-        request.auth.token.email == 'info.dimuthudishan2002@gmail.com'
+        request.auth.token.email in ['info.dimuthudishan2002@gmail.com', 'dimuthusandun10@gmail.com']
       );
     }
     
@@ -172,10 +172,9 @@ service cloud.firestore {
     // ═══════════════════════════════════════════════
     
     match /shifts/{shiftId} {
-      allow read: if isStaff() && sameShop(resource.data.shopId);
-      allow create, update: if isStaff() &&
-        sameShop(request.resource.data.shopId);
-      allow delete: if isSuper() || (isAdmin() && sameShop(resource.data.shopId));
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn();
+      allow delete: if isSuper() || isAdmin();
     }
 
     // ═══════════════════════════════════════════════
@@ -183,10 +182,9 @@ service cloud.firestore {
     // ═══════════════════════════════════════════════
     
     match /cashMovements/{moveId} {
-      allow read: if isStaff() && sameShop(resource.data.shopId);
-      allow create: if isSuper() ||
-        (isStaff() && request.resource.data.shopId == currentShopId());
-      allow delete: if isSuper() || (isAdmin() && sameShop(resource.data.shopId));
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn();
+      allow delete: if isSuper() || isAdmin();
     }
 
     // ═══════════════════════════════════════════════

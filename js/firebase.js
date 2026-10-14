@@ -605,8 +605,18 @@ async function fbSet(colName, id, data){
     try {
       return await fbSetDirect(colName, id, data);
     } catch(e) {
+      const isPerm = checkPermissionError(e, `fbSet(${colName}, ${id})`);
+      if(isPerm){
+        console.warn(`fbSet(${colName}) permission denied, saving locally without offline queue:`, e.message);
+        if(window.DB && window.DB[colName] && Array.isArray(window.DB[colName])){
+          const item = window.DB[colName].find(x => x.id === id);
+          if(item) Object.assign(item, data);
+          else window.DB[colName].push({ ...data, id });
+        }
+        if(window.DB && typeof window.DB.persistLocal === 'function') window.DB.persistLocal();
+        return false;
+      }
       console.warn(`fbSet(${colName}) online failed, queueing offline:`, e.message);
-      checkPermissionError(e, `fbSet(${colName}, ${id})`);
     }
   }
 
@@ -631,8 +641,17 @@ async function fbUpdate(colName, id, data){
     try {
       return await fbUpdateDirect(colName, id, data);
     } catch(e) {
+      const isPerm = checkPermissionError(e, `fbUpdate(${colName}, ${id})`);
+      if(isPerm){
+        console.warn(`fbUpdate(${colName}) permission denied, saving locally without offline queue:`, e.message);
+        if(window.DB && window.DB[colName] && Array.isArray(window.DB[colName])){
+          const item = window.DB[colName].find(x => x.id === id);
+          if(item) Object.assign(item, data);
+        }
+        if(window.DB && typeof window.DB.persistLocal === 'function') window.DB.persistLocal();
+        return false;
+      }
       console.warn(`fbUpdate(${colName}) online failed, queueing offline:`, e.message);
-      checkPermissionError(e, `fbUpdate(${colName}, ${id})`);
     }
   }
 
@@ -678,8 +697,16 @@ async function fbDelete(colName, id){
     try {
       return await fbDeleteDirect(colName, id);
     } catch(e) {
+      const isPerm = checkPermissionError(e, `fbDelete(${colName}, ${id})`);
+      if(isPerm){
+        console.warn(`fbDelete(${colName}) permission denied:`, e.message);
+        if(window.DB && window.DB[colName] && Array.isArray(window.DB[colName])){
+          window.DB[colName] = window.DB[colName].filter(x => x.id !== id && x._docId !== id && x.no !== id && x.code !== id);
+        }
+        if(window.DB && typeof window.DB.persistLocal === 'function') window.DB.persistLocal();
+        return false;
+      }
       console.warn(`fbDelete(${colName}) online failed, queueing offline:`, e.message);
-      checkPermissionError(e, `fbDelete(${colName}, ${id})`);
     }
   }
 
