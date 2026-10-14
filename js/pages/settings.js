@@ -288,6 +288,19 @@ function pgSettings(){
           </div>
 
           <div style="display:flex;flex-direction:column;gap:12px">
+            <!-- 0. Quick Fix: Delete pending returns + duplicate products -->
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;background:rgba(245,158,11,0.08);padding:12px 14px;border-radius:8px;border:1px solid rgba(245,158,11,0.3)">
+              <div>
+                <b style="font-size:13.5px;color:#fbbf24">⚡ Pending Returns + අනුපිටපත් Products ක්ෂණිකව ඉවත් කරන්න</b>
+                <p style="margin:3px 0 0;font-size:11.5px;color:var(--muted)">
+                  Pending (අනුමැතිය රැඳී ඇති) ආපසු ඉල්ලීම් සියල්ල + code එකම ඇති Duplicate Products Cloud + LocalStorage + SyncQueue සකින් සදහදේම ඉවත් කරයි.
+                </p>
+              </div>
+              <button class="btn btn-sm" onclick="quickCleanPendingAndDuplicates()" style="font-weight:700;padding:7px 16px;background:#92400e;border-color:#92400e;color:#fcd34d">
+                🧹 1-Click Cleanup
+              </button>
+            </div>
+
             <!-- 1. Clear Transactions only -->
             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;background:rgba(15,23,42,0.6);padding:12px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.06)">
               <div>
@@ -1178,6 +1191,23 @@ async function executeProductionReset(wipeInventory = true){
     localStorage.removeItem('pos.grnDraft.' + shopId);
     localStorage.removeItem('pos.grnDraft');
 
+    // Purge syncQueue entries belonging to THIS shop only (prevents resurrection on next online sync)
+    try {
+      const rawQ = localStorage.getItem('pos.syncQueue');
+      if(rawQ){
+        const parsedQ = JSON.parse(rawQ);
+        if(Array.isArray(parsedQ)){
+          const filteredQ = parsedQ.filter(q => q.data && q.data.shopId && q.data.shopId !== shopId);
+          localStorage.setItem('pos.syncQueue', JSON.stringify(filteredQ));
+        }
+      }
+    } catch(_){}
+    // Also purge Offline.queue in memory
+    if(window.Offline && Array.isArray(window.Offline.queue)){
+      window.Offline.queue = window.Offline.queue.filter(q => q.data && q.data.shopId && q.data.shopId !== shopId);
+      if(typeof window.Offline.persist === 'function') window.Offline.persist();
+    }
+
     // Dedicated shop cache
     const cleanShopCache = {
       products: db.products || [],
@@ -1583,6 +1613,134 @@ async function saveSupportSettingsFromPage(){
   if(typeof render === 'function') render();
 }
 
+
+/* ---------- Quick Clean: Pending Returns + Duplicate Products (Admin/Superadmin) ---------- */
+async function quickCleanPendingAndDuplicates(){
+  const user = window.state && window.state.user;
+  if(!user || (user.role !== 'admin' && user.role !== 'superadmin')){
+    if(typeof toast === 'function') toast('පරිපාලක අවසර අවශ්ය වේ', 'err');
+    return;
+  }
+  const db = window.DB || {};
+
+  // Count what we'll delete
+  const pending = (db.returns || []).filter(r => r.status === 'pending');
+  const seenCodes = {};
+  const duplicates = [];
+  (db.products || []).forEach(p => {
+    const key = (p.code || '').trim().toLowerCase();
+    if(key){
+      if(seenCodes[key]) duplicates.push(p);
+      else seenCodes[key] = p;
+    }
+  });
+
+  if(!pending.length && !duplicates.length){
+    if(typeof toast === 'function') toast('පඪිෝ Pending returns ඔ Duplicate products නැත්! සියල නිළැරදියි.', 'ok');
+    return;
+  }
+
+  const msg = [    'අවදානයයි: පහත ඇවත් කරන්නේ:',
+    pending.length ? ('\n▪️ Pending Returns: ' + pending.length + 'ක් (' + pending.map(r=>r.no||r.id).join(', ') + ')') : '',
+    duplicates.length ? ('\n▪️ Duplicate Products: ' + duplicates.length + 'ක් (' + [...new Set(duplicates.map(d=>d.code))].join(', ') + ')') : '',
+    '\n\nබල්දියට යාමට අවශ්ය බව තහවුරුද?'
+  ].join('');
+
+  if(!confirm(msg)) return;
+
+  let returnCount = 0;
+  let prodCount = 0;
+
+  // ── Delete pending returns ──
+  if(pending.length){
+    db.returns = (db.returns || []).filter(r => r.status !== 'pending');
+    if(window.FB && window.FB.fbDelete){
+      for(const r of pending){
+        try {
+          if(r._docId) await window.FB.fbDelete(window.FB.COL.returns, r._docId);
+          if(r.id && r.id !== r._docId) await window.FB.fbDelete(window.FB.COL.returns, r.id);
+          if(r.no) await window.FB.fbDelete(window.FB.COL.returns, r.no);
+        } catch(_){}
+      }
+    }
+    // Purge from syncQueue
+    try {
+      const rawQ = localStorage.getItem('pos.syncQueue');
+      if(rawQ){
+        const parsedQ = JSON.parse(rawQ);
+        if(Array.isArray(parsedQ)){
+          const pendingIds = new Set(pending.map(r => r.id));
+          const pendingDocIds = new Set(pending.map(r => r._docId).filter(Boolean));
+          const pendingNos = new Set(pending.map(r => r.no).filter(Boolean));
+          localStorage.setItem('pos.syncQueue', JSON.stringify(
+            parsedQ.filter(q => !(q.collection === 'returns' && (
+              pendingIds.has(q.docId) || pendingDocIds.has(q.docId) ||
+              (q.data && (pendingIds.has(q.data.id) || pendingNos.has(q.data.no)))
+            )))
+          ));
+        }
+      }
+      if(window.Offline && Array.isArray(window.Offline.queue)){
+        const pendingIds = new Set(pending.map(r => r.id));
+        const pendingNos = new Set(pending.map(r => r.no).filter(Boolean));
+        window.Offline.queue = window.Offline.queue.filter(q =>
+          !(q.collection === 'returns' && (pendingIds.has(q.docId) || (q.data && pendingNos.has(q.data.no))))
+        );
+        if(typeof window.Offline.persist === 'function') window.Offline.persist();
+      }
+    } catch(_){}
+    returnCount = pending.length;
+  }
+
+  // ── Delete duplicate products ──
+  if(duplicates.length){
+    const dupIds = duplicates.map(d => d.id);
+    const dupDocIds = duplicates.map(d => d._docId).filter(Boolean);
+    db.products = (db.products || []).filter(p => !dupIds.includes(p.id) && !dupDocIds.includes(p._docId));
+    if(window.FB && window.FB.fbDelete){
+      for(const d of duplicates){
+        try {
+          if(d._docId) await window.FB.fbDelete(window.FB.COL.products, d._docId);
+          if(d.id && d.id !== d._docId) await window.FB.fbDelete(window.FB.COL.products, d.id);
+        } catch(_){}
+      }
+    }
+    // Purge from syncQueue
+    try {
+      const rawQ = localStorage.getItem('pos.syncQueue');
+      if(rawQ){
+        const parsedQ = JSON.parse(rawQ);
+        if(Array.isArray(parsedQ)){
+          const ids = new Set(dupIds);
+          const docIds = new Set(dupDocIds);
+          localStorage.setItem('pos.syncQueue', JSON.stringify(
+            parsedQ.filter(q => !(q.collection === 'products' && (ids.has(q.docId) || docIds.has(q.docId) || (q.data && ids.has(q.data.id)))))
+          ));
+        }
+      }
+      if(window.Offline && Array.isArray(window.Offline.queue)){
+        const ids = new Set(dupIds);
+        window.Offline.queue = window.Offline.queue.filter(q =>
+          !(q.collection === 'products' && (ids.has(q.docId) || (q.data && ids.has(q.data.id))))
+        );
+        if(typeof window.Offline.persist === 'function') window.Offline.persist();
+      }
+    } catch(_){}
+    prodCount = duplicates.length;
+  }
+
+  if(typeof saveDB === 'function') saveDB();
+  if(typeof renderNav === 'function') renderNav();
+  if(typeof render === 'function') render();
+
+  const msg2 = [
+    'සාර්ථකව පිරිසිදු කරන ලදී 🧹',
+    returnCount ? ('\n✅ Returns මකා දමන ලදී: ' + returnCount + 'ක්') : '',
+    prodCount ? ('\n✅ Duplicate Products මකා දමන ලදී: ' + prodCount + 'ක්') : ''
+  ].join('');
+  if(typeof toast === 'function') toast(msg2, 'ok');
+}
+
 window.pgSettings = pgSettings;
 window.saveSupportSettingsFromPage = saveSupportSettingsFromPage;
 window.saveShopSettings = saveShopSettings;
@@ -1614,4 +1772,5 @@ window.setHwAutoDrawer = setHwAutoDrawer;
 window.openProductionResetModal = openProductionResetModal;
 window.submitProductionReset = submitProductionReset;
 window.executeProductionReset = executeProductionReset;
+window.quickCleanPendingAndDuplicates = quickCleanPendingAndDuplicates;
 window.cleanProductionReset = openProductionResetModal;

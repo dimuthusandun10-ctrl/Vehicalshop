@@ -321,7 +321,12 @@ function pgInventory(){
             <h3>📦 භාණ්ඩ ලේඛනය</h3>
             <small>Inventory · <span id="invCount">0</span> items</small>
           </div>
-          <div style="display:flex;gap:6px;align-items:center">
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+            ${(state.user && state.user.role === 'superadmin') ? `
+              <button class="btn btn-sm btn-red" onclick="cleanDuplicateProducts()" title="අනුපිටපත් හෝ අනවශ්‍ය භාණ්ඩ පිරිසිදු කරන්න" style="display:flex;align-items:center;gap:4px;padding:7px 11px;font-size:12px;font-weight:600">
+                🧹 අනුපිටපත් Clear
+              </button>
+            ` : ''}
             <button class="btn btn-sm" onclick="exportInventoryCSV()" title="සම්පූර්ණ තොග නාමාවලිය CSV ලෙස බාගත කරන්න" style="display:flex;align-items:center;gap:4px;padding:7px 11px;font-size:12px">
               ⬇️ CSV
             </button>
@@ -782,17 +787,130 @@ async function delProduct(id){
     toast('භාණ්ඩ ඉවත් කිරීමට ඔබට අවසර නැත', 'err');
     return;
   }
-  if(!confirm('මෙම භාණ්ඩය මකා දැමීමට අවශ්‍ය බව සහතිකද?')) return;
   const db = window.DB || {};
-  db.products = (db.products || []).filter(p => p.id !== id);
+  const p = (db.products || []).find(x => x.id === id || x._docId === id || x.code === id);
+  const prodName = p ? `${p.name || ''} (${p.code || id})` : id;
 
+  if(!confirm(`මෙම භාණ්ඩය (${prodName}) පද්ධතියෙන් සහ Cloud Database එකෙන් සදහටම මකා දැමීමට අවශ්‍ය බව සහතිකද?`)) return;
+
+  const code = p ? p.code : null;
+  const docId = p ? p._docId : null;
+
+  // 1. Remove from local memory
+  db.products = (db.products || []).filter(x => x.id !== id && x._docId !== id);
+
+  // 2. Permanently delete from Firestore
   if(window.FB && window.FB.fbDelete){
-    await window.FB.fbDelete(window.FB.COL.products, id);
+    try {
+      if(docId) await window.FB.fbDelete(window.FB.COL.products, docId);
+      if(id && id !== docId) await window.FB.fbDelete(window.FB.COL.products, id);
+      if(code) await window.FB.fbDelete(window.FB.COL.products, code);
+    } catch(err){
+      console.warn('Product delete error:', err);
+    }
   }
+
+  // 3. Purge from sync queue
+  try {
+    if(window.Offline && Array.isArray(window.Offline.queue)){
+      window.Offline.queue = window.Offline.queue.filter(q => 
+        !(q.collection === 'products' && (q.docId === id || q.docId === docId || (q.data && (q.data.id === id || q.data.code === code))))
+      );
+      window.Offline.persist();
+    }
+    const rawQ = localStorage.getItem('pos.syncQueue');
+    if(rawQ){
+      const parsedQ = JSON.parse(rawQ);
+      if(Array.isArray(parsedQ)){
+        const filteredQ = parsedQ.filter(q => 
+          !(q.collection === 'products' && (q.docId === id || q.docId === docId || (q.data && (q.data.id === id || q.data.code === code))))
+        );
+        localStorage.setItem('pos.syncQueue', JSON.stringify(filteredQ));
+      }
+    }
+  } catch(_){}
+
   if(typeof saveDB === 'function') saveDB();
 
-  toast('මකා දමන ලදී');
+  toast('භාණ්ඩය සාර්ථකව මකා දමන ලදී 🗑️', 'ok');
+  renderInvList();
   render();
+}
+
+async function cleanDuplicateProducts(){
+  const user = window.state?.user;
+  if(!user || (user.role !== 'admin' && user.role !== 'superadmin')){
+    toast('මෙම ක්‍රියාව සඳහා පරිපාලක අවසරය අවශ්‍ය වේ!', 'err');
+    return;
+  }
+  const db = window.DB || {};
+  const products = db.products || [];
+
+  // Find duplicate items with identical code (case-insensitive)
+  const seenCodes = {};
+  const duplicates = [];
+  products.forEach(p => {
+    const key = (p.code || '').trim().toLowerCase();
+    if(key){
+      if(seenCodes[key]){
+        duplicates.push(p);
+      } else {
+        seenCodes[key] = p;
+      }
+    }
+  });
+
+  if(!duplicates.length){
+    toast('අනුපිටපත් (Duplicate) භාණ්ඩ හමු නොවීය! සියලු භාණ්ඩ නිවැරදියි.', 'ok');
+    return;
+  }
+
+  const dupNames = duplicates.map(d => `${d.name} (${d.code}) - රු. ${d.price}`).slice(0, 5).join('\n');
+  const msg = `අවධානයයි: අනුපිටපත් භාණ්ඩ ${duplicates.length}ක් හඳුනාගන්නා ලදී:\n\n${dupNames}${duplicates.length > 5 ? '\n...සහ තවත්' : ''}\n\nමෙම අනවශ්‍ය අනුපිටපත් භාණ්ඩ පද්ධතියෙන් සහ Cloud Database එකෙන් සදහටම මකා දැමීමට අවශ්‍ය බව තහවුරුද?`;
+
+  if(!confirm(msg)) return;
+
+  const dupIds = duplicates.map(d => d.id);
+  const dupDocIds = duplicates.map(d => d._docId).filter(Boolean);
+
+  // 1. Remove from local memory
+  db.products = db.products.filter(p => !dupIds.includes(p.id) && !dupDocIds.includes(p._docId));
+
+  // 2. Delete duplicates from Firestore permanently
+  if(window.FB && window.FB.fbDelete){
+    for(const d of duplicates){
+      try {
+        if(d._docId) await window.FB.fbDelete(window.FB.COL.products, d._docId);
+        if(d.id && d.id !== d._docId) await window.FB.fbDelete(window.FB.COL.products, d.id);
+      } catch(_){}
+    }
+  }
+
+  // 3. Purge from sync queue
+  try {
+    if(window.Offline && Array.isArray(window.Offline.queue)){
+      window.Offline.queue = window.Offline.queue.filter(q => 
+        !(q.collection === 'products' && (dupIds.includes(q.docId) || dupDocIds.includes(q.docId)))
+      );
+      window.Offline.persist();
+    }
+    const rawQ = localStorage.getItem('pos.syncQueue');
+    if(rawQ){
+      const parsedQ = JSON.parse(rawQ);
+      if(Array.isArray(parsedQ)){
+        const ids = new Set(dupIds);
+        const docIds = new Set(dupDocIds);
+        localStorage.setItem('pos.syncQueue', JSON.stringify(
+          parsedQ.filter(q => !(q.collection === 'products' && (ids.has(q.docId) || docIds.has(q.docId) || (q.data && ids.has(q.data.id)))))
+        ));
+      }
+    }
+  } catch(_){}
+
+  if(typeof saveDB === 'function') saveDB();
+  renderInvList();
+  render();
+  toast(`අනුපිටපත් භාණ්ඩ ${duplicates.length}ක් සාර්ථකව පිරිසිදු කරන ලදී 🧹`, 'ok');
 }
 
 window.pgInventory = pgInventory;
@@ -809,3 +927,5 @@ window.invGoToPage = invGoToPage;
 window.editProduct = editProduct;
 window.saveProduct = saveProduct;
 window.delProduct = delProduct;
+window.cleanDuplicateProducts = cleanDuplicateProducts;
+window.deleteProduct = delProduct;

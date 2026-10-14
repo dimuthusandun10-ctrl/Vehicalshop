@@ -148,7 +148,10 @@ function pgReturnsAdmin(){
       <div>
         <h2>↩️ ආපසු භාරදීම් <small>Returns & Refunds Management · Admin Control</small></h2>
       </div>
-      <div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <button type="button" class="btn btn-sm btn-red" onclick="returnsClearAllPending()" style="font-weight:600;padding:6px 12px;display:flex;align-items:center;gap:5px" title="සියලුම අනුමැතිය අපේක්ෂිත ආපසු ඉල්ලීම් එකවර මකා දමන්න">
+          🧹 පරීක්ෂණ ඉල්ලීම් Clear කරන්න
+        </button>
         <button type="button" class="btn btn-primary btn-sm" onclick="returnsOpenNewRequest()">
           + නව ඉල්ලීමක් (New Request)
         </button>
@@ -243,10 +246,11 @@ function renderAdminPendingTab(pendingList){
           </div>
         </div>
         ${r.notes ? `<div class="return-card-note">📝 සටහන: "${esc(r.notes)}"</div>` : ''}
-        <div class="return-card-footer">
+        <div class="return-card-footer" style="display:flex;gap:6px;flex-wrap:wrap">
           <button type="button" class="btn btn-sm" onclick="returnsViewDetails('${r.id}')">👁️ විස්තර</button>
           <button type="button" class="btn btn-sm btn-red" onclick="returnsRejectModal('${r.id}')">❌ ප්‍රතික්ෂේප</button>
           <button type="button" class="btn btn-sm btn-green" onclick="returnsApproveModal('${r.id}')">✅ අනුමත කරන්න</button>
+          <button type="button" class="btn btn-sm btn-red" onclick="returnsDeleteRequest('${r.id}')" title="මෙම ආපසු ඉල්ලීම සදහටම මකා දමන්න" style="padding:6px 10px;background:#991b1b;border-color:#991b1b">🗑️ මකන්න</button>
         </div>
       </div>
     `).join('')}
@@ -354,6 +358,7 @@ function renderAdminAllTab(allReturns){
                 ${r.status === 'approved' && r.customerId ? `
                   <button type="button" class="btn btn-sm btn-blue" onclick="createBillFromReturn('${r.id}')" title="නව බිලක් සාදන්න">🔄 නව බිලක්</button>
                 ` : ''}
+                <button type="button" class="btn btn-sm btn-red" onclick="returnsDeleteRequest('${r.id}')" title="මෙම ආපසු ඉල්ලීම සදහටම මකා දමන්න">🗑️</button>
               </td>
             </tr>
           `).join('') || `<tr><td colspan="9" class="empty" style="text-align:center;padding:26px">ගැලපෙන ආපසු ඉල්ලීම් හමු නොවීය</td></tr>`}
@@ -1048,6 +1053,117 @@ async function returnsCancelRequest(id){
   toast('ඉල්ලීම අවලංගු කරන ලදී');
 }
 
+/* ---------- Delete Return Request (Admin/Superadmin) ---------- */
+async function returnsDeleteRequest(id){
+  const user = state.user;
+  if(!user || (user.role !== 'admin' && user.role !== 'superadmin')){
+    toast('ආපසු ඉල්ලීම් මකා දැමීමට පරිපාලක අවසර අවශ්‍ය වේ', 'err');
+    return;
+  }
+  const db = window.DB || {};
+  const r = (db.returns || []).find(x => x.id === id || x._docId === id || x.no === id);
+  const retNo = r ? r.no : id;
+
+  if(!confirm(`අවධානයයි: '${retNo}' ආපසු ඉල්ලීම පද්ධතියෙන් සහ Cloud Database එකෙන් සදහටම මකා දැමීමට අවශ්‍ය බව තහවුරුද?\n(මෙය ආපසු හැරවිය නොහැක)`)){
+    return;
+  }
+
+  // 1. Remove from local memory
+  if(db.returns){
+    db.returns = db.returns.filter(x => x.id !== id && x._docId !== id && x.no !== retNo);
+  }
+
+  // 2. Delete from Firestore permanently
+  if(window.FB && window.FB.fbDelete){
+    try {
+      if(r && r._docId) await window.FB.fbDelete(window.FB.COL.returns, r._docId);
+      if(r && r.id && r.id !== r._docId) await window.FB.fbDelete(window.FB.COL.returns, r.id);
+      if(retNo) await window.FB.fbDelete(window.FB.COL.returns, retNo);
+    } catch(e){
+      console.warn('Return delete error:', e);
+    }
+  }
+
+  // 3. Purge from sync queue so offline queue cannot recreate it
+  try {
+    if(window.Offline && Array.isArray(window.Offline.queue)){
+      window.Offline.queue = window.Offline.queue.filter(q => 
+        !(q.collection === 'returns' && (q.docId === id || (q.data && (q.data.id === id || q.data.no === retNo))))
+      );
+      window.Offline.persist();
+    }
+    const rawQ = localStorage.getItem('pos.syncQueue');
+    if(rawQ){
+      const parsedQ = JSON.parse(rawQ);
+      if(Array.isArray(parsedQ)){
+        const filteredQ = parsedQ.filter(q => 
+          !(q.collection === 'returns' && (q.docId === id || (q.data && (q.data.id === id || q.data.no === retNo))))
+        );
+        localStorage.setItem('pos.syncQueue', JSON.stringify(filteredQ));
+      }
+    }
+  } catch(_){}
+
+  if(typeof saveDB === 'function') saveDB();
+  renderNav();
+  render();
+  toast(`'${retNo}' ආපසු ඉල්ලීම සදහටම මකා දමන ලදී 🗑️`, 'ok');
+}
+
+/* ---------- Clear All Pending Returns (Admin/Superadmin) ---------- */
+async function returnsClearAllPending(){
+  const user = state.user;
+  if(!user || (user.role !== 'admin' && user.role !== 'superadmin')){
+    toast('මෙම ක්‍රියාව සඳහා පරිපාලක අවසර අවශ්‍ය වේ', 'err');
+    return;
+  }
+  const db = window.DB || {};
+  const pending = (db.returns || []).filter(r => r.status === 'pending');
+  if(!pending.length){
+    toast('අනුමැතිය අපේක්ෂිත (Pending) ඉල්ලීම් කිසිවක් නොමැත', 'info');
+    return;
+  }
+
+  if(!confirm(`අවධානයයි: දැනට රැඳී ඇති සියලුම ආපසු ඉල්ලීම් (${pending.length}ක්) පද්ධතියෙන් සහ Cloud එකෙන් සදහටම මකා දැමීමට අවශ්‍ය බව තහවුරුද?`)){
+    return;
+  }
+
+  // 1. Remove all pending from local memory
+  db.returns = (db.returns || []).filter(r => r.status !== 'pending');
+
+  // 2. Delete all pending from Firestore
+  if(window.FB && window.FB.fbDelete){
+    for(const r of pending){
+      try {
+        if(r._docId) await window.FB.fbDelete(window.FB.COL.returns, r._docId);
+        if(r.id && r.id !== r._docId) await window.FB.fbDelete(window.FB.COL.returns, r.id);
+        if(r.no) await window.FB.fbDelete(window.FB.COL.returns, r.no);
+      } catch(_){}
+    }
+  }
+
+  // 3. Clear from sync queue
+  try {
+    if(window.Offline && Array.isArray(window.Offline.queue)){
+      window.Offline.queue = window.Offline.queue.filter(q => q.collection !== 'returns');
+      window.Offline.persist();
+    }
+    const rawQ = localStorage.getItem('pos.syncQueue');
+    if(rawQ){
+      const parsedQ = JSON.parse(rawQ);
+      if(Array.isArray(parsedQ)){
+        const filteredQ = parsedQ.filter(q => q.collection !== 'returns');
+        localStorage.setItem('pos.syncQueue', JSON.stringify(filteredQ));
+      }
+    }
+  } catch(_){}
+
+  if(typeof saveDB === 'function') saveDB();
+  renderNav();
+  render();
+  toast(`පරීක්ෂණ ආපසු ඉල්ලීම් ${pending.length}ම සදහටම මකා දමන ලදී 🧹`, 'ok');
+}
+
 /* ---------- View Details Modal ---------- */
 function returnsViewDetails(id){
   const db = window.DB || {};
@@ -1123,7 +1239,18 @@ function returnsViewDetails(id){
     </div>
   </div>`;
 
-  openModal(`📄 ${r.no} විස්තර`, `Return Request Details`, modalBody, `<button class="btn btn-primary" onclick="closeModal()">වසන්න (Close)</button>`, true);
+  const canDel = state.user?.role === 'admin' || state.user?.role === 'superadmin';
+  const modalFooter = `
+    <div style="display:flex;justify-content:space-between;align-items:center;width:100%;flex-wrap:wrap;gap:8px">
+      ${canDel ? `
+        <button type="button" class="btn btn-red btn-sm" onclick="closeModal();returnsDeleteRequest('${r.id}')" style="display:flex;align-items:center;gap:5px;font-weight:700">
+          🗑️ සදහටම මකන්න (Delete)
+        </button>
+      ` : '<div></div>'}
+      <button class="btn btn-primary" onclick="closeModal()">වසන්න (Close)</button>
+    </div>
+  `;
+  openModal(`📄 ${r.no} විස්තර`, `Return Request Details`, modalBody, modalFooter, true);
 }
 
 /* ---------- Status Badge Helper ---------- */
@@ -1251,6 +1378,9 @@ window.returnsTimeAgo = returnsTimeAgo;
 window.formatRelativeTime = formatRelativeTime;
 window.showReturnNotification = showReturnNotification;
 window.createBillFromReturn = createBillFromReturn;
+window.returnsDeleteRequest = returnsDeleteRequest;
+window.returnsClearAllPending = returnsClearAllPending;
+window.deleteReturn = returnsDeleteRequest;
 
 // Aliases for backwards compatibility with legacy calls
 window.newReturn = returnsOpenNewRequest;
@@ -1315,6 +1445,7 @@ function renderAdminReturnRowCard(r){
         ${r.status === 'approved' && r.customerId ? `
           <button type="button" class="btn btn-sm btn-blue" onclick="createBillFromReturn('${r.id}')" title="නව බිලක් සාදන්න">🔄 නව බිලක්</button>
         ` : ''}
+        <button type="button" class="btn btn-sm btn-red" onclick="returnsDeleteRequest('${r.id}')" title="මෙම ආපසු ඉල්ලීම සදහටම මකා දමන්න">🗑️</button>
       </div>
     </div>
   `;

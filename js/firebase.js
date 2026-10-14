@@ -466,10 +466,11 @@ async function fbAddDirect(colName, data){
   const { collection, addDoc, doc, setDoc, serverTimestamp } = _fbModules.fsMod;
   const clean = { ...data };
   delete clean._offline;
-  if(clean.id && typeof clean.id === 'string' && clean.id.startsWith('local_')){
+  // If clean.id is provided, always use setDoc so doc ID in Firestore matches clean.id 1:1!
+  if(clean.id && typeof clean.id === 'string'){
     await setDoc(doc(_fbDb, colName, clean.id), {
       ...clean,
-      createdAt: serverTimestamp()
+      createdAt: clean.createdAt || serverTimestamp()
     }, { merge: true });
     return clean.id;
   }
@@ -477,6 +478,7 @@ async function fbAddDirect(colName, data){
     ...clean,
     createdAt: serverTimestamp()
   });
+  clean.id = ref.id;
   return ref.id;
 }
 
@@ -493,12 +495,23 @@ async function fbSetDirect(colName, id, data){
 async function fbUpdateDirect(colName, id, data){
   if(!_fbReady) await initFirebase();
   if(!_fbReady || !_fbDb || !_fbModules?.fsMod) throw new Error('Firebase not connected');
-  const { doc, updateDoc, setDoc } = _fbModules.fsMod;
+  const { doc, updateDoc, setDoc, collection, query, where, getDocs } = _fbModules.fsMod;
   const clean = { ...data };
   delete clean._offline;
   try {
     await updateDoc(doc(_fbDb, colName, id), clean);
+    return true;
   } catch(e) {
+    // If doc not found by id, check if doc exists with field id == id
+    try {
+      const snap = await getDocs(query(collection(_fbDb, colName), where('id', '==', id)));
+      if(!snap.empty){
+        for(const d of snap.docs){
+          await updateDoc(doc(_fbDb, colName, d.id), clean);
+        }
+        return true;
+      }
+    } catch(_){}
     await setDoc(doc(_fbDb, colName, id), clean, { merge: true });
   }
   return true;
@@ -507,8 +520,47 @@ async function fbUpdateDirect(colName, id, data){
 async function fbDeleteDirect(colName, id){
   if(!_fbReady) await initFirebase();
   if(!_fbReady || !_fbDb || !_fbModules?.fsMod) throw new Error('Firebase not connected');
-  const { doc, deleteDoc } = _fbModules.fsMod;
-  await deleteDoc(doc(_fbDb, colName, id));
+  const { doc, deleteDoc, collection, query, where, getDocs } = _fbModules.fsMod;
+  if(!id) return true;
+
+  // 1. Direct delete by ID
+  try {
+    await deleteDoc(doc(_fbDb, colName, id));
+  } catch(e){}
+
+  // 2. Query delete if document was created with an auto-gen Firestore doc ID
+  try {
+    const q1 = query(collection(_fbDb, colName), where('id', '==', id));
+    const s1 = await getDocs(q1);
+    for(const d of s1.docs){
+      if(d.id !== id){
+        await deleteDoc(doc(_fbDb, colName, d.id));
+      }
+    }
+  } catch(e){}
+
+  // 3. For returns, also delete by 'no' (e.g. RET-0002)
+  if(colName === 'returns' || colName === COL.returns){
+    try {
+      const q2 = query(collection(_fbDb, colName), where('no', '==', id));
+      const s2 = await getDocs(q2);
+      for(const d of s2.docs){
+        await deleteDoc(doc(_fbDb, colName, d.id));
+      }
+    } catch(e){}
+  }
+
+  // 4. For products, also check by 'code' (e.g. BT-80010)
+  if(colName === 'products' || colName === COL.products){
+    try {
+      const q3 = query(collection(_fbDb, colName), where('code', '==', id));
+      const s3 = await getDocs(q3);
+      for(const d of s3.docs){
+        await deleteDoc(doc(_fbDb, colName, d.id));
+      }
+    } catch(e){}
+  }
+
   return true;
 }
 
@@ -600,6 +652,28 @@ async function fbUpdate(colName, id, data){
 }
 
 async function fbDelete(colName, id){
+  if(!id) return true;
+
+  // 1. Purge any pending sync queue entries for this item so offline sync never re-adds it!
+  try {
+    if(window.Offline && Array.isArray(window.Offline.queue)){
+      window.Offline.queue = window.Offline.queue.filter(q => 
+        !(q.collection === colName && (q.docId === id || (q.data && (q.data.id === id || q.data.no === id || q.data.code === id))))
+      );
+      window.Offline.persist();
+    }
+    const rawQ = localStorage.getItem('pos.syncQueue');
+    if(rawQ){
+      const parsedQ = JSON.parse(rawQ);
+      if(Array.isArray(parsedQ)){
+        const filteredQ = parsedQ.filter(q => 
+          !(q.collection === colName && (q.docId === id || (q.data && (q.data.id === id || q.data.no === id || q.data.code === id))))
+        );
+        localStorage.setItem('pos.syncQueue', JSON.stringify(filteredQ));
+      }
+    }
+  } catch(_){}
+
   if(typeof navigator !== 'undefined' && navigator.onLine){
     try {
       return await fbDeleteDirect(colName, id);
@@ -614,7 +688,7 @@ async function fbDelete(colName, id){
   }
 
   if(window.DB && window.DB[colName] && Array.isArray(window.DB[colName])){
-    window.DB[colName] = window.DB[colName].filter(x => x.id !== id);
+    window.DB[colName] = window.DB[colName].filter(x => x.id !== id && x._docId !== id && x.no !== id && x.code !== id);
   }
   if(window.DB && typeof window.DB.persistLocal === 'function'){
     window.DB.persistLocal();

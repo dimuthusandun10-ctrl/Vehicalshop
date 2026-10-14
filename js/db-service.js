@@ -262,7 +262,7 @@ Object.assign(DB, {
           const results = await Promise.all(
             cols.map(c => 
               getDocs(query(collection(fsDb, c.name), where('shopId', '==', shopId)))
-                .then(s => s.docs.map(d => ({ id: d.id, ...d.data() })))
+                .then(s => s.docs.map(d => ({ ...d.data(), id: d.id, _docId: d.id })))
                 .catch(() => [])
             )
           );
@@ -624,7 +624,7 @@ function startPageListeners(page){
     try {
       const q = query(collection(fsDb, colName), where('shopId', '==', shopId));
       _unsubscribers[colName] = onSnapshot(q, snap => {
-        const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const list = snap.docs.map(d => ({ ...d.data(), id: d.id, _docId: d.id }));
         DB[dbKey] = list;
         if(typeof processFn === 'function') processFn(list);
         DB.persistLocal();
