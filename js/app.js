@@ -11,7 +11,7 @@ function resolveAppVersion(){
       if(m && m[1]) return m[1].startsWith('v') ? m[1] : ('v' + m[1]);
     }
   } catch(_){}
-  return 'v2.7.8';
+  return 'v2.8.0';
 }
 window.CURRENT_APP_VERSION = resolveAppVersion();
 const CURRENT_APP_VERSION = window.CURRENT_APP_VERSION;

@@ -287,8 +287,17 @@ function pgSettings(){
             </span>
           </div>
 
-          <div style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);border-radius:8px;padding:8px 12px;margin-bottom:14px;font-size:12px;color:#6ee7b7;display:flex;align-items:center;gap:6px">
+          <div style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12px;color:#6ee7b7;display:flex;align-items:center;gap:6px">
             🛡️ <b>සාප්පු හුදකලා බව (Strict Shop Isolation):</b> මෙම සාප්පුවේ දත්ත Clear කළද අනෙකුත් සාප්පු වල දත්ත (Other Shops) කිසිවිටෙකත් මකා නොදැමේ.
+          </div>
+
+          <!-- Quick Actions Bar for Mobile & Fast Access -->
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;padding:8px;background:rgba(15,23,42,0.5);border-radius:8px;border:1px solid rgba(255,255,255,0.06)">
+            <button type="button" class="btn btn-sm" onclick="quickCleanPendingAndDuplicates()" style="background:#92400e;color:#fcd34d;font-size:11px;padding:5px 9px">⚡ 1-Click Clean</button>
+            <button type="button" class="btn btn-sm btn-red" onclick="clearTransactions()" style="font-size:11px;padding:5px 9px">1. Clear Sales</button>
+            <button type="button" class="btn btn-sm btn-muted" onclick="resetToDemo()" style="font-size:11px;padding:5px 9px">2. Demo Reset</button>
+            <button type="button" class="btn btn-sm btn-muted" onclick="wipeLocalCache()" style="font-size:11px;padding:5px 9px">3. Wipe Cache</button>
+            <button type="button" class="btn btn-sm btn-primary" onclick="openProductionResetModal()" style="background:#059669;border-color:#059669;font-size:11px;padding:5px 12px;font-weight:700">4. 🏭 විකිණීමට සූදානම් (Reset)</button>
           </div>
 
           <div style="display:flex;flex-direction:column;gap:12px">
