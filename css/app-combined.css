@@ -11154,12 +11154,16 @@ body.cart-open .pos-cart-backdrop {
   position: fixed;
   inset: 0;
   z-index: 999999;
-  background: rgba(11, 18, 32, 0.92);
+  background: rgba(11, 18, 32, 0.94);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  display: grid;
-  place-items: center;
-  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  box-sizing: border-box;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   animation: upcFadeIn 0.25s ease-out;
 }
 @keyframes upcFadeIn {
@@ -11167,21 +11171,25 @@ body.cart-open .pos-cart-backdrop {
   to { opacity: 1; transform: scale(1); }
 }
 .update-progress-card {
-  width: 480px;
+  width: 440px;
   max-width: 100%;
+  box-sizing: border-box;
   background: #111c30;
   border: 1px solid rgba(56, 189, 248, 0.35);
-  border-radius: 20px;
-  padding: 26px 22px;
-  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.8), 0 0 50px rgba(56, 189, 248, 0.18);
+  border-radius: 18px;
+  padding: 22px 18px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 40px rgba(56, 189, 248, 0.15);
   color: #fff;
   text-align: center;
+  margin: auto;
+  overflow: hidden;
+  position: relative;
 }
 .upc-header .upc-icon-wrap {
-  width: 64px;
-  height: 64px;
-  margin: 0 auto 12px;
-  border-radius: 18px;
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 10px;
+  border-radius: 16px;
   background: linear-gradient(135deg, rgba(56, 189, 248, 0.2), rgba(245, 158, 11, 0.2));
   border: 1px solid rgba(56, 189, 248, 0.4);
   display: grid;
@@ -11189,7 +11197,7 @@ body.cart-open .pos-cart-backdrop {
   box-shadow: 0 8px 24px rgba(56, 189, 248, 0.25);
 }
 .upc-header .upc-rocket {
-  font-size: 32px;
+  font-size: 28px;
   animation: upcRocketBounce 1.4s ease-in-out infinite alternate;
 }
 @keyframes upcRocketBounce {
@@ -11197,26 +11205,30 @@ body.cart-open .pos-cart-backdrop {
   to { transform: translateY(-4px) scale(1.06); }
 }
 .upc-header h3 {
-  font-size: 17.5px;
+  font-size: 15.5px;
   font-weight: 700;
   color: #fff;
-  margin-bottom: 4px;
+  margin: 0 0 4px;
+  line-height: 1.35;
+  word-break: break-word;
 }
 .upc-header p {
-  font-size: 12px;
+  font-size: 11.5px;
   color: #38bdf8;
   font-weight: 600;
+  margin: 0;
 }
 .upc-bar-container {
-  margin: 18px 0 16px;
+  margin: 14px 0 12px;
   background: rgba(15, 23, 42, 0.7);
   border: 1px solid var(--line);
   border-radius: 12px;
-  padding: 12px 14px;
+  padding: 10px 12px;
+  box-sizing: border-box;
 }
 .upc-bar-track {
   width: 100%;
-  height: 12px;
+  height: 10px;
   background: #1e293b;
   border-radius: 20px;
   overflow: hidden;
@@ -11238,32 +11250,43 @@ body.cart-open .pos-cart-backdrop {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 11.5px;
-  margin-top: 8px;
+  font-size: 11px;
+  margin-top: 6px;
   color: var(--muted);
+  gap: 8px;
+}
+.upc-bar-meta span {
+  flex: 1;
+  text-align: left;
+  line-height: 1.3;
+  word-break: break-word;
 }
 .upc-bar-meta b {
   color: #38bdf8;
-  font-size: 13.5px;
+  font-size: 12.5px;
   font-family: monospace;
 }
 .upc-steps-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   text-align: left;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
+  width: 100%;
+  box-sizing: border-box;
 }
 .upc-step {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 7px 10px;
+  gap: 8px;
+  padding: 6px 10px;
   background: rgba(15, 23, 42, 0.5);
   border: 1px solid rgba(51, 65, 85, 0.6);
   border-radius: 8px;
-  font-size: 11.5px;
+  font-size: 11px;
   color: var(--muted);
+  box-sizing: border-box;
+  width: 100%;
   transition: all 0.2s ease;
 }
 .upc-step.active {
@@ -11278,18 +11301,56 @@ body.cart-open .pos-cart-backdrop {
   background: rgba(16, 185, 129, 0.08);
 }
 .upc-step .step-icon {
-  font-size: 14px;
+  font-size: 13px;
+  flex-shrink: 0;
 }
 .upc-step .step-text {
   flex: 1;
+  min-width: 0;
+  line-height: 1.3;
+  word-break: break-word;
 }
 .upc-step .step-status {
   font-size: 12px;
+  flex-shrink: 0;
 }
 .upc-footer-note {
-  font-size: 11px;
+  font-size: 10.5px;
   color: #fcd34d;
   opacity: 0.9;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+@media (max-width: 480px) {
+  .update-progress-overlay {
+    padding: 8px !important;
+  }
+  .update-progress-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 16px 12px !important;
+    border-radius: 16px !important;
+  }
+  .upc-header .upc-icon-wrap {
+    width: 48px !important;
+    height: 48px !important;
+    margin-bottom: 8px !important;
+  }
+  .upc-header .upc-rocket {
+    font-size: 24px !important;
+  }
+  .upc-header h3 {
+    font-size: 14.5px !important;
+  }
+  .upc-step {
+    font-size: 10.5px !important;
+    padding: 6px 8px !important;
+    gap: 6px !important;
+  }
+  .upc-step .step-icon {
+    font-size: 12px !important;
+  }
 }
 
 /* Topbar live update pill */

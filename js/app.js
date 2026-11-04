@@ -11,7 +11,7 @@ function resolveAppVersion(){
       if(m && m[1]) return m[1].startsWith('v') ? m[1] : ('v' + m[1]);
     }
   } catch(_){}
-  return 'v2.8.0';
+  return 'v2.8.1';
 }
 window.CURRENT_APP_VERSION = resolveAppVersion();
 const CURRENT_APP_VERSION = window.CURRENT_APP_VERSION;
@@ -327,7 +327,8 @@ function showUpdateProgressModal(targetVer){
     document.body.appendChild(el);
   }
   el.innerHTML = `
-    <div class="update-progress-card">
+    <div class="update-progress-card" style="position:relative">
+      <button type="button" id="upcCloseX" onclick="window._isUpdatingApp=false;document.getElementById('updateProgressOverlay')?.remove();" style="position:absolute;top:12px;right:12px;background:rgba(255,255,255,0.12);color:#fff;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;z-index:10" title="වසන්න (Close)">✕</button>
       <div class="upc-header">
         <div class="upc-icon-wrap">
           <span class="upc-rocket">🚀</span>
@@ -344,6 +345,12 @@ function showUpdateProgressModal(targetVer){
           <span id="upcStatusText">සූදානම් වෙමින් පවතී...</span>
           <b id="upcPercentText">5%</b>
         </div>
+      </div>
+
+      <div id="upcManualActions" style="margin:10px 0 14px;display:none">
+        <button type="button" id="upcReloadBtn" class="btn btn-primary" onclick="window._isUpdatingApp=false;window.location.reload();" style="width:100%;font-weight:700;padding:11px;background:#10b981;border:none;border-radius:10px;color:#fff;font-size:13.5px;cursor:pointer;box-shadow:0 4px 14px rgba(16,185,129,0.4);display:flex;align-items:center;justify-content:center;gap:6px">
+          🔄 දැන්ම පද්ධතිය Refresh කරන්න (Reload Now)
+        </button>
       </div>
 
       <div class="upc-steps-list">
@@ -375,7 +382,7 @@ function showUpdateProgressModal(targetVer){
       </div>
 
       <div class="upc-footer-note">
-        ⚠️ කරුණාකර පිටුව වසන්න හෝ Back ඔබන්න එපා (Do not close or reload)
+        ⚠️ පිටුව ස්වයංක්‍රීයව Refresh නොවන්නේ නම් ඉහළ ඇති Reload බොත්තම ඔබන්න.
       </div>
     </div>
   `;
@@ -478,7 +485,7 @@ async function forceUpdateApp(targetVer){
     await sleep(350);
 
     // STEP 5: Hard Refresh (100%)
-    updateProgressStep(5, 100, '✅ සාර්ථකයි! සම්පූර්ණ Hard Refresh මඟින් නැවත ආරම්භ වේ...');
+    updateProgressStep(5, 100, '✅ සාර්ථකයි! පද්ධතිය නැවත ආරම්භ වේ...');
     for(let i = 1; i <= 5; i++){
       const s = document.getElementById('upcStep' + i);
       if(s){
@@ -487,24 +494,48 @@ async function forceUpdateApp(targetVer){
         if(st) st.textContent = '✅';
       }
     }
-    await sleep(500);
 
-    // Hard navigation with cache-busting timestamp and version query
-    const cleanUrl = window.location.origin + window.location.pathname;
-    const targetUrl = cleanUrl + '?v=' + encodeURIComponent(newVer) + '&_hard_refresh=' + Date.now();
-    window.location.replace(targetUrl);
-
-    // Safety fallback
+    // Reveal manual Reload button & Close X immediately if reload takes longer than 1.2s
     setTimeout(() => {
-      window.location.href = targetUrl;
-    }, 600);
+      const actionsEl = document.getElementById('upcManualActions');
+      if(actionsEl) actionsEl.style.display = 'block';
+      const cX = document.getElementById('upcCloseX');
+      if(cX) cX.style.display = 'flex';
+    }, 1200);
+
+    // Safety auto-dismiss after 4 seconds so the app never gets permanently stuck
+    setTimeout(() => {
+      window._isUpdatingApp = false;
+      const overlay = document.getElementById('updateProgressOverlay');
+      if(overlay) overlay.remove();
+    }, 4000);
+
+    await sleep(400);
+
+    // Primary cross-platform reload execution
+    try {
+      window.location.reload();
+    } catch(_) {}
+
+    // Fallback replace for PWAs
+    setTimeout(() => {
+      try {
+        const cleanUrl = window.location.origin + window.location.pathname;
+        window.location.replace(cleanUrl + '?_ts=' + Date.now());
+      } catch(_) {
+        window.location.reload();
+      }
+    }, 400);
 
   } catch(err){
     console.error('Update progress error:', err);
     updateProgressStep(5, 100, 'Hard Refresh මඟින් නැවත පූරණය වේ...');
-    await sleep(300);
-    const cleanUrl = window.location.origin + window.location.pathname;
-    window.location.replace(cleanUrl + '?v=' + encodeURIComponent(newVer) + '&_hard_refresh=' + Date.now());
+    const actionsEl = document.getElementById('upcManualActions');
+    if(actionsEl) actionsEl.style.display = 'block';
+    setTimeout(() => {
+      window._isUpdatingApp = false;
+      window.location.reload();
+    }, 600);
   }
 }
 

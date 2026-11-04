@@ -3,7 +3,7 @@
    ========================================================= */
 
 (function initLoader() {
-  const APP_VERSION = (window.CURRENT_APP_VERSION || 'v2.8.0').replace(/^v/, '');
+  const APP_VERSION = (window.CURRENT_APP_VERSION || 'v2.8.1').replace(/^v/, '');
   const _loadedScripts = new Set();
   const _pendingPromises = new Map();
 
