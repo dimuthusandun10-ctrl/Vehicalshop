@@ -127,10 +127,10 @@
     display: inline-flex !important;
     align-items: center !important;
     flex-shrink: 0 !important;
-    max-width: 85px !important;
+    max-width: 110px !important;
   }
   .shop-switcher-select {
-    max-width: 85px !important;
+    max-width: 110px !important;
     padding: 3px 6px !important;
     font-size: 11px !important;
     height: 30px !important;
@@ -142,15 +142,17 @@
   }
 
   /* ── SHIFT INDICATOR ── */
+  .shift-txt-desktop { display: none !important; }
+  .shift-txt-mobile { display: inline !important; }
   #shiftIndicator,
   .shift-badge {
-    font-size: 10.5px !important;
-    padding: 3px 8px !important;
+    font-size: 11px !important;
+    padding: 3px 6px !important;
     height: 30px !important;
     min-height: 30px !important;
     flex-shrink: 0 !important;
     white-space: nowrap !important;
-    max-width: 90px !important;
+    max-width: 64px !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
     border-radius: 6px !important;
@@ -2066,6 +2068,18 @@
     border-top: 1px dashed rgba(255, 255, 255, 0.08) !important;
     padding-top: 6px !important;
     margin-top: 2px !important;
+  }
+  .maint-card {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+  .maint-card > button,
+  .maint-card > div:last-child > button {
+    width: 100% !important;
+    justify-content: center !important;
+    min-height: 38px !important;
   }
 }
 

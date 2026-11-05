@@ -292,17 +292,17 @@ function pgSettings(){
           </div>
 
           <!-- Quick Actions Bar for Mobile & Fast Access -->
-          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;padding:8px;background:rgba(15,23,42,0.5);border-radius:8px;border:1px solid rgba(255,255,255,0.06)">
-            <button type="button" class="btn btn-sm" onclick="quickCleanPendingAndDuplicates()" style="background:#92400e;color:#fcd34d;font-size:11px;padding:5px 9px">⚡ 1-Click Clean</button>
-            <button type="button" class="btn btn-sm btn-red" onclick="clearTransactions()" style="font-size:11px;padding:5px 9px">1. Clear Sales</button>
-            <button type="button" class="btn btn-sm btn-muted" onclick="resetToDemo()" style="font-size:11px;padding:5px 9px">2. Demo Reset</button>
-            <button type="button" class="btn btn-sm btn-muted" onclick="wipeLocalCache()" style="font-size:11px;padding:5px 9px">3. Wipe Cache</button>
-            <button type="button" class="btn btn-sm btn-primary" onclick="openProductionResetModal()" style="background:#059669;border-color:#059669;font-size:11px;padding:5px 12px;font-weight:700">4. 🏭 විකිණීමට සූදානම් (Reset)</button>
+          <div class="maint-quick-actions" style="display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:14px;padding:8px 10px;background:rgba(15,23,42,0.7);border-radius:10px;border:1px solid var(--line);scrollbar-width:none">
+            <button type="button" class="btn btn-sm" onclick="quickCleanPendingAndDuplicates()" style="background:#92400e;color:#fcd34d;font-size:11px;padding:6px 11px;white-space:nowrap;flex-shrink:0;border-radius:8px">⚡ 1-Click Clean</button>
+            <button type="button" class="btn btn-sm btn-red" onclick="clearTransactions()" style="font-size:11px;padding:6px 11px;white-space:nowrap;flex-shrink:0;border-radius:8px">1. Clear Sales</button>
+            <button type="button" class="btn btn-sm btn-secondary" onclick="resetToDemo()" style="font-size:11px;padding:6px 11px;white-space:nowrap;flex-shrink:0;border-radius:8px">2. Demo Reset</button>
+            <button type="button" class="btn btn-sm btn-secondary" onclick="wipeLocalCache()" style="font-size:11px;padding:6px 11px;white-space:nowrap;flex-shrink:0;border-radius:8px">3. Wipe Cache</button>
+            <button type="button" class="btn btn-sm btn-primary" onclick="openProductionResetModal()" style="background:#059669;border-color:#059669;color:#fff;font-size:11.5px;padding:6px 14px;font-weight:700;white-space:nowrap;flex-shrink:0;border-radius:8px">4. 🏭 විකිණීමට සූදානම් (Reset)</button>
           </div>
 
           <div style="display:flex;flex-direction:column;gap:12px">
             <!-- 0. Quick Fix: Delete pending returns + duplicate products -->
-            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;background:rgba(245,158,11,0.08);padding:12px 14px;border-radius:8px;border:1px solid rgba(245,158,11,0.3)">
+            <div class="maint-card" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;background:rgba(245,158,11,0.08);padding:12px 14px;border-radius:8px;border:1px solid rgba(245,158,11,0.3)">
               <div>
                 <b style="font-size:13.5px;color:#fbbf24">⚡ Pending Returns + අනුපිටපත් Products ක්ෂණිකව ඉවත් කරන්න</b>
                 <p style="margin:3px 0 0;font-size:11.5px;color:var(--muted)">
@@ -315,7 +315,7 @@ function pgSettings(){
             </div>
 
             <!-- 1. Clear Transactions only -->
-            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;background:rgba(15,23,42,0.6);padding:12px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.06)">
+            <div class="maint-card" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;background:rgba(15,23,42,0.6);padding:12px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.06)">
               <div>
                 <b style="font-size:13.5px;color:#f87171">1. ගනුදෙනු දත්ත පමණක් ඉවත් කරන්න (Clear Sales & Transactions)</b>
                 <p style="margin:3px 0 0;font-size:11.5px;color:var(--muted)">
@@ -328,7 +328,7 @@ function pgSettings(){
             </div>
 
             <!-- 2. Reset to Default Demo -->
-            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;background:rgba(15,23,42,0.6);padding:12px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.06)">
+            <div class="maint-card" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;background:rgba(15,23,42,0.6);padding:12px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.06)">
               <div>
                 <b style="font-size:13.5px;color:#fbbf24">2. ආරම්භක Demo තත්ත්වයට පත් කරන්න (Reset to Default Demo)</b>
                 <p style="margin:3px 0 0;font-size:11.5px;color:var(--muted)">
@@ -341,7 +341,7 @@ function pgSettings(){
             </div>
 
             <!-- 3. Wipe Local Storage Cache -->
-            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;background:rgba(15,23,42,0.6);padding:12px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.06)">
+            <div class="maint-card" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;background:rgba(15,23,42,0.6);padding:12px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.06)">
               <div>
                 <b style="font-size:13.5px;color:var(--txt)">3. මෙම සාප්පුවේ Local Cache ඉවත් කරන්න (Wipe This Shop Cache)</b>
                 <p style="margin:3px 0 0;font-size:11.5px;color:var(--muted)">
@@ -359,7 +359,7 @@ function pgSettings(){
             </div>
 
             <!-- 4. Prepare for Selling / Production Clean Slate -->
-            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;background:rgba(16,185,129,0.08);padding:14px 16px;border-radius:8px;border:1px solid rgba(16,185,129,0.25)">
+            <div class="maint-card" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;background:rgba(16,185,129,0.08);padding:14px 16px;border-radius:8px;border:1px solid rgba(16,185,129,0.25)">
               <div>
                 <b style="font-size:14px;color:#34d399">4. 🏭 සේවාදායකයාට විකිණීමට සූදානම් කිරීම (Prepare for Selling / Production Reset)</b>
                 <p style="margin:4px 0 0;font-size:12px;color:var(--muted)">

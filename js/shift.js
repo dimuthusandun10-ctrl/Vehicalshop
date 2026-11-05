@@ -719,8 +719,9 @@ function updateShiftIndicator(){
   if(pending){
     el.innerHTML = `
       <span class="shift-dot" style="background:#ef4444;box-shadow:0 0 8px #ef4444"></span>
-      <span style="color:#fca5a5;font-weight:700">🛑 Shift නවතා ඇත</span>
-      <span style="opacity:.7">· මුදල් ඇතුළත් කරන්න</span>
+      <span class="shift-txt-desktop" style="color:#fca5a5;font-weight:700">🛑 Shift නවතා ඇත</span>
+      <span class="shift-txt-mobile" style="color:#fca5a5;font-weight:700">🛑 නවතා ඇත</span>
+      <span class="shift-txt-desktop" style="opacity:.7">· මුදල් ඇතුළත් කරන්න</span>
     `;
     el.style.display = 'inline-flex';
     el.style.borderColor = 'rgba(239,68,68,0.5)';
@@ -733,8 +734,9 @@ function updateShiftIndicator(){
   if(!active){
     el.innerHTML = `
       <span class="shift-dot" style="background:var(--red)"></span>
-      <span>Shift එකක් නැත</span>
-      <span style="opacity:.6">· ආරම්භ කරන්න</span>
+      <span class="shift-txt-desktop">Shift එකක් නැත</span>
+      <span class="shift-txt-mobile">නැත</span>
+      <span class="shift-txt-desktop" style="opacity:.6">· ආරම්භ කරන්න</span>
     `;
     el.style.display = 'inline-flex';
     el.style.borderColor = 'rgba(239,68,68,0.4)';
@@ -750,9 +752,10 @@ function updateShiftIndicator(){
   const expected = Shift.liveExpected(active.id);
   el.innerHTML = `
     <span class="shift-dot"></span>
-    <span>Shift ${dur.text}</span>
-    <span style="opacity:.4">|</span>
-    <span>💰 ${money(expected)}</span>
+    <span class="shift-txt-desktop">Shift ${dur.text}</span>
+    <span class="shift-txt-mobile">⏱️ ${dur.text}</span>
+    <span class="shift-txt-desktop" style="opacity:.4">|</span>
+    <span class="shift-txt-desktop">💰 ${money(expected)}</span>
   `;
 
   if(!_shiftTimer){

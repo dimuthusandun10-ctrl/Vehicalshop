@@ -30,16 +30,25 @@
   white-space: nowrap !important;
 }
 
-/* Search */
+/* Search & Scan */
 .inv-search-row {
-  position: relative;
-  margin-bottom: 12px;
-}
-.inv-search-row input {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  margin-bottom: 12px !important;
   width: 100% !important;
-  padding: 12px 40px 12px 40px !important;
-  font-size: 14px !important;
-  min-height: 46px !important;
+}
+.inv-search-box {
+  position: relative !important;
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+}
+.inv-search-box input {
+  width: 100% !important;
+  padding: 10px 36px 10px 38px !important;
+  font-size: 13.5px !important;
+  height: 42px !important;
+  min-height: 42px !important;
   background: #0b1220 !important;
   border: 1px solid var(--line) !important;
   border-radius: 10px !important;
@@ -47,38 +56,62 @@
   transition: border-color 0.15s;
   box-sizing: border-box !important;
 }
-.inv-search-row input:focus {
+.inv-search-box input:focus {
   border-color: var(--primary) !important;
   outline: none !important;
 }
-.inv-search-icon {
-  position: absolute;
-  left: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 15px;
-  color: var(--muted);
-  pointer-events: none;
+.inv-search-box .inv-search-icon {
+  position: absolute !important;
+  left: 12px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  font-size: 15px !important;
+  color: var(--muted) !important;
+  pointer-events: none !important;
+  z-index: 2 !important;
 }
-.inv-search-clear {
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 28px;
-  height: 28px;
-  border-radius: 7px;
-  background: rgba(255,255,255,0.06);
-  border: none;
-  color: var(--muted);
-  font-size: 12px;
-  cursor: pointer;
-  display: grid;
-  place-items: center;
+.inv-search-box .inv-search-clear {
+  position: absolute !important;
+  right: 8px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  width: 26px !important;
+  height: 26px !important;
+  border-radius: 6px !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: none !important;
+  color: var(--muted) !important;
+  font-size: 12px !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 2 !important;
 }
-.inv-search-clear:hover {
-  background: var(--red);
-  color: white;
+.inv-search-box .inv-search-clear:hover {
+  background: var(--red) !important;
+  color: white !important;
+}
+.inv-scan-btn {
+  height: 42px !important;
+  min-height: 42px !important;
+  padding: 0 13px !important;
+  border-radius: 10px !important;
+  background: #1e293b !important;
+  border: 1px solid var(--line) !important;
+  color: #34d399 !important;
+  font-weight: 700 !important;
+  font-size: 12px !important;
+  white-space: nowrap !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  cursor: pointer !important;
+  flex-shrink: 0 !important;
+}
+.inv-scan-btn:hover {
+  background: rgba(52, 211, 153, 0.15) !important;
+  border-color: #34d399 !important;
 }
 .hidden { display: none !important; }
 
@@ -188,19 +221,44 @@
   
   .inv-header {
     display: flex !important;
+    flex-wrap: wrap !important;
     justify-content: space-between !important;
     align-items: center !important;
     gap: 8px !important;
     margin-bottom: 12px !important;
+  }
+  .inv-header-title {
+    flex: 1 1 auto !important;
+    min-width: 130px !important;
   }
   .inv-header h3 {
     font-size: 15px !important;
     margin: 0 0 2px 0 !important;
   }
   .inv-header .btn-add {
-    padding: 7px 12px !important;
+    order: 2 !important;
+    padding: 7px 14px !important;
     font-size: 12px !important;
     min-height: 36px !important;
+    border-radius: 8px !important;
+    white-space: nowrap !important;
+    font-weight: 700 !important;
+  }
+  .inv-header-actions {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    width: 100% !important;
+    order: 3 !important;
+    margin-top: 4px !important;
+  }
+  .inv-header-actions .btn:not(.btn-add) {
+    flex: 1 1 auto !important;
+    text-align: center !important;
+    justify-content: center !important;
+    padding: 7px 8px !important;
+    font-size: 11.5px !important;
+    min-height: 34px !important;
     border-radius: 8px !important;
     white-space: nowrap !important;
   }

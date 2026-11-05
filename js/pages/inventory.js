@@ -317,20 +317,20 @@ function pgInventory(){
         
         <!-- Header -->
         <div class="inv-header">
-          <div>
+          <div class="inv-header-title">
             <h3>📦 භාණ්ඩ ලේඛනය</h3>
             <small>Inventory · <span id="invCount">0</span> items</small>
           </div>
-          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <div class="inv-header-actions">
             ${(state.user && state.user.role === 'superadmin') ? `
-              <button class="btn btn-sm btn-red" onclick="cleanDuplicateProducts()" title="අනුපිටපත් හෝ අනවශ්‍ය භාණ්ඩ පිරිසිදු කරන්න" style="display:flex;align-items:center;gap:4px;padding:7px 11px;font-size:12px;font-weight:600">
-                🧹 අනුපිටපත් Clear
+              <button class="btn btn-sm btn-red" onclick="cleanDuplicateProducts()" title="අනුපිටපත් හෝ අනවශ්‍ය භාණ්ඩ පිරිසිදු කරන්න">
+                🧹 <span class="hide-mobile">අනුපිටපත්</span> Clear
               </button>
             ` : ''}
-            <button class="btn btn-sm btn-blue" onclick="exportInventoryPdfReport()" title="පෙරහන් කර ඇති භාණ්ඩ තොග වාර්තාව PDF / Print කරන්න" style="display:flex;align-items:center;gap:4px;padding:7px 11px;font-size:12px;font-weight:600">
-              🖨️ PDF වාර්තාව
+            <button class="btn btn-sm btn-blue" onclick="exportInventoryPdfReport()" title="පෙරහන් කර ඇති භාණ්ඩ තොග වාර්තාව PDF / Print කරන්න">
+              🖨️ PDF <span class="hide-mobile">වාර්තාව</span>
             </button>
-            <button class="btn btn-sm" onclick="exportInventoryCSV()" title="සම්පූර්ණ තොග නාමාවලිය CSV ලෙස බාගත කරන්න" style="display:flex;align-items:center;gap:4px;padding:7px 11px;font-size:12px">
+            <button class="btn btn-sm" onclick="exportInventoryCSV()" title="සම්පූර්ණ තොග නාමාවලිය CSV ලෙස බාගත කරන්න">
               ⬇️ CSV
             </button>
             ${(hasPermission('inventory') || (state.user && state.user.role !== 'cashier')) ? `
@@ -342,16 +342,20 @@ function pgInventory(){
           </div>
         </div>
         
-        <!-- ⭐ Search -->
+        <!-- ⭐ Search & Scan Row -->
         <div class="inv-search-row">
-          <span class="inv-search-icon">🔍</span>
-          <input id="invSearch" 
-                 type="search"
-                 placeholder="භාණ්ඩය සොයන්න (නම / කේතය / OEM)..."
-                 value="${esc(state.invSearch || '')}"
-                 oninput="document.querySelector('.inv-search-clear')?.classList.toggle('hidden', !this.value); debouncedInvSearch(this.value)">
-          <button type="button" class="btn btn-sm" onclick="scanBarcodeForField('#invSearch', true)" title="Barcode Scan කර සොයන්න" style="background:#1e293b;border:1px solid var(--line);color:#34d399;font-weight:700;padding:5px 9px;font-size:11.5px;margin-left:4px;white-space:nowrap;display:flex;align-items:center;gap:4px">📷 Scan</button>
-          <button class="inv-search-clear ${state.invSearch ? '' : 'hidden'}" onclick="clearInvSearch()">✕</button>
+          <div class="inv-search-box">
+            <span class="inv-search-icon">🔍</span>
+            <input id="invSearch" 
+                   type="search"
+                   placeholder="භාණ්ඩය සොයන්න (නම / කේතය / OEM)..."
+                   value="${esc(state.invSearch || '')}"
+                   oninput="document.querySelector('.inv-search-clear')?.classList.toggle('hidden', !this.value); debouncedInvSearch(this.value)">
+            <button type="button" class="inv-search-clear ${state.invSearch ? '' : 'hidden'}" onclick="clearInvSearch()">✕</button>
+          </div>
+          <button type="button" class="btn btn-sm inv-scan-btn" onclick="scanBarcodeForField('#invSearch', true)" title="Barcode Scan කර සොයන්න">
+            📷 <span class="hide-mobile">Barcode</span> Scan
+          </button>
         </div>
         
         <!-- ⭐ Dropdowns row (2 cols) -->

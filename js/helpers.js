@@ -627,13 +627,13 @@ async function showContactUsModal(activeTab = 'contact'){
               ගැටළු කාණ්ඩය (Issue Category) <span style="color:#ef4444">*</span>
             </label>
             <select id="bugCategory" class="form-input" style="width:100%;box-sizing:border-box">
-              <option value="billing">💳 POS / බිල්පත් ගැටළුවක් (Billing Issue)</option>
-              <option value="inventory">📦 භාණ්ඩ හා තොග ගැටළුවක් (Inventory Issue)</option>
-              <option value="grn">📥 GRN / සැපයුම්කරු ගැටළුවක් (GRN Issue)</option>
-              <option value="barcode">🏷️ Barcode / ස්කෑනර් ගැටළුවක් (Scanner Issue)</option>
-              <option value="login">🔐 Login / මුරපද ගැටළුවක් (Login / Access)</option>
-              <option value="maintenance">🛠️ Data Clean / Reset ගැටළුවක් (Reset / Cleanup)</option>
-              <option value="other" selected>⚙️ වෙනත් පද්ධති ගැටළුවක් (Other Issue)</option>
+              <option value="billing">💳 POS / බිල්පත් (Billing)</option>
+              <option value="inventory">📦 භාණ්ඩ / තොග (Inventory)</option>
+              <option value="grn">📥 GRN / සැපයුම් (GRN)</option>
+              <option value="barcode">🏷️ Barcode ස්කෑනර් (Barcode)</option>
+              <option value="login">🔐 Login / මුරපද (Login)</option>
+              <option value="maintenance">🛠️ Data Clean / Reset</option>
+              <option value="other" selected>⚙️ වෙනත් ගැටළු (Other Issue)</option>
             </select>
           </div>
           <div>
@@ -782,31 +782,27 @@ async function showContactUsModal(activeTab = 'contact'){
 
     tabBodyHtml = `
       <div style="display:flex;flex-direction:column;gap:12px;padding:4px 0">
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;background:rgba(15,23,42,0.8);border:1px solid var(--line);border-radius:10px;padding:8px 12px">
-          <div style="display:flex;gap:6px;flex-wrap:wrap">
-            <button class="btn btn-sm ${filter==='all'?'btn-primary':'btn-secondary'}" onclick="window._bugAdminFilter='all';showContactUsModal('admin_bugs')">
-              සියල්ල (${allAdminReports.length})
+        <div style="display:flex;align-items:center;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding:8px 10px;background:rgba(15,23,42,0.8);border:1px solid var(--line);border-radius:10px;scrollbar-width:none">
+          <button class="btn btn-sm ${filter==='all'?'btn-primary':'btn-secondary'}" onclick="window._bugAdminFilter='all';showContactUsModal('admin_bugs')" style="white-space:nowrap;flex-shrink:0">
+            සියල්ල (${allAdminReports.length})
+          </button>
+          <button class="btn btn-sm ${filter==='pending'?'btn-primary':'btn-secondary'}" onclick="window._bugAdminFilter='pending';showContactUsModal('admin_bugs')" style="white-space:nowrap;flex-shrink:0;${pendingCount>0?'border-color:#ef4444;color:#fca5a5':''}">
+            🟡 Pending (${pendingCount})
+          </button>
+          <button class="btn btn-sm ${filter==='in_progress'?'btn-primary':'btn-secondary'}" onclick="window._bugAdminFilter='in_progress';showContactUsModal('admin_bugs')" style="white-space:nowrap;flex-shrink:0">
+            🔵 In Progress
+          </button>
+          <button class="btn btn-sm ${filter==='fixed'?'btn-primary':'btn-secondary'}" onclick="window._bugAdminFilter='fixed';showContactUsModal('admin_bugs')" style="white-space:nowrap;flex-shrink:0">
+            🟢 Fixed (${fixedCount})
+          </button>
+          <button class="btn btn-secondary btn-sm" onclick="showContactUsModal('admin_bugs')" title="නැවත ලබාගන්න" style="white-space:nowrap;flex-shrink:0">
+            🔄 Refresh
+          </button>
+          ${fixedCount > 0 ? `
+            <button class="btn btn-sm" onclick="adminClearAllFixedBugs()" style="background:rgba(239,68,68,0.15);color:#ef4444;border:1px solid rgba(239,68,68,0.3);font-weight:600;white-space:nowrap;flex-shrink:0" title="විසඳූ සියලු Bug Reports Database එකෙන් මකා දමා Storage නිදහස් කරන්න">
+              🧹 Clear Fixed
             </button>
-            <button class="btn btn-sm ${filter==='pending'?'btn-primary':'btn-secondary'}" onclick="window._bugAdminFilter='pending';showContactUsModal('admin_bugs')" style="${pendingCount>0?'border-color:#ef4444;color:#fca5a5':''}">
-              🟡 Pending (${pendingCount})
-            </button>
-            <button class="btn btn-sm ${filter==='in_progress'?'btn-primary':'btn-secondary'}" onclick="window._bugAdminFilter='in_progress';showContactUsModal('admin_bugs')">
-              🔵 In Progress
-            </button>
-            <button class="btn btn-sm ${filter==='fixed'?'btn-primary':'btn-secondary'}" onclick="window._bugAdminFilter='fixed';showContactUsModal('admin_bugs')">
-              🟢 Fixed (${fixedCount})
-            </button>
-          </div>
-          <div style="display:flex;gap:6px">
-            ${fixedCount > 0 ? `
-              <button class="btn btn-sm" onclick="adminClearAllFixedBugs()" style="background:rgba(239,68,68,0.15);color:#ef4444;border:1px solid rgba(239,68,68,0.3);font-weight:600" title="විසඳූ සියලු Bug Reports Database එකෙන් මකා දමා Storage නිදහස් කරන්න">
-                🧹 විසඳූ සියල්ල මකන්න (Clear Fixed)
-              </button>
-            ` : ''}
-            <button class="btn btn-secondary btn-sm" onclick="showContactUsModal('admin_bugs')" title="නැවත ලබාගන්න">
-              🔄 Refresh
-            </button>
-          </div>
+          ` : ''}
         </div>
 
         <div style="max-height:58vh;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding-right:4px">
