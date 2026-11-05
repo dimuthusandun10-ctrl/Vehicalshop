@@ -496,17 +496,26 @@ async function doLogin(){
   state.page = (shortcut && typeof can === 'function' && can(shortcut)) ? shortcut : 'billing';
   state.cart = [];
 
-  // Persist session across browser refresh within this tab session
+  // Persist session across browser refresh and mobile background / recent apps
   try {
     sessionStorage.setItem('pos.tabSessionActive', 'true');
     sessionStorage.setItem('pos.currentUser', JSON.stringify(user));
     sessionStorage.setItem('pos.currentPage', state.page);
     sessionStorage.removeItem('pos.screenLocked');
 
-    // Clear persistent user from localStorage so closing the tab requires re-login
-    localStorage.removeItem('pos.currentUser');
-    localStorage.removeItem('pos.currentPage');
+    // Also persist in localStorage so mobile recent apps / background reload preserves the user!
+    localStorage.setItem('pos.currentUser', JSON.stringify(user));
+    localStorage.setItem('pos.currentPage', state.page);
     localStorage.removeItem('pos.screenLocked');
+
+    if(p && window.Security && typeof window.Security.hashPassword === 'function'){
+      window.Security.hashPassword(p).then(h => {
+        try {
+          sessionStorage.setItem('pos.unlockPasswordHash', h);
+          localStorage.setItem('pos.unlockPasswordHash', h);
+        } catch(_){}
+      }).catch(() => {});
+    }
   } catch(e){}
 
   if(typeof window.loadPageModule === 'function'){
@@ -671,9 +680,12 @@ function performLogout(){
     sessionStorage.removeItem('pos.authEmail');
     sessionStorage.removeItem('pos.unlockPasswordHash');
     sessionStorage.removeItem('pos.screenLocked');
+    sessionStorage.removeItem('pos.hiddenAt');
     localStorage.removeItem('pos.currentUser');
     localStorage.removeItem('pos.currentPage');
+    localStorage.removeItem('pos.unlockPasswordHash');
     localStorage.removeItem('pos.screenLocked');
+    localStorage.removeItem('pos.hiddenAt');
   } catch(e){}
   if(typeof stopIdleTimer === 'function') stopIdleTimer();
   const lockOverlay = document.getElementById('screenLockOverlay');
@@ -803,20 +815,20 @@ window.lockSwitchUser = lockSwitchUser;
    ========================================================= */
 async function restoreSession(){
   try {
-    // 🛡️ Tab-Session Guard:
-    // If the browser tab was closed and re-opened, sessionStorage is empty.
-    // The user MUST be redirected to the login page to authenticate!
-    // On page refresh (reload/F5 within the same tab), sessionStorage is preserved,
-    // so the user remains logged in seamlessly on their current page.
+    // 🛡️ Mobile Recent Apps & Session Guard:
+    // When the phone puts the app in "recent apps", mobile browsers (Chrome / Android / Safari)
+    // may reload the page or clear tab-bound sessionStorage.
+    // We check sessionStorage first, and fall back to localStorage so the user is never kicked to the login screen!
     const isTabSessionActive = sessionStorage.getItem('pos.tabSessionActive');
-    const userJson = sessionStorage.getItem('pos.currentUser');
+    const userJson = sessionStorage.getItem('pos.currentUser') || localStorage.getItem('pos.currentUser');
 
-    if(!isTabSessionActive || !userJson){
+    if(!userJson){
       // Ensure any legacy localStorage session is completely purged
       try {
         localStorage.removeItem('pos.currentUser');
         localStorage.removeItem('pos.currentPage');
         localStorage.removeItem('pos.screenLocked');
+        localStorage.removeItem('pos.unlockPasswordHash');
       } catch(_){}
       // Sign out background Firebase auth if any
       if(window.FB && typeof window.FB.signOut === 'function'){
@@ -838,6 +850,9 @@ async function restoreSession(){
           sessionStorage.removeItem('pos.currentUser');
           sessionStorage.removeItem('pos.currentPage');
           localStorage.removeItem('pos.currentUser');
+          localStorage.removeItem('pos.currentPage');
+          localStorage.removeItem('pos.screenLocked');
+          localStorage.removeItem('pos.unlockPasswordHash');
           return false;
         }
       }
@@ -845,9 +860,16 @@ async function restoreSession(){
 
     state.user = user;
     state.authUid = user.authUid || user.id;
-    if(!state.user.email && sessionStorage.getItem('pos.authEmail')){
-      state.user.email = sessionStorage.getItem('pos.authEmail');
+    if(!state.user.email && (sessionStorage.getItem('pos.authEmail') || localStorage.getItem('pos.authEmail'))){
+      state.user.email = sessionStorage.getItem('pos.authEmail') || localStorage.getItem('pos.authEmail');
     }
+
+    // Refresh stored session across both storages
+    try {
+      sessionStorage.setItem('pos.tabSessionActive', 'true');
+      sessionStorage.setItem('pos.currentUser', JSON.stringify(user));
+      localStorage.setItem('pos.currentUser', JSON.stringify(user));
+    } catch(_){}
 
     // Set active shop
     const allShops = (db.shops && db.shops.length > 0) ? db.shops : (window.INITIAL_SHOPS || []);
@@ -927,8 +949,13 @@ async function restoreSession(){
       initIdleTimer();
     }
 
-    // Restore lock state if previously locked within this tab session
-    if(sessionStorage.getItem('pos.screenLocked') === 'true' || localStorage.getItem('pos.screenLocked') === 'true'){
+    // 🔒 If returning from Recent Apps (new tab / page reload), or if locked previously:
+    // ALWAYS display the screen lock overlay instead of the full login screen!
+    const shouldLock = !isTabSessionActive || 
+                       sessionStorage.getItem('pos.screenLocked') === 'true' || 
+                       localStorage.getItem('pos.screenLocked') === 'true';
+
+    if(shouldLock){
       lockScreen();
     }
 
@@ -951,6 +978,9 @@ let _idleLockTimer = null;
 let _isScreenLocked = false;
 let _idleEventsBound = false;
 
+let _visibilityLockBound = false;
+let _recentBackgroundAt = 0;
+
 function initIdleTimer(){
   resetIdleTimer();
   if(!_idleEventsBound){
@@ -963,6 +993,51 @@ function initIdleTimer(){
       }, { passive: true });
     });
     _idleEventsBound = true;
+  }
+
+  // 📱 Mobile Recent Apps & Background Auto-Lock Handler
+  if(!_visibilityLockBound){
+    _visibilityLockBound = true;
+
+    document.addEventListener('visibilitychange', () => {
+      if(!window.state?.user) return;
+
+      if(document.visibilityState === 'hidden'){
+        // App minimized or placed in Recent Apps
+        _recentBackgroundAt = Date.now();
+        try {
+          sessionStorage.setItem('pos.screenLocked', 'true');
+          localStorage.setItem('pos.screenLocked', 'true');
+          localStorage.setItem('pos.hiddenAt', String(Date.now()));
+        } catch(_){}
+      } else if(document.visibilityState === 'visible'){
+        // User returned to web app from Recent Apps
+        const now = Date.now();
+        const storedHiddenAt = parseInt(localStorage.getItem('pos.hiddenAt') || '0', 10);
+        const elapsed = _recentBackgroundAt ? (now - _recentBackgroundAt) : (storedHiddenAt ? (now - storedHiddenAt) : 0);
+        _recentBackgroundAt = 0;
+        try { localStorage.removeItem('pos.hiddenAt'); } catch(_){}
+
+        // Don't auto-lock if user was just picking a photo or barcode scanner
+        if(window._isCameraScanning || window._isSelectingFile){
+          return;
+        }
+
+        // If returned from recent apps or background, auto-lock the screen!
+        if(localStorage.getItem('pos.screenLocked') === 'true' || elapsed > 2500){
+          lockScreen();
+        }
+      }
+    });
+
+    window.addEventListener('pagehide', () => {
+      if(window.state?.user){
+        try {
+          sessionStorage.setItem('pos.screenLocked', 'true');
+          localStorage.setItem('pos.screenLocked', 'true');
+        } catch(_){}
+      }
+    });
   }
 }
 
@@ -987,7 +1062,7 @@ function lockScreen(){
   _isScreenLocked = true;
   try {
     sessionStorage.setItem('pos.screenLocked', 'true');
-    localStorage.removeItem('pos.screenLocked');
+    localStorage.setItem('pos.screenLocked', 'true');
   } catch(e){}
 
   if(document.getElementById('screenLockOverlay')) return;
@@ -1007,7 +1082,7 @@ function lockScreen(){
         <span class="screen-lock-icon">🔒</span>
       </div>
       <h2 class="screen-lock-title">පද්ධතිය අගුළු දමා ඇත</h2>
-      <p class="screen-lock-subtitle">ආරක්ෂාව සඳහා මිනිත්තු 5ක් අක්‍රියව තිබූ බැවින් පද්ධතිය අගුළු ලන ලදී (Screen locked due to 5 min inactivity)</p>
+      <p class="screen-lock-subtitle">පද්ධතියේ ආරක්ෂාව සඳහා තිරය අගුළු ලන ලදී (Screen locked for security & privacy)</p>
 
       <div class="screen-lock-user-card">
         <div class="screen-lock-avatar">${esc(initialLetter)}</div>
@@ -1104,8 +1179,8 @@ async function unlockScreen(){
 
     let isValid = false;
 
-    // 1. Check against stored unlock password hash in sessionStorage
-    const storedHash = sessionStorage.getItem('pos.unlockPasswordHash');
+    // 1. Check against stored unlock password hash in sessionStorage or localStorage
+    const storedHash = sessionStorage.getItem('pos.unlockPasswordHash') || localStorage.getItem('pos.unlockPasswordHash');
     if(storedHash && window.Security && typeof window.Security.verifyPassword === 'function'){
       try {
         isValid = await window.Security.verifyPassword(entered, storedHash);
@@ -1116,6 +1191,12 @@ async function unlockScreen(){
     if(!isValid && user.password && window.Security && typeof window.Security.verifyPassword === 'function'){
       try {
         isValid = await window.Security.verifyPassword(entered, user.password);
+        if(isValid){
+          try {
+            sessionStorage.setItem('pos.unlockPasswordHash', user.password);
+            localStorage.setItem('pos.unlockPasswordHash', user.password);
+          } catch(_){}
+        }
       } catch(_){}
     }
 
@@ -1125,6 +1206,12 @@ async function unlockScreen(){
       if(dbUser && dbUser.password){
         try {
           isValid = await window.Security.verifyPassword(entered, dbUser.password);
+          if(isValid){
+            try {
+              sessionStorage.setItem('pos.unlockPasswordHash', dbUser.password);
+              localStorage.setItem('pos.unlockPasswordHash', dbUser.password);
+            } catch(_){}
+          }
         } catch(_){}
       }
     }
@@ -1166,6 +1253,7 @@ async function unlockScreen(){
                 try {
                   const newHash = await window.Security.hashPassword(entered);
                   sessionStorage.setItem('pos.unlockPasswordHash', newHash);
+                  localStorage.setItem('pos.unlockPasswordHash', newHash);
                   user.password = newHash;
                   user.email = em;
                 } catch(_){}
@@ -1186,6 +1274,7 @@ async function unlockScreen(){
       try {
         sessionStorage.removeItem('pos.screenLocked');
         localStorage.removeItem('pos.screenLocked');
+        localStorage.removeItem('pos.hiddenAt');
       } catch(e){}
 
       const overlay = document.getElementById('screenLockOverlay');
@@ -1218,6 +1307,7 @@ function lockSwitchUser(){
     try {
       sessionStorage.removeItem('pos.screenLocked');
       localStorage.removeItem('pos.screenLocked');
+      localStorage.removeItem('pos.hiddenAt');
     } catch(e){}
     const overlay = document.getElementById('screenLockOverlay');
     if(overlay) overlay.remove();
