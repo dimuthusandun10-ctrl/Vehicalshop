@@ -2,19 +2,11 @@
    js/app.js - Application Lifecycle & Global Event Listeners
    ========================================================= */
 
+const CURRENT_APP_VERSION = 'v2.8.4';
+window.CURRENT_APP_VERSION = CURRENT_APP_VERSION;
 function resolveAppVersion(){
-  try {
-    const scripts = document.querySelectorAll('script[src*="js/app.js"]');
-    for(const s of scripts){
-      const src = s.getAttribute('src') || '';
-      const m = src.match(/[?&]v=([0-9a-zA-Z\.\-]+)/);
-      if(m && m[1]) return m[1].startsWith('v') ? m[1] : ('v' + m[1]);
-    }
-  } catch(_){}
-  return 'v2.8.4';
+  return CURRENT_APP_VERSION;
 }
-window.CURRENT_APP_VERSION = resolveAppVersion();
-const CURRENT_APP_VERSION = window.CURRENT_APP_VERSION;
 let _isUpdatingApp = false;
 window._isUpdatingApp = false;
 
@@ -216,7 +208,8 @@ async function checkForCloudflareUpdates(force = false){
       if(match && match[1]){
         const remoteVer = match[1];
         window._availableRemoteVersion = remoteVer;
-        if(remoteVer !== CURRENT_APP_VERSION){
+        const storedVer = localStorage.getItem('pos.appVersion');
+        if(remoteVer !== CURRENT_APP_VERSION && remoteVer !== storedVer){
           console.log('⚡ Real-time new version detected on Cloudflare:', remoteVer, 'Current:', CURRENT_APP_VERSION);
           showUpdateBannerDirect(remoteVer);
           updateTopbarUpdateBadge(remoteVer);
@@ -510,22 +503,15 @@ async function forceUpdateApp(targetVer){
       if(overlay) overlay.remove();
     }, 4000);
 
-    await sleep(400);
+    await sleep(300);
 
-    // Primary cross-platform reload execution
+    // Primary cross-platform reload execution (force fresh document from network)
     try {
+      const cleanUrl = window.location.origin + window.location.pathname;
+      window.location.replace(cleanUrl + '?_v=' + encodeURIComponent(newVer) + '&_ts=' + Date.now());
+    } catch(_) {
       window.location.reload();
-    } catch(_) {}
-
-    // Fallback replace for PWAs
-    setTimeout(() => {
-      try {
-        const cleanUrl = window.location.origin + window.location.pathname;
-        window.location.replace(cleanUrl + '?_ts=' + Date.now());
-      } catch(_) {
-        window.location.reload();
-      }
-    }, 400);
+    }
 
   } catch(err){
     console.error('Update progress error:', err);
