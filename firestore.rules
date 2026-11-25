@@ -103,8 +103,13 @@ service cloud.firestore {
          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'shopId', 'permissions']))
       );
       
-      // Delete: Superadmin only
-      allow delete: if isSuper();
+      // Delete: Superadmin can delete any user; Shop Admin can delete cashiers in their own shop
+      allow delete: if isSuper() || (
+        isAdmin() && 
+        resource != null && 
+        resource.data.shopId == currentShopId() && 
+        resource.data.role == 'cashier'
+      );
     }
 
     // ═══════════════════════════════════════════════
@@ -114,7 +119,7 @@ service cloud.firestore {
     match /shops/{shopId} {
       // Authenticated users can read shop list/metadata (needed for login, receipts & UI)
       allow read: if isSignedIn();
-      allow write: if isSuper();
+      allow write: if isSuper() || isAdmin();
     }
 
     // ═══════════════════════════════════════════════

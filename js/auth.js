@@ -266,11 +266,12 @@ async function doLogin(){
       !x.deleted && (
         (x.username && x.username.toLowerCase() === normalized) ||
         (x.email && x.email.toLowerCase() === email) ||
+        (x.authEmail && x.authEmail.toLowerCase() === email) ||
         (isSuperAdminIdentifier(normalized) && (x.role === 'superadmin' || x.username === 'superadmin'))
       )
     );
-    if(localUser && localUser.email && !isSuperAdminIdentifier(normalized) && !u.includes('@')){
-      email = localUser.email;
+    if(localUser && (localUser.authEmail || localUser.email) && !isSuperAdminIdentifier(normalized) && !u.includes('@')){
+      email = localUser.authEmail || localUser.email;
     }
 
     // 3. Status checks

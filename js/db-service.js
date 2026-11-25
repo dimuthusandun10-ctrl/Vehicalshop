@@ -383,7 +383,10 @@ Object.assign(DB, {
       return;
     }
 
-    const filterByShop = (list) => (list || []).filter(item => item.shopId === shopId);
+    const filterByShop = (list) => (list || []).map(item => {
+      if(item && !item.shopId && shopId) item.shopId = shopId;
+      return item;
+    }).filter(item => item && (!item.shopId || item.shopId === shopId));
 
     if(cached.shop) this.shop = cached.shop;
     if(cached.shops?.length) this.shops = cached.shops;
@@ -630,7 +633,33 @@ function startPageListeners(page){
     try {
       const q = query(collection(fsDb, colName), where('shopId', '==', shopId));
       _unsubscribers[colName] = onSnapshot(q, snap => {
-        const list = snap.docs.map(d => ({ ...d.data(), id: d.id, _docId: d.id }));
+        const cloudDocs = snap.docs.map(d => {
+          const data = d.data() || {};
+          return {
+            ...data,
+            id: data.id || d.id,
+            _docId: d.id
+          };
+        });
+
+        // Smart merge: preserve items created locally that have not synced yet or are in offline queue
+        const mergedMap = new Map();
+        cloudDocs.forEach(item => {
+          if(item && item.id) mergedMap.set(item.id, item);
+        });
+
+        const existingList = DB[dbKey] || [];
+        existingList.forEach(localItem => {
+          if(!localItem || !localItem.id) return;
+          if(!mergedMap.has(localItem.id)){
+            // Only keep if it belongs to this shop or has no shopId
+            if(!localItem.shopId || localItem.shopId === shopId){
+              mergedMap.set(localItem.id, localItem);
+            }
+          }
+        });
+
+        const list = Array.from(mergedMap.values());
         DB[dbKey] = list;
         if(typeof processFn === 'function') processFn(list);
         DB.persistLocal();
@@ -650,12 +679,28 @@ function startPageListeners(page){
     } catch(e){}
   };
 
-  // Always sync shops
+  // Always sync shops safely without overwriting local newly-created shops
   try {
     _unsubscribers['shops'] = onSnapshot(collection(fsDb, 'shops'), snap => {
-      DB.shops = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      DB.persistLocal();
-      rerenderIfActive();
+      if(!snap.empty){
+        const cloudShops = snap.docs.map(d => {
+          const data = d.data() || {};
+          return { ...data, id: data.id || d.id, _docId: d.id };
+        });
+        const shopMap = new Map();
+        // Keep existing valid local shops (so local shops are NEVER wiped)
+        (DB.shops || []).forEach(s => { if(s && s.id) shopMap.set(s.id, s); });
+        // Merge cloud shops
+        cloudShops.forEach(s => {
+          if(s && s.id){
+            const existing = shopMap.get(s.id) || {};
+            shopMap.set(s.id, { ...existing, ...s });
+          }
+        });
+        DB.shops = Array.from(shopMap.values());
+        DB.persistLocal();
+        rerenderIfActive();
+      }
     });
   } catch(e){}
 

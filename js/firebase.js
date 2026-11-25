@@ -120,7 +120,7 @@ async function createUserWithoutLogout(email, password, userDoc){
   }
 
   const { initializeApp, deleteApp } = _fbModules.appMod;
-  const { getAuth, createUserWithEmailAndPassword, signOut } = _fbModules.authMod;
+  const { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, updatePassword, signOut } = _fbModules.authMod;
   const { doc, setDoc } = _fbModules.fsMod;
 
   // Secondary Firebase App instance ensures primary Superadmin/Admin session remains untouched
@@ -129,14 +129,41 @@ async function createUserWithoutLogout(email, password, userDoc){
   if(!cleanEmail.includes('@')){
     cleanEmail = `${cleanEmail}@autoparts.local`;
   }
+  let authEmail = cleanEmail;
 
   try {
     secondaryApp = initializeApp(firebaseConfig, secondaryAppName);
     const secondaryAuth = getAuth(secondaryApp);
 
-    // 1. Create Firebase Auth user in secondary app
-    const credential = await createUserWithEmailAndPassword(secondaryAuth, cleanEmail, password);
-    const uid = credential.user.uid;
+    let uid = null;
+    try {
+      // 1. Create Firebase Auth user in secondary app
+      const credential = await createUserWithEmailAndPassword(secondaryAuth, cleanEmail, password);
+      uid = credential.user.uid;
+    } catch(createErr){
+      // If user was previously deleted or email already exists in Firebase Auth
+      if(createErr && (createErr.code === 'auth/email-already-in-use' || createErr.message?.includes('email-already-in-use'))){
+        console.warn('createUserWithoutLogout: email already in use, recovering auth identity for:', cleanEmail);
+        try {
+          // Attempt to log into existing Auth account to reuse UID & update password
+          const existingCred = await signInWithEmailAndPassword(secondaryAuth, cleanEmail, password);
+          uid = existingCred.user.uid;
+          if(typeof updatePassword === 'function'){
+            try { await updatePassword(existingCred.user, password); } catch(_){}
+          }
+        } catch(signErr){
+          // If password was different, generate a unique auth alias while keeping cleanEmail for display & lookup
+          const salt = Date.now().toString(36).slice(-5);
+          authEmail = cleanEmail.replace(/(@.*)$/, `.${salt}$1`);
+          const aliasCred = await createUserWithEmailAndPassword(secondaryAuth, authEmail, password);
+          uid = aliasCred.user.uid;
+        }
+      } else {
+        throw createErr;
+      }
+    }
+
+    if(!uid) throw new Error('Could not establish User Auth UID');
 
     // 2. Prepare user document data
     const db = window.DB || {};
@@ -146,10 +173,13 @@ async function createUserWithoutLogout(email, password, userDoc){
       id: uid,
       authUid: uid,
       email: cleanEmail,
+      authEmail: authEmail,
       active: true,
+      deleted: false,
       locked: false,
-      needsPasswordChange: true,
-      createdAt: new Date().toISOString(),
+      needsPasswordChange: false,
+      createdAt: userDoc.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
       createdBy
     };
 
@@ -169,7 +199,7 @@ async function createUserWithoutLogout(email, password, userDoc){
 
     // 6. Update local in-memory DB and cache
     if(!db.users) db.users = [];
-    const idx = db.users.findIndex(x => x.id === uid || x.authUid === uid);
+    const idx = db.users.findIndex(x => x.id === uid || x.authUid === uid || (x.username && userDoc.username && x.username.toLowerCase() === userDoc.username.toLowerCase()));
     if(idx >= 0){
       db.users[idx] = { ...db.users[idx], ...userData };
     } else {
@@ -614,6 +644,24 @@ async function fbDeleteDirect(colName, id){
         permErr = e;
       }
     }
+  }
+
+  // 5. For users, also check by 'authUid' or 'username'
+  if(colName === 'users' || colName === COL.users){
+    try {
+      const q4 = query(collection(_fbDb, colName), where('authUid', '==', id));
+      const s4 = await getDocs(q4);
+      for(const d of s4.docs){
+        try { await deleteDoc(doc(_fbDb, colName, d.id)); } catch(_){}
+      }
+    } catch(_){}
+    try {
+      const q5 = query(collection(_fbDb, colName), where('username', '==', id));
+      const s5 = await getDocs(q5);
+      for(const d of s5.docs){
+        try { await deleteDoc(doc(_fbDb, colName, d.id)); } catch(_){}
+      }
+    } catch(_){}
   }
 
   if(permErr) throw permErr;

@@ -1841,7 +1841,7 @@ async function grnSave(){
     try {
       if(window.FB && window.FB.fbUpdate){
         for(const p of updatedProducts){
-          window.FB.fbUpdate(window.FB.COL.products, p.id, { qty: p.qty, cost: p.cost }).catch(e=>console.warn(e));
+          window.FB.fbUpdate(window.FB.COL.products, p.id, { qty: p.qty, cost: p.cost, shopId: p.shopId || grnRecord.shopId }).catch(e=>console.warn(e));
         }
       }
       if(supObj && window.FB && window.FB.fbUpdate){

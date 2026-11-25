@@ -822,19 +822,56 @@ async function saveUser(id){
 }
 
 async function delUser(id){
-  if(!confirm('මෙම පරිශීලකයා මකා දැමීමට අවශ්‍යද?')) return;
   const db = window.DB || {};
   const target = (db.users || []).find(x => x.id === id || x.authUid === id);
-  const targetId = target ? (target.authUid || target.id) : id;
-  db.users = (db.users || []).filter(x => x.id !== id && x.authUid !== id);
+  const targetName = target ? `${target.name || ''} (@${target.username || ''})` : id;
+  if(!confirm(`මෙම පරිශීලකයා (${targetName}) පද්ධතියෙන් සහ Cloud එකෙන් සම්පූර්ණයෙන්ම ඉවත් කිරීමට අවශ්‍ය බව සහතිකද?`)) return;
 
-  if(window.FB && window.FB.fbDelete){
-    await window.FB.fbDelete(window.FB.COL.users, targetId);
+  const targetId = target ? (target.authUid || target.id) : id;
+  const username = target?.username;
+  const secondaryId = (target && target.id !== targetId) ? target.id : null;
+
+  if(target){
+    target.deleted = true;
+    target.active = false;
   }
-  if(typeof saveDB === 'function') saveDB();
+  db.users = (db.users || []).filter(x => x.id !== id && x.authUid !== id && (!username || x.username !== username));
+
+  // 1. Delete from Firestore cloud
+  if(window.FB && window.FB.fbDelete){
+    try { await window.FB.fbDelete(window.FB.COL.users, targetId); } catch(e){ console.warn('User cloud delete error:', e); }
+    if(secondaryId){
+      try { await window.FB.fbDelete(window.FB.COL.users, secondaryId); } catch(_){}
+    }
+    if(username){
+      try { await window.FB.fbDelete(window.FB.COL.users, username); } catch(_){}
+    }
+  }
+
+  // 2. Purge from offline sync queue so they are not re-added
+  try {
+    const rawQ = localStorage.getItem('pos.syncQueue');
+    if(rawQ){
+      const parsed = JSON.parse(rawQ);
+      if(Array.isArray(parsed)){
+        localStorage.setItem('pos.syncQueue', JSON.stringify(
+          parsed.filter(q => !(q.collection === 'users' && (q.docId === targetId || q.docId === id || (q.data && (q.data.id === id || q.data.authUid === id)))))
+        ));
+      }
+    }
+    if(window.Offline && Array.isArray(window.Offline.queue)){
+      window.Offline.queue = window.Offline.queue.filter(q =>
+        !(q.collection === 'users' && (q.docId === targetId || q.docId === id || (q.data && (q.data.id === id || q.data.authUid === id))))
+      );
+      if(typeof window.Offline.persist === 'function') window.Offline.persist();
+    }
+  } catch(_){}
+
+  if(typeof saveDB === 'function') saveDB(true);
+  if(window.DB && typeof window.DB._persistLocalNow === 'function') window.DB._persistLocalNow();
 
   render();
-  toast('පරිශීලකයා මකා දමන ලදී');
+  toast('පරිශීලකයා සාර්ථකව මකා දමන ලදී 🗑️');
 }
 
 async function exportFullBackup(){

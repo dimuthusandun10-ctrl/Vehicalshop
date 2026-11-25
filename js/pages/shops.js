@@ -297,8 +297,12 @@ async function submitCreateShop(){
   toast(`නව සාප්පුව (${name}) සාර්ථකව නිර්මාණය විය! ✅`);
   render();
 
-  // Background sync to Firestore without blocking UI
-  if(window.FB && window.FB.fbSet){
+  // Immediate direct sync to Firestore without blocking UI
+  if(window.FB && window.FB.fbSetDirect){
+    window.FB.fbSetDirect(window.FB.COL.shops, newShop.id, newShop).catch(() => {
+      if(window.FB && window.FB.fbSet) window.FB.fbSet(window.FB.COL.shops, newShop.id, newShop).catch(err => console.warn(err));
+    });
+  } else if(window.FB && window.FB.fbSet){
     window.FB.fbSet(window.FB.COL.shops, newShop.id, newShop).catch(err => {
       console.warn('Background shop sync warning:', err);
     });

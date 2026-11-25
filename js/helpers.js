@@ -374,9 +374,14 @@ async function submitBugReportForm(){
     return;
   }
 
+  const btnInline = document.getElementById('bugSubmitBtnInline');
   if(btn){
     btn.disabled = true;
     btn.innerHTML = '⏳ යොමු කරමින් පවතී...';
+  }
+  if(btnInline){
+    btnInline.disabled = true;
+    btnInline.innerHTML = '⏳ යොමු කරමින් පවතී...';
   }
 
   try {
@@ -398,6 +403,10 @@ async function submitBugReportForm(){
     if(btn){
       btn.disabled = false;
       btn.innerHTML = '🚀 Super Admin වෙත යොමු කරන්න';
+    }
+    if(btnInline){
+      btnInline.disabled = false;
+      btnInline.innerHTML = '🚀 Super Admin වෙත වාර්තා කරන්න (Submit Bug Report)';
     }
   }
 }
@@ -516,18 +525,18 @@ async function showContactUsModal(activeTab = 'contact'){
 
   // Header Nav Tabs
   const navTabsHtml = `
-    <div class="modal-nav-tabs">
-      <button type="button" class="modal-tab-btn ${activeTab==='contact'?'active':''}" onclick="showContactUsModal('contact')">
+    <div class="modal-nav-tabs" style="display:flex;gap:6px;border-bottom:1px solid var(--line);padding-bottom:8px;margin-bottom:12px;overflow-x:auto;-webkit-overflow-scrolling:touch;flex-wrap:nowrap;width:100%">
+      <button type="button" class="modal-tab-btn ${activeTab==='contact'?'active':''}" onclick="showContactUsModal('contact')" style="flex-shrink:0;white-space:nowrap">
         📞 සහාය (Support)
       </button>
-      <button type="button" class="modal-tab-btn ${activeTab==='report'?'active':''}" onclick="showContactUsModal('report')">
+      <button type="button" class="modal-tab-btn ${activeTab==='report'?'active':''}" onclick="showContactUsModal('report')" style="flex-shrink:0;white-space:nowrap">
         🐞 දෝෂ වාර්තා (Report)
       </button>
-      <button type="button" class="modal-tab-btn ${activeTab==='my_reports'?'active':''}" onclick="showContactUsModal('my_reports')">
+      <button type="button" class="modal-tab-btn ${activeTab==='my_reports'?'active':''}" onclick="showContactUsModal('my_reports')" style="flex-shrink:0;white-space:nowrap">
         📋 මගේ වාර්තා (My Reports)
       </button>
       ${isSuper ? `
-        <button type="button" class="modal-tab-btn ${activeTab==='admin_bugs'?'active':''}" onclick="showContactUsModal('admin_bugs')" style="color:#fcd34d;border-color:rgba(252,211,77,0.3)">
+        <button type="button" class="modal-tab-btn ${activeTab==='admin_bugs'?'active':''}" onclick="showContactUsModal('admin_bugs')" style="flex-shrink:0;white-space:nowrap;color:#fcd34d;border-color:rgba(252,211,77,0.3)">
           👑 Bug Admin (${allAdminReports.length})
         </button>
       ` : ''}
@@ -672,6 +681,12 @@ async function showContactUsModal(activeTab = 'contact'){
           <small style="color:#64748b;font-size:10.5px;display:block;margin-top:3px">
             💡 <b>Storage Optimization:</b> ඡායාරූපය Browser එකෙන්ම ~50KB දක්වා Compress කර සුරැකේ.
           </small>
+        </div>
+
+        <div style="margin-top:8px">
+          <button type="button" id="bugSubmitBtnInline" class="btn btn-primary" onclick="submitBugReportForm()" style="width:100%;font-weight:700;padding:12px;font-size:13.5px;background:linear-gradient(135deg,#0284c7,#0369a1);border:none;border-radius:10px;color:#fff;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 14px rgba(2,132,199,0.35);cursor:pointer">
+            🚀 Super Admin වෙත වාර්තා කරන්න (Submit Bug Report)
+          </button>
         </div>
 
         <div style="background:rgba(255,255,255,0.03);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:11px;color:var(--muted);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px">

@@ -11482,6 +11482,9 @@ body.cart-open .pos-cart-backdrop {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
+  flex-wrap: nowrap;
+  width: 100%;
+  box-sizing: border-box;
 }
 .modal-nav-tabs::-webkit-scrollbar {
   display: none;
@@ -11500,6 +11503,7 @@ body.cart-open .pos-cart-backdrop {
   gap: 6px;
   transition: all 0.15s ease;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 .modal-tab-btn:hover {
   background: rgba(255, 255, 255, 0.1);
